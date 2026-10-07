@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dashboard — Chaw</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <nav>
+        <a href="index.html" class="brand" aria-label="Chaw home">
+            <img src="chaw-eye-white.png" alt="Chaw eye logo">
+            <div class="logo">Chaw</div>
+        </a>
+
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="discover.html">Discover</a></li>
+            <li><a href="dashboard.html">Dashboard</a></li>
+        </ul>
+
+        <a href="login.html" class="nav-button">
+            Join Chaw
+        </a>
+    </nav>
+
+        <main>
+        <p id="account-note" class="account-note"></p>
+
+        <section id="admin-panel" hidden>
+            <div class="auth-box">
+                <h2>Admin</h2>
+                <p>Add the words customers can filter by.</p>
+
+                <input id="category-word" type="text" placeholder="Filter word">
+                <button id="add-category-button" type="button">Add filter word</button>
+                <div id="category-list"></div>
+
+                <input id="business-email" type="email" placeholder="Business email">
+                <select id="business-category">
+                    <option value="">Choose a category</option>
+                </select>
+                <button id="allow-business-button" type="button">Allow business</button>
+                <div id="allowed-business-list"></div>
+                <p id="admin-message"></p>
+            </div>
+        </section>
+
+        <section id="store-setup" hidden>
+            <div class="auth-box">
+                <h2>Your store</h2>
+                <p id="store-category"></p>
+                <input id="store-name" type="text" placeholder="Store name">
+                <button id="save-store-button" type="button">Save store name</button>
+            </div>
+        </section>
+
+        <section id="add-product" hidden>
+            <div class="auth-box">
+                <h2>Add Product</h2>
+
+                <input
+                    type="text"
+                    id="product-name"
+                    placeholder="Product name"
+                >
+
+                <input
+                    type="number"
+                    id="product-price"
+                    placeholder="Price"
+                >
+
+                <input
+                    type="number"
+                    id="product-stock"
+                    placeholder="Stock quantity"
+                >
+
+                <input
+                    type="text"
+                    id="product-description"
+                    placeholder="Description"
+                >
+
+                <label class="file-label" for="product-image">Product photo</label>
+                <input
+                    type="file"
+                    id="product-image"
+                    accept="image/*"
+                >
+
+                <button id="add-product-button">
+                    Publish Product
+                </button>
+
+                <p id="product-message"></p>
+            </div>
+        </section>
+
+        <section id="sales">
+            <div class="auth-box">
+                <h2>Sales</h2>
+                <p id="sales-month" class="sales-total">This month: 0</p>
+                <p id="sales-overall" class="sales-total">All sales: 0</p>
+                <div id="sales-list"></div>
+            </div>
+        </section>
+
+        <section id="my-products">
+            <div class="auth-box">
+                <h2>My Products</h2>
+                <div id="product-list"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2026 Chaw. All rights reserved.</p>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
