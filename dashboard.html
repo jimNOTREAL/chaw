@@ -25,9 +25,8 @@
             <li><a href="dashboard.html">Dashboard</a></li>
         </ul>
 
-        <a href="login.html" class="nav-button">
-            Join Chaw
-        </a>
+        <a href="login.html" class="nav-button" id="join-link">Join Chaw</a>
+        <button type="button" id="logout-button" class="nav-button" hidden>Log out</button>
     </nav>
 
         <main>
@@ -36,18 +35,24 @@
         <section id="admin-panel" hidden>
             <div class="auth-box">
                 <h2>Admin</h2>
-                <p>Add the words customers can filter by.</p>
+                <p>Only your admin account can see these settings.</p>
 
-                <input id="category-word" type="text" placeholder="Filter word">
-                <button id="add-category-button" type="button">Add filter word</button>
-                <div id="category-list"></div>
+                <div class="admin-block">
+                    <h3>Filter words</h3>
+                    <p>Customers use these words to filter Discover.</p>
+                    <input id="category-word" type="text" placeholder="Filter word">
+                    <button id="add-category-button" type="button">Add filter word</button>
+                    <div id="category-list"></div>
+                </div>
 
-                <input id="business-email" type="email" placeholder="Business email">
-                <select id="business-category">
-                    <option value="">Choose a category</option>
-                </select>
-                <button id="allow-business-button" type="button">Allow business</button>
-                <div id="allowed-business-list"></div>
+                <div class="admin-block">
+                    <h3>Business accounts</h3>
+                    <p>The account must already be signed up. Type its email to let it publish.</p>
+                    <input id="business-email" type="email" placeholder="Account email">
+                    <button id="allow-business-button" type="button">Make business</button>
+                    <div id="business-list"></div>
+                </div>
+
                 <p id="admin-message"></p>
             </div>
         </section>
@@ -55,9 +60,10 @@
         <section id="store-setup" hidden>
             <div class="auth-box">
                 <h2>Your store</h2>
-                <p id="store-category"></p>
+                <label class="file-label" for="store-category-select">Category</label>
+                <select id="store-category-select"></select>
                 <input id="store-name" type="text" placeholder="Store name">
-                <button id="save-store-button" type="button">Save store name</button>
+                <button id="save-store-button" type="button">Save store</button>
             </div>
         </section>
 
@@ -104,7 +110,7 @@
             </div>
         </section>
 
-        <section id="sales">
+        <section id="sales" hidden>
             <div class="auth-box">
                 <h2>Sales</h2>
                 <p id="sales-month" class="sales-total">This month: 0</p>
@@ -113,7 +119,7 @@
             </div>
         </section>
 
-        <section id="my-products">
+        <section id="my-products" hidden>
             <div class="auth-box">
                 <h2>My Products</h2>
                 <div id="product-list"></div>

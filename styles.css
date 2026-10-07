@@ -91,6 +91,8 @@ nav ul a:hover {
     padding: 12px 18px;
     border-radius: 0;
     letter-spacing: 0.18em;
+    font-family: "Jost", sans-serif;
+    cursor: pointer;
     transition: background 0.25s ease, color 0.25s ease;
 }
 
@@ -256,12 +258,38 @@ main > h1 {
 }
 
 .auth-box h2,
+.auth-box h3,
 main h1 {
     font-family: "Cormorant Garamond", serif;
     font-weight: 500;
     font-size: 46px;
     margin-bottom: 18px;
     letter-spacing: -0.02em;
+}
+
+.auth-box h3 {
+    font-size: 32px;
+    margin-top: 0;
+}
+
+.admin-block {
+    margin-top: 8px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+}
+
+.admin-block > p {
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+}
+
+.auth-box .row-button {
+    width: auto;
+    padding: 8px 14px;
+    margin-top: 0;
+    margin-left: 12px;
 }
 
 main h1 {
@@ -360,6 +388,7 @@ select:focus {
 }
 
 #category-list,
+#business-list,
 #allowed-business-list,
 #sales-list,
 #product-list {
@@ -368,6 +397,7 @@ select:focus {
 }
 
 #category-list p,
+#business-list p,
 #allowed-business-list p,
 #sales-list p {
     color: var(--muted);
@@ -375,7 +405,8 @@ select:focus {
     line-height: 1.5;
 }
 
-#category-list button {
+#category-list button,
+#business-list button {
     width: auto;
     display: inline-block;
     margin: 0 0 0 8px;
@@ -463,6 +494,15 @@ select:focus {
     padding: 0 0 20px;
     box-shadow: var(--shadow);
     overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+    display: block;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.product-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 28px 70px rgba(22, 19, 17, 0.12);
 }
 
 .product-card h2,
@@ -492,6 +532,56 @@ footer {
     font-size: 11px;
 }
 
+.back-link {
+    align-self: flex-start;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+.product-page {
+    width: min(1040px, 100%);
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 48px;
+    align-items: center;
+}
+
+.product-page img {
+    width: 100%;
+    height: min(72vh, 760px);
+    object-fit: cover;
+    display: block;
+}
+
+.product-kicker {
+    color: var(--wine);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.product-copy h1 {
+    text-align: left;
+    margin-bottom: 12px;
+}
+
+.price-large {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 42px;
+    color: var(--ink);
+    margin: 18px 0 8px;
+}
+
+.product-description {
+    max-width: 420px;
+    margin-top: 18px;
+    line-height: 1.8;
+}
+
 @media (max-width: 800px) {
     nav {
         flex-wrap: wrap;
@@ -516,5 +606,14 @@ footer {
 
     .auth-box {
         padding: 36px 22px;
+    }
+
+    .product-page {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .product-page img {
+        height: 420px;
     }
 }

@@ -5,6 +5,8 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     onAuthStateChanged,
+    setPersistence,
+    browserLocalPersistence,
     signOut
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
@@ -17,6 +19,7 @@ import {
     deleteDoc,
     collection,
     getDocs,
+    getDoc,
     query,
     where
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -44,16 +47,17 @@ const categoryWordInput = document.getElementById("category-word");
 const addCategoryButton = document.getElementById("add-category-button");
 const categoryList = document.getElementById("category-list");
 const businessEmailInput = document.getElementById("business-email");
-const businessCategorySelect = document.getElementById("business-category");
 const allowBusinessButton = document.getElementById("allow-business-button");
-const allowedBusinessList = document.getElementById("allowed-business-list");
+const businessList = document.getElementById("business-list");
 const adminMessage = document.getElementById("admin-message");
 const storeSetup = document.getElementById("store-setup");
-const storeCategory = document.getElementById("store-category");
+const storeCategorySelect = document.getElementById("store-category-select");
 const storeNameInput = document.getElementById("store-name");
 const saveStoreButton = document.getElementById("save-store-button");
 const addProductSection = document.getElementById("add-product");
 const accountNote = document.getElementById("account-note");
+const salesSection = document.getElementById("sales");
+const myProductsSection = document.getElementById("my-products");
 const filterBar = document.getElementById("filter-bar");
 const discoverList = document.getElementById("discover-list");
 
@@ -539,67 +543,52 @@ async function loadCategories() {
     return categories;
 }
 
-async function loadBusinesses() {
-    const snapshot = await getDocs(collection(db, "businesses"));
-    const businesses = [];
-
-    snapshot.forEach((businessDocument) => {
-        businesses.push({
-            id: businessDocument.id,
-            ...businessDocument.data()
-        });
-    });
-
-    return businesses;
-}
-
-async function findBusiness(email) {
-    const snapshot = await getDocs(query(
-        collection(db, "businesses"),
-        where("email", "==", email.toLowerCase())
-    ));
-
-    if (snapshot.empty) {
-        return null;
-    }
-
-    const businessDocument = snapshot.docs[0];
-    return {
-        id: businessDocument.id,
-        ...businessDocument.data()
-    };
-}
-
-function fillCategorySelect(categories) {
-    if (!businessCategorySelect) {
+function fillStoreCategorySelect(categories, selectedName) {
+    if (!storeCategorySelect) {
         return;
     }
 
-    businessCategorySelect.innerHTML = "";
+    storeCategorySelect.innerHTML = "";
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = "Choose a category";
-    businessCategorySelect.appendChild(placeholder);
+    storeCategorySelect.appendChild(placeholder);
 
     categories.forEach((category) => {
         const option = document.createElement("option");
         option.value = category.name;
         option.textContent = category.name;
-        businessCategorySelect.appendChild(option);
+        storeCategorySelect.appendChild(option);
     });
+
+    storeCategorySelect.value = selectedName || "";
+}
+
+async function loadUsers() {
+    const snapshot = await getDocs(collection(db, "users"));
+    const users = [];
+
+    snapshot.forEach((userDocument) => {
+        users.push({
+            id: userDocument.id,
+            ...userDocument.data()
+        });
+    });
+
+    return users;
 }
 
 async function loadAdminPanel() {
-    if (!categoryList || !allowedBusinessList) {
+    if (!categoryList || !businessList) {
         return;
     }
 
     const categories = await loadCategories();
-    const businesses = await loadBusinesses();
+    const users = await loadUsers();
+    const businesses = users.filter((account) => account.role === "business");
 
-    fillCategorySelect(categories);
     categoryList.innerHTML = "";
-    allowedBusinessList.innerHTML = "";
+    businessList.innerHTML = "";
 
     if (categories.length === 0) {
         categoryList.innerHTML = "<p>No filter words yet.</p>";
@@ -612,6 +601,7 @@ async function loadAdminPanel() {
 
         label.textContent = category.name;
         removeButton.type = "button";
+        removeButton.className = "row-button";
         removeButton.textContent = "Remove";
         removeButton.addEventListener("click", async () => {
             try {
@@ -623,26 +613,38 @@ async function loadAdminPanel() {
             }
         });
 
-        row.append(label, document.createTextNode(" "), removeButton);
+        row.append(label, removeButton);
         categoryList.appendChild(row);
     });
 
     if (businesses.length === 0) {
-        const empty = document.createElement("p");
-        empty.textContent = "No businesses allowed yet.";
-        allowedBusinessList.appendChild(empty);
+        businessList.innerHTML = "<p>No business accounts yet.</p>";
     }
 
-    businesses.forEach((business) => {
+    businesses.forEach((account) => {
         const row = document.createElement("p");
-        const storeLabel = business.storeName || "store name not set";
-        row.textContent =
-            business.email +
-            " publishes under " +
-            storeLabel +
-            " in " +
-            business.category;
-        allowedBusinessList.appendChild(row);
+        const label = document.createElement("span");
+        const removeButton = document.createElement("button");
+        const storeLabel = account.storeName ? " — " + account.storeName : "";
+
+        label.textContent = (account.email || account.id) + storeLabel;
+        removeButton.type = "button";
+        removeButton.className = "row-button";
+        removeButton.textContent = "Remove";
+        removeButton.addEventListener("click", async () => {
+            try {
+                await updateDoc(doc(db, "users", account.id), {
+                    role: "customer"
+                });
+                adminMessage.textContent = "Business access removed.";
+                await loadAdminPanel();
+            } catch (error) {
+                adminMessage.textContent = error.message;
+            }
+        });
+
+        row.append(label, removeButton);
+        businessList.appendChild(row);
     });
 }
 
@@ -653,9 +655,22 @@ async function prepareDashboard(user) {
 
     try {
         addProductSection.hidden = true;
+        currentBusiness = null;
 
         if (storeSetup) {
             storeSetup.hidden = true;
+        }
+
+        if (salesSection) {
+            salesSection.hidden = true;
+        }
+
+        if (myProductsSection) {
+            myProductsSection.hidden = true;
+        }
+
+        if (adminPanel) {
+            adminPanel.hidden = true;
         }
 
         if (accountNote) {
@@ -675,33 +690,47 @@ async function prepareDashboard(user) {
             await loadAdminPanel();
         }
 
-        currentBusiness = await findBusiness(user.email);
+        const profileSnap = await getDoc(doc(db, "users", user.uid));
+        const profile = profileSnap.exists() ? profileSnap.data() : {};
 
-        if (!currentBusiness) {
+        if (profile.role !== "business") {
             if (accountNote && !isAdmin(user)) {
                 accountNote.textContent =
-                    "This account cannot publish yet. The admin has to allow it.";
+                    "This account cannot publish yet. The admin has to make it a business.";
             }
             return;
         }
 
-        if (storeCategory) {
-            storeCategory.textContent = "Category: " + currentBusiness.category;
-        }
+        currentBusiness = {
+            email: user.email,
+            storeName: profile.storeName || "",
+            category: profile.category || ""
+        };
+
+        const categories = await loadCategories();
+        fillStoreCategorySelect(categories, currentBusiness.category);
 
         if (storeNameInput) {
-            storeNameInput.value = currentBusiness.storeName || "";
+            storeNameInput.value = currentBusiness.storeName;
         }
 
         if (storeSetup) {
             storeSetup.hidden = false;
         }
 
-        if (currentBusiness.storeName) {
+        if (currentBusiness.storeName && currentBusiness.category) {
             addProductSection.hidden = false;
             if (accountNote) {
                 accountNote.textContent = "Publishing as " + currentBusiness.storeName + ".";
             }
+        }
+
+        if (salesSection) {
+            salesSection.hidden = false;
+        }
+
+        if (myProductsSection) {
+            myProductsSection.hidden = false;
         }
     } catch (error) {
         if (accountNote) {
@@ -745,31 +774,35 @@ if (addCategoryButton) {
 if (allowBusinessButton) {
     allowBusinessButton.addEventListener("click", async () => {
         const email = businessEmailInput.value.trim().toLowerCase();
-        const category = businessCategorySelect.value;
 
-        if (!email || !category) {
-            adminMessage.textContent = "Enter an email and choose a category.";
+        if (!email) {
+            adminMessage.textContent = "Type the account email.";
+            return;
+        }
+
+        if (email === adminEmail.toLowerCase()) {
+            adminMessage.textContent = "The admin account stays the admin.";
             return;
         }
 
         try {
-            const existing = await findBusiness(email);
+            const users = await loadUsers();
+            const account = users.find((userAccount) => {
+                return (userAccount.email || "").toLowerCase() === email;
+            });
 
-            if (existing) {
-                await updateDoc(doc(db, "businesses", existing.id), {
-                    category: category
-                });
-                adminMessage.textContent = "Business category updated.";
-            } else {
-                await addDoc(collection(db, "businesses"), {
-                    email: email,
-                    category: category,
-                    storeName: ""
-                });
-                adminMessage.textContent = "Business allowed.";
+            if (!account) {
+                adminMessage.textContent =
+                    "No signed-up account uses that email yet.";
+                return;
             }
 
+            await updateDoc(doc(db, "users", account.id), {
+                role: "business"
+            });
+
             businessEmailInput.value = "";
+            adminMessage.textContent = email + " can now publish.";
             await loadAdminPanel();
         } catch (error) {
             adminMessage.textContent = error.message;
@@ -781,36 +814,45 @@ if (saveStoreButton) {
     saveStoreButton.addEventListener("click", async () => {
         const user = auth.currentUser;
         const storeName = storeNameInput.value.trim();
+        const category = storeCategorySelect ? storeCategorySelect.value : "";
 
         if (!user || !currentBusiness) {
             return;
         }
 
-        if (!storeName) {
-            accountNote.textContent = "Enter the store name.";
+        if (!storeName || !category) {
+            accountNote.textContent = "Choose a category and enter the store name.";
             return;
         }
 
         try {
-            await updateDoc(doc(db, "businesses", currentBusiness.id), {
-                storeName: storeName,
-                ownerUid: user.uid
-            });
-
             await setDoc(doc(db, "users", user.uid), {
                 email: user.email,
-                role: "business",
-                storeName: storeName
+                storeName: storeName,
+                category: category
             }, { merge: true });
 
             currentBusiness.storeName = storeName;
+            currentBusiness.category = category;
             addProductSection.hidden = false;
             accountNote.textContent = "Publishing as " + storeName + ".";
-            await loadAdminPanel();
         } catch (error) {
             accountNote.textContent = error.message;
         }
     });
+}
+
+function updateNav(user) {
+    const joinLink = document.getElementById("join-link");
+    const logoutButton = document.getElementById("logout-button");
+
+    if (joinLink) {
+        joinLink.hidden = Boolean(user);
+    }
+
+    if (logoutButton) {
+        logoutButton.hidden = !user;
+    }
 }
 
 function renderDiscover() {
@@ -852,8 +894,9 @@ function renderDiscover() {
     }
 
     visibleProducts.forEach((product) => {
-        const card = document.createElement("article");
+        const card = document.createElement("a");
         card.className = "product-card";
+        card.href = "product.html?id=" + encodeURIComponent(product.id);
 
         if (product.imageUrl) {
             const image = document.createElement("img");
@@ -890,7 +933,10 @@ async function loadDiscover() {
         discoverProducts = [];
 
         snapshot.forEach((productDocument) => {
-            discoverProducts.push(productDocument.data());
+            discoverProducts.push({
+                id: productDocument.id,
+                ...productDocument.data()
+            });
         });
 
         renderDiscover();
@@ -900,21 +946,101 @@ async function loadDiscover() {
     }
 }
 
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        if (onLoginPage() && !isSigningUp) {
-            window.location.href = "dashboard.html";
+async function loadProductPage() {
+    const productView = document.getElementById("product-view");
+
+    if (!productView) {
+        return;
+    }
+
+    const productId = new URLSearchParams(window.location.search).get("id");
+
+    if (!productId) {
+        productView.textContent = "This product could not be found.";
+        return;
+    }
+
+    try {
+        const productSnapshot = await getDoc(doc(db, "products", productId));
+
+        if (!productSnapshot.exists()) {
+            productView.textContent = "This product could not be found.";
             return;
         }
 
-        loadMyProducts();
-        loadSales();
-        prepareDashboard(user);
-    } else {
-        if (onDashboardPage()) {
-            window.location.href = "login.html";
+        const product = productSnapshot.data();
+        document.title = (product.name || "Product") + " — Chaw";
+        productView.innerHTML = "";
+
+        const copy = document.createElement("div");
+        copy.className = "product-copy";
+
+        const category = document.createElement("p");
+        category.className = "product-kicker";
+        category.textContent = product.category || "Chaw";
+
+        const title = document.createElement("h1");
+        title.textContent = product.name || "Product";
+
+        const store = document.createElement("p");
+        store.className = "store-name";
+        store.textContent = product.storeName || "Store";
+
+        const price = document.createElement("p");
+        price.className = "price-large";
+        price.textContent = product.price;
+
+        const stock = document.createElement("p");
+        stock.textContent = "In stock: " + product.stock;
+
+        const description = document.createElement("p");
+        description.className = "product-description";
+        description.textContent = product.description || "";
+
+        copy.append(category, title, store, price, stock, description);
+
+        if (product.imageUrl) {
+            const image = document.createElement("img");
+            image.src = product.imageUrl;
+            image.alt = product.name || "Product photo";
+            productView.append(image, copy);
+        } else {
+            productView.appendChild(copy);
         }
+    } catch (error) {
+        productView.textContent = "Could not open this product.";
+        console.error(error);
+    }
+}
+
+async function startAuth() {
+    try {
+        await setPersistence(auth, browserLocalPersistence);
+    } catch (error) {
+        console.error(error);
     }
 
-    loadDiscover();
-});
+    onAuthStateChanged(auth, (user) => {
+        updateNav(user);
+
+        if (user) {
+            if (onLoginPage() && !isSigningUp) {
+                window.location.href = "dashboard.html";
+                return;
+            }
+
+            loadMyProducts();
+            loadSales();
+            prepareDashboard(user);
+        } else {
+            if (onDashboardPage()) {
+                window.location.href = "login.html";
+            }
+        }
+
+        loadDiscover();
+        loadProductPage();
+    });
+}
+
+startAuth();
