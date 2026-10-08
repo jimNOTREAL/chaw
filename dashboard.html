@@ -25,8 +25,11 @@
             <li><a href="dashboard.html">Dashboard</a></li>
         </ul>
 
-        <a href="login.html" class="nav-button" id="join-link">Join Chaw</a>
-        <button type="button" id="logout-button" class="nav-button" hidden>Log out</button>
+        <a href="login.html" class="nav-button" id="join-link">Sign in</a>
+        <button type="button" id="account-button" class="account-button" hidden aria-label="Your account">
+            <img id="nav-avatar" alt="" hidden>
+            <span id="nav-initial"></span>
+        </button>
     </nav>
 
         <main>
@@ -47,10 +50,20 @@
 
                 <div class="admin-block">
                     <h3>Business accounts</h3>
-                    <p>The account must already be signed up. Type its email to let it publish.</p>
+                    <p>The account must already be signed up. Choose its category, then it can publish in that category.</p>
                     <input id="business-email" type="email" placeholder="Account email">
+                    <select id="business-category">
+                        <option value="">Choose a category</option>
+                    </select>
                     <button id="allow-business-button" type="button">Make business</button>
                     <div id="business-list"></div>
+                    <div id="unfinished-list"></div>
+                </div>
+
+                <div class="admin-block">
+                    <h3>Public products</h3>
+                    <p>Hide a product if it should leave Discover.</p>
+                    <div id="public-product-list"></div>
                 </div>
 
                 <p id="admin-message"></p>
@@ -63,6 +76,15 @@
                 <label class="file-label" for="store-category-select">Category</label>
                 <select id="store-category-select"></select>
                 <input id="store-name" type="text" placeholder="Store name">
+                <input id="store-area" type="text" placeholder="Area or city">
+                <input id="store-phone" type="tel" placeholder="Phone number">
+                <input id="store-whatsapp" type="tel" placeholder="WhatsApp number">
+                <label class="check-row" for="accept-card">
+                    <input id="accept-card" type="checkbox">
+                    Accept card payments
+                </label>
+                <input id="card-payment-url" type="url" placeholder="Card payment link, https://">
+                <p>Chaw never sees the card. Customers pay on the link you paste, or they can ask you on WhatsApp.</p>
                 <button id="save-store-button" type="button">Save store</button>
             </div>
         </section>
@@ -94,6 +116,9 @@
                     id="product-description"
                     placeholder="Description"
                 >
+
+                <p class="file-label">Filters</p>
+                <div id="product-filters" class="filter-choices"></div>
 
                 <label class="file-label" for="product-image">Product photo</label>
                 <input

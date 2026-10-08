@@ -28,7 +28,6 @@ const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const signupButton = document.getElementById("signup-button");
 const loginButton = document.getElementById("login-button");
-const logoutButton = document.getElementById("logout-button");
 const authMessage = document.getElementById("auth-message");
 
 const productNameInput = document.getElementById("product-name");
@@ -47,12 +46,22 @@ const categoryWordInput = document.getElementById("category-word");
 const addCategoryButton = document.getElementById("add-category-button");
 const categoryList = document.getElementById("category-list");
 const businessEmailInput = document.getElementById("business-email");
+const businessCategorySelect = document.getElementById("business-category");
 const allowBusinessButton = document.getElementById("allow-business-button");
 const businessList = document.getElementById("business-list");
 const adminMessage = document.getElementById("admin-message");
 const storeSetup = document.getElementById("store-setup");
 const storeCategorySelect = document.getElementById("store-category-select");
 const storeNameInput = document.getElementById("store-name");
+const storeAreaInput = document.getElementById("store-area");
+const storePhoneInput = document.getElementById("store-phone");
+const storeWhatsappInput = document.getElementById("store-whatsapp");
+const acceptCardInput = document.getElementById("accept-card");
+const cardPaymentUrlInput = document.getElementById("card-payment-url");
+const productFiltersBox = document.getElementById("product-filters");
+const publicProductList = document.getElementById("public-product-list");
+const unfinishedList = document.getElementById("unfinished-list");
+const discoverSearch = document.getElementById("discover-search");
 const saveStoreButton = document.getElementById("save-store-button");
 const addProductSection = document.getElementById("add-product");
 const accountNote = document.getElementById("account-note");
@@ -63,6 +72,7 @@ const discoverList = document.getElementById("discover-list");
 
 const adminEmail = "mfm77hi@gmail.com";
 let currentBusiness = null;
+let availableFilters = [];
 let discoverProducts = [];
 let activeFilter = "All";
 
@@ -144,29 +154,22 @@ if (loginButton) {
     });
 }
 
-if (logoutButton) {
-    logoutButton.addEventListener("click", async () => {
-        await signOut(auth);
-        window.location.href = "index.html";
-    });
-}
-
-function compressProductImage(file) {
+function compressProductImage(file, maxSize = 800, maxLength = 700000) {
     return new Promise((resolve, reject) => {
         const image = new Image();
         const objectUrl = URL.createObjectURL(file);
 
         image.onload = () => {
-            const maxSize = 800;
+            const maxEdge = maxSize;
             let width = image.width;
             let height = image.height;
 
-            if (width > height && width > maxSize) {
-                height = Math.round(height * (maxSize / width));
-                width = maxSize;
-            } else if (height > maxSize) {
-                width = Math.round(width * (maxSize / height));
-                height = maxSize;
+            if (width > height && width > maxEdge) {
+                height = Math.round(height * (maxEdge / width));
+                width = maxEdge;
+            } else if (height > maxEdge) {
+                width = Math.round(width * (maxEdge / height));
+                height = maxEdge;
             }
 
             const canvas = document.createElement("canvas");
@@ -177,7 +180,7 @@ function compressProductImage(file) {
 
             const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
 
-            if (dataUrl.length > 700000) {
+            if (dataUrl.length > maxLength) {
                 reject(new Error("Photo is still too large. Choose a smaller one."));
                 return;
             }
@@ -220,8 +223,144 @@ function clearProductForm() {
         productImageInput.value = "";
     }
 
+    if (productFiltersBox) {
+        fillFilterChoices(
+            productFiltersBox,
+            [],
+            currentBusiness && currentBusiness.category ? [currentBusiness.category] : []
+        );
+    }
+
     addProductButton.textContent = "Publish Product";
     delete addProductButton.dataset.editingId;
+}
+
+function safeHttpUrl(value) {
+    try {
+        const url = new URL(value);
+        if (url.protocol === "https:" || url.protocol === "http:") {
+            return url.href;
+        }
+    } catch (error) {
+        return "";
+    }
+
+    return "";
+}
+
+function storeDetailsFromForm() {
+    return {
+        storeName: storeNameInput.value.trim(),
+        category: storeCategorySelect ? storeCategorySelect.value : "",
+        area: storeAreaInput ? storeAreaInput.value.trim() : "",
+        phone: storePhoneInput ? storePhoneInput.value.trim() : "",
+        whatsapp: storeWhatsappInput ? storeWhatsappInput.value.trim() : "",
+        acceptsCard: Boolean(acceptCardInput && acceptCardInput.checked),
+        cardPaymentUrl: cardPaymentUrlInput ? cardPaymentUrlInput.value.trim() : ""
+    };
+}
+
+function contactFields(store) {
+    return {
+        storeName: store.storeName || "",
+        phone: store.phone || "",
+        whatsapp: store.whatsapp || "",
+        area: store.area || "",
+        acceptsCard: Boolean(store.acceptsCard),
+        cardPaymentUrl: store.cardPaymentUrl || ""
+    };
+}
+
+async function syncStoreOntoProducts(user, store) {
+    const productsQuery = query(
+        collection(db, "products"),
+        where("ownerUid", "==", user.uid)
+    );
+    const snapshot = await getDocs(productsQuery);
+    const writes = [];
+
+    snapshot.forEach((productDocument) => {
+        writes.push(updateDoc(productDocument.ref, contactFields(store)));
+    });
+
+    await Promise.all(writes);
+}
+
+function fillNamedSelect(select, categories, selectedName) {
+    if (!select) {
+        return;
+    }
+
+    select.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choose a filter word";
+    select.appendChild(placeholder);
+
+    categories.forEach((category) => {
+        const option = document.createElement("option");
+        option.value = category.name;
+        option.textContent = category.name;
+        select.appendChild(option);
+    });
+
+    const known = categories.some((category) => category.name === selectedName);
+    if (selectedName && !known) {
+        const current = document.createElement("option");
+        current.value = selectedName;
+        current.textContent = selectedName;
+        select.appendChild(current);
+    }
+
+    select.value = selectedName || "";
+}
+
+function filtersOnProduct(product) {
+    if (Array.isArray(product.filters) && product.filters.length > 0) {
+        return product.filters.filter(Boolean);
+    }
+
+    return product.category ? [product.category] : [];
+}
+
+function fillFilterChoices(container, categories, selectedNames) {
+    if (!container) {
+        return;
+    }
+
+    const selected = new Set(selectedNames || []);
+    const names = categories.map((category) => category.name);
+
+    selected.forEach((name) => {
+        if (name && !names.includes(name)) {
+            names.push(name);
+        }
+    });
+
+    container.innerHTML = "";
+
+    if (names.length === 0) {
+        container.innerHTML = "<p>The admin has not added filter words yet.</p>";
+        return;
+    }
+
+    names.forEach((name) => {
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.value = name;
+        input.checked = selected.has(name);
+        label.append(input, document.createTextNode(" " + name));
+        container.appendChild(label);
+    });
+}
+
+function checkedFilters(container) {
+    if (!container) {
+        return [];
+    }
+
+    return [...container.querySelectorAll("input:checked")].map((input) => input.value);
 }
 
 if (addProductButton) {
@@ -230,6 +369,7 @@ if (addProductButton) {
         const productPrice = Number(productPriceInput.value);
         const productStock = Number(productStockInput.value);
         const productDescription = productDescriptionInput.value.trim();
+        const filters = checkedFilters(productFiltersBox);
 
         const user = auth.currentUser;
 
@@ -256,8 +396,14 @@ if (addProductButton) {
                     name: productName,
                     price: productPrice,
                     stock: productStock,
-                    description: productDescription
+                    description: productDescription,
+                    filters: filters,
+                    category: filters[0] || ""
                 };
+
+                if (currentBusiness) {
+                    Object.assign(updates, contactFields(currentBusiness));
+                }
 
                 if (imageUrl) {
                     updates.imageUrl = imageUrl;
@@ -266,9 +412,14 @@ if (addProductButton) {
                 await updateDoc(doc(db, "products", editingId), updates);
                 productMessage.textContent = "Product updated.";
             } else {
-                if (!currentBusiness || !currentBusiness.storeName || !currentBusiness.category) {
+                if (!currentBusiness || !currentBusiness.storeName) {
                     productMessage.textContent =
                         "Save your store name before publishing.";
+                    return;
+                }
+
+                if (!filters.length) {
+                    productMessage.textContent = "Choose at least one filter for this product.";
                     return;
                 }
 
@@ -278,10 +429,12 @@ if (addProductButton) {
                     stock: productStock,
                     description: productDescription,
                     imageUrl: imageUrl,
-                    category: currentBusiness.category,
-                    storeName: currentBusiness.storeName,
+                    filters: filters,
+                    category: filters[0],
                     businessId: currentBusiness.email,
-                    ownerUid: user.uid
+                    ownerUid: user.uid,
+                    hidden: false,
+                    ...contactFields(currentBusiness)
                 });
 
                 productMessage.textContent = "Product published successfully!";
@@ -334,9 +487,11 @@ async function loadMyProducts() {
 
             productItem.innerHTML = `
                 <h3></h3>
-                <p></p>
-                <p></p>
-                <p></p>
+                <p class="line-price"></p>
+                <p class="line-stock"></p>
+                <p class="line-description"></p>
+                <label class="file-label">Quantity sold</label>
+                <input class="sale-quantity" type="number" min="1" value="1">
                 <button type="button" class="edit-product-button">Edit</button>
                 <button type="button" class="record-sale-button">Record sale</button>
                 <button type="button" class="delete-product-button">Delete</button>
@@ -350,11 +505,11 @@ async function loadMyProducts() {
             }
 
             productItem.querySelector("h3").textContent = product.name;
-            productItem.querySelectorAll("p")[0].textContent =
+            productItem.querySelector(".line-price").textContent =
                 "Price: " + product.price;
-            productItem.querySelectorAll("p")[1].textContent =
+            productItem.querySelector(".line-stock").textContent =
                 "Stock: " + product.stock;
-            productItem.querySelectorAll("p")[2].textContent =
+            productItem.querySelector(".line-description").textContent =
                 product.description;
 
             productItem
@@ -364,6 +519,8 @@ async function loadMyProducts() {
                     productPriceInput.value = product.price;
                     productStockInput.value = product.stock;
                     productDescriptionInput.value = product.description;
+
+                    fillFilterChoices(productFiltersBox, availableFilters, filtersOnProduct(product));
 
                     if (productImageInput) {
                         productImageInput.value = "";
@@ -376,13 +533,8 @@ async function loadMyProducts() {
             productItem
                 .querySelector(".record-sale-button")
                 .addEventListener("click", async () => {
-                    const quantityText = prompt("How many were sold?", "1");
-
-                    if (quantityText === null) {
-                        return;
-                    }
-
-                    const quantity = Number(quantityText);
+                    const quantityInput = productItem.querySelector(".sale-quantity");
+                    const quantity = Number(quantityInput ? quantityInput.value : "");
 
                     if (!Number.isInteger(quantity) || quantity < 1) {
                         productMessage.textContent =
@@ -543,27 +695,6 @@ async function loadCategories() {
     return categories;
 }
 
-function fillStoreCategorySelect(categories, selectedName) {
-    if (!storeCategorySelect) {
-        return;
-    }
-
-    storeCategorySelect.innerHTML = "";
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Choose a category";
-    storeCategorySelect.appendChild(placeholder);
-
-    categories.forEach((category) => {
-        const option = document.createElement("option");
-        option.value = category.name;
-        option.textContent = category.name;
-        storeCategorySelect.appendChild(option);
-    });
-
-    storeCategorySelect.value = selectedName || "";
-}
-
 async function loadUsers() {
     const snapshot = await getDocs(collection(db, "users"));
     const users = [];
@@ -589,6 +720,7 @@ async function loadAdminPanel() {
 
     categoryList.innerHTML = "";
     businessList.innerHTML = "";
+    fillNamedSelect(businessCategorySelect, categories, businessCategorySelect ? businessCategorySelect.value : "");
 
     if (categories.length === 0) {
         categoryList.innerHTML = "<p>No filter words yet.</p>";
@@ -626,8 +758,9 @@ async function loadAdminPanel() {
         const label = document.createElement("span");
         const removeButton = document.createElement("button");
         const storeLabel = account.storeName ? " — " + account.storeName : "";
+        const categoryLabel = account.category ? " in " + account.category : " — no category yet";
 
-        label.textContent = (account.email || account.id) + storeLabel;
+        label.textContent = (account.email || account.id) + storeLabel + categoryLabel;
         removeButton.type = "button";
         removeButton.className = "row-button";
         removeButton.textContent = "Remove";
@@ -646,6 +779,65 @@ async function loadAdminPanel() {
         row.append(label, removeButton);
         businessList.appendChild(row);
     });
+
+    if (unfinishedList) {
+        unfinishedList.innerHTML = "";
+        const unfinished = businesses.filter((account) => !account.storeName);
+
+        if (businesses.length === 0) {
+            unfinishedList.innerHTML = "";
+        } else if (unfinished.length === 0) {
+            unfinishedList.innerHTML = "<p>Every business has a store name.</p>";
+        } else {
+            unfinished.forEach((account) => {
+                const row = document.createElement("p");
+                row.textContent = (account.email || account.id) + " has not saved a store name.";
+                unfinishedList.appendChild(row);
+            });
+        }
+    }
+
+    if (publicProductList) {
+        const productSnapshot = await getDocs(collection(db, "products"));
+        publicProductList.innerHTML = "";
+
+        if (productSnapshot.empty) {
+            publicProductList.innerHTML = "<p>No products yet.</p>";
+        }
+
+        productSnapshot.forEach((productDocument) => {
+            const product = productDocument.data();
+            const row = document.createElement("p");
+            const label = document.createElement("span");
+            const hideButton = document.createElement("button");
+
+            label.textContent =
+                (product.name || "Product") +
+                " — " +
+                (product.storeName || "Store") +
+                (product.hidden ? " (hidden)" : "");
+            hideButton.type = "button";
+            hideButton.className = "row-button";
+            hideButton.textContent = product.hidden ? "Show" : "Hide";
+            hideButton.addEventListener("click", async () => {
+                try {
+                    await updateDoc(doc(db, "products", productDocument.id), {
+                        hidden: !product.hidden
+                    });
+                    adminMessage.textContent = product.hidden
+                        ? "Product is public again."
+                        : "Product hidden from Discover.";
+                    await loadAdminPanel();
+                    await loadDiscover();
+                } catch (error) {
+                    adminMessage.textContent = error.message;
+                }
+            });
+
+            row.append(label, hideButton);
+            publicProductList.appendChild(row);
+        });
+    }
 }
 
 async function prepareDashboard(user) {
@@ -704,21 +896,60 @@ async function prepareDashboard(user) {
         currentBusiness = {
             email: user.email,
             storeName: profile.storeName || "",
-            category: profile.category || ""
+            category: profile.category || "",
+            area: profile.area || "",
+            phone: profile.phone || "",
+            whatsapp: profile.whatsapp || "",
+            acceptsCard: Boolean(profile.acceptsCard),
+            cardPaymentUrl: profile.cardPaymentUrl || ""
         };
 
         const categories = await loadCategories();
-        fillStoreCategorySelect(categories, currentBusiness.category);
+        availableFilters = categories;
+        fillNamedSelect(storeCategorySelect, categories, currentBusiness.category);
+        fillFilterChoices(
+            productFiltersBox,
+            categories,
+            currentBusiness.category ? [currentBusiness.category] : []
+        );
 
         if (storeNameInput) {
             storeNameInput.value = currentBusiness.storeName;
+        }
+
+        if (storeAreaInput) {
+            storeAreaInput.value = currentBusiness.area;
+        }
+
+        if (storePhoneInput) {
+            storePhoneInput.value = currentBusiness.phone;
+        }
+
+        if (storeWhatsappInput) {
+            storeWhatsappInput.value = currentBusiness.whatsapp;
+        }
+
+        if (acceptCardInput) {
+            acceptCardInput.checked = currentBusiness.acceptsCard;
+        }
+
+        if (cardPaymentUrlInput) {
+            cardPaymentUrlInput.value = currentBusiness.cardPaymentUrl;
+        }
+
+        if (storeCategorySelect) {
+            storeCategorySelect.disabled = false;
+        }
+
+        if (!currentBusiness.storeName && accountNote) {
+            accountNote.textContent = "Save the store name, then publish from your account.";
         }
 
         if (storeSetup) {
             storeSetup.hidden = false;
         }
 
-        if (currentBusiness.storeName && currentBusiness.category) {
+        if (currentBusiness.storeName) {
             addProductSection.hidden = false;
             if (accountNote) {
                 accountNote.textContent = "Publishing as " + currentBusiness.storeName + ".";
@@ -774,9 +1005,10 @@ if (addCategoryButton) {
 if (allowBusinessButton) {
     allowBusinessButton.addEventListener("click", async () => {
         const email = businessEmailInput.value.trim().toLowerCase();
+        const category = businessCategorySelect ? businessCategorySelect.value : "";
 
-        if (!email) {
-            adminMessage.textContent = "Type the account email.";
+        if (!email || !category) {
+            adminMessage.textContent = "Type the email and choose a category.";
             return;
         }
 
@@ -798,11 +1030,35 @@ if (allowBusinessButton) {
             }
 
             await updateDoc(doc(db, "users", account.id), {
-                role: "business"
+                role: "business",
+                category: category
             });
 
+            try {
+                const productSnapshot = await getDocs(query(
+                    collection(db, "products"),
+                    where("ownerUid", "==", account.id)
+                ));
+                const productWrites = [];
+
+                productSnapshot.forEach((productDocument) => {
+                    productWrites.push(updateDoc(productDocument.ref, {
+                        category: category
+                    }));
+                });
+
+                if (productWrites.length > 0) {
+                    await Promise.all(productWrites);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+
             businessEmailInput.value = "";
-            adminMessage.textContent = email + " can now publish.";
+            if (businessCategorySelect) {
+                businessCategorySelect.value = "";
+            }
+            adminMessage.textContent = email + " can publish in " + category + ".";
             await loadAdminPanel();
         } catch (error) {
             adminMessage.textContent = error.message;
@@ -813,29 +1069,47 @@ if (allowBusinessButton) {
 if (saveStoreButton) {
     saveStoreButton.addEventListener("click", async () => {
         const user = auth.currentUser;
-        const storeName = storeNameInput.value.trim();
-        const category = storeCategorySelect ? storeCategorySelect.value : "";
+        const details = storeDetailsFromForm();
 
         if (!user || !currentBusiness) {
             return;
         }
 
-        if (!storeName || !category) {
-            accountNote.textContent = "Choose a category and enter the store name.";
+        if (!details.storeName) {
+            accountNote.textContent = "Enter the store name.";
+            return;
+        }
+
+        if (!details.category) {
+            accountNote.textContent = "The admin has to give this account a category.";
+            return;
+        }
+
+        if (details.acceptsCard && details.cardPaymentUrl && !safeHttpUrl(details.cardPaymentUrl)) {
+            accountNote.textContent = "The card link must start with https://";
             return;
         }
 
         try {
             await setDoc(doc(db, "users", user.uid), {
                 email: user.email,
-                storeName: storeName,
-                category: category
+                storeName: details.storeName,
+                category: details.category,
+                area: details.area,
+                phone: details.phone,
+                whatsapp: details.whatsapp,
+                acceptsCard: details.acceptsCard,
+                cardPaymentUrl: safeHttpUrl(details.cardPaymentUrl)
             }, { merge: true });
 
-            currentBusiness.storeName = storeName;
-            currentBusiness.category = category;
+            currentBusiness = {
+                email: user.email,
+                ...details,
+                cardPaymentUrl: safeHttpUrl(details.cardPaymentUrl)
+            };
+            await syncStoreOntoProducts(user, currentBusiness);
             addProductSection.hidden = false;
-            accountNote.textContent = "Publishing as " + storeName + ".";
+            accountNote.textContent = "Publishing as " + details.storeName + ".";
         } catch (error) {
             accountNote.textContent = error.message;
         }
@@ -844,25 +1118,381 @@ if (saveStoreButton) {
 
 function updateNav(user) {
     const joinLink = document.getElementById("join-link");
-    const logoutButton = document.getElementById("logout-button");
+    const accountButton = document.getElementById("account-button");
+    const accountPanel = document.getElementById("account-panel");
 
     if (joinLink) {
         joinLink.hidden = Boolean(user);
     }
 
-    if (logoutButton) {
-        logoutButton.hidden = !user;
+    if (accountButton) {
+        accountButton.hidden = !user;
+    }
+
+    if (!user) {
+        if (accountPanel) {
+            accountPanel.hidden = true;
+        }
+        return;
+    }
+
+    loadAccountProfile(user);
+}
+
+let accountProfile = {
+    displayName: "",
+    photoUrl: ""
+};
+
+function setupAccountMenu() {
+    if (document.getElementById("account-panel")) {
+        return;
+    }
+
+    const panel = document.createElement("div");
+    panel.id = "account-panel";
+    panel.className = "account-panel";
+    panel.hidden = true;
+        panel.innerHTML = `
+        <div class="account-photo-wrap">
+            <img id="account-photo" alt="" hidden>
+            <span id="account-initial"></span>
+            <button type="button" id="logout-button">Log out</button>
+        </div>
+        <p id="account-store-kicker" hidden>Store</p>
+        <p id="account-email"></p>
+        <label class="file-label" id="display-name-label" for="display-name">Display name</label>
+        <input id="display-name" type="text" maxlength="40" placeholder="Display name">
+        <label class="file-label" id="account-area-label" for="account-area" hidden>Area</label>
+        <input id="account-area" type="text" placeholder="Area or city" hidden>
+        <label class="file-label" for="profile-image">Profile photo</label>
+        <input id="profile-image" type="file" accept="image/*">
+        <button type="button" id="save-account-button">Save</button>
+        <div id="account-publish" hidden>
+            <h3>Add a piece</h3>
+            <p>Choose the filters customers can use.</p>
+            <div id="account-filters" class="filter-choices"></div>
+            <input id="account-product-name" type="text" placeholder="Piece name">
+            <input id="account-product-price" type="number" placeholder="Price">
+            <input id="account-product-stock" type="number" placeholder="Stock">
+            <input id="account-product-description" type="text" placeholder="Description">
+            <label class="file-label" for="account-product-image">Photo</label>
+            <input id="account-product-image" type="file" accept="image/*">
+            <button type="button" id="account-publish-button">Publish</button>
+            <p id="account-publish-message"></p>
+        </div>
+        <p id="account-form-message"></p>
+    `;
+    document.body.appendChild(panel);
+
+    const accountButton = document.getElementById("account-button");
+    if (accountButton) {
+        accountButton.addEventListener("click", () => {
+            panel.hidden = !panel.hidden;
+        });
+    }
+
+    document.addEventListener("click", (event) => {
+        if (panel.hidden) {
+            return;
+        }
+
+        const target = event.target;
+        if (panel.contains(target) || (accountButton && accountButton.contains(target))) {
+            return;
+        }
+
+        panel.hidden = true;
+    });
+
+    panel.querySelector("#logout-button").addEventListener("click", async () => {
+        await signOut(auth);
+        window.location.href = "index.html";
+    });
+
+    panel.querySelector("#save-account-button").addEventListener("click", saveAccountProfile);
+    panel.querySelector("#account-publish-button").addEventListener("click", publishFromAccount);
+}
+
+function showAccountPhoto(photoUrl, letter) {
+    const targets = [
+        {
+            image: document.getElementById("nav-avatar"),
+            initial: document.getElementById("nav-initial")
+        },
+        {
+            image: document.getElementById("account-photo"),
+            initial: document.getElementById("account-initial")
+        }
+    ];
+
+    targets.forEach((target) => {
+        if (!target.image || !target.initial) {
+            return;
+        }
+
+        target.initial.textContent = letter;
+
+        if (photoUrl) {
+            target.image.src = photoUrl;
+            target.image.hidden = false;
+            target.initial.hidden = true;
+        } else {
+            target.image.removeAttribute("src");
+            target.image.hidden = true;
+            target.initial.hidden = false;
+        }
+    });
+}
+
+async function loadAccountProfile(user) {
+    const panel = document.getElementById("account-panel");
+    const emailLine = document.getElementById("account-email");
+    const nameInput = document.getElementById("display-name");
+    const nameLabel = document.getElementById("display-name-label");
+    const areaInput = document.getElementById("account-area");
+    const areaLabel = document.getElementById("account-area-label");
+    const kicker = document.getElementById("account-store-kicker");
+    const publishSection = document.getElementById("account-publish");
+    const photoLabel = document.querySelector("label[for='profile-image']");
+
+    let profile = {};
+
+    try {
+        const profileSnap = await getDoc(doc(db, "users", user.uid));
+        profile = profileSnap.exists() ? profileSnap.data() : {};
+    } catch (error) {
+        console.error(error);
+    }
+
+    const isStore = profile.role === "business";
+    const storeName = profile.storeName || profile.displayName || "";
+
+    accountProfile = {
+        displayName: profile.displayName || "",
+        photoUrl: profile.photoUrl || "",
+        role: profile.role || "customer",
+        storeName: storeName,
+        area: profile.area || "",
+        category: profile.category || "",
+        phone: profile.phone || "",
+        whatsapp: profile.whatsapp || "",
+        acceptsCard: Boolean(profile.acceptsCard),
+        cardPaymentUrl: profile.cardPaymentUrl || ""
+    };
+
+    if (panel) {
+        panel.classList.toggle("store-account", isStore);
+    }
+
+    if (kicker) {
+        kicker.hidden = !isStore;
+    }
+
+    if (nameLabel) {
+        nameLabel.textContent = isStore ? "Store name" : "Display name";
+    }
+
+    if (photoLabel) {
+        photoLabel.textContent = isStore ? "Store photo" : "Profile photo";
+    }
+
+    if (areaInput && areaLabel) {
+        areaInput.hidden = !isStore;
+        areaLabel.hidden = !isStore;
+        areaInput.value = accountProfile.area;
+    }
+
+    if (publishSection) {
+        publishSection.hidden = !isStore;
+    }
+
+    const letterSource = isStore ? storeName : (accountProfile.displayName || user.email || "C");
+    showAccountPhoto(accountProfile.photoUrl, letterSource.trim().charAt(0).toUpperCase() || "C");
+
+    if (emailLine) {
+        emailLine.textContent = user.email || "";
+    }
+
+    if (nameInput && document.activeElement !== nameInput) {
+        nameInput.value = isStore ? storeName : accountProfile.displayName;
+        nameInput.placeholder = isStore ? "Store name" : "Display name";
+    }
+
+    if (isStore) {
+        try {
+            const categories = await loadCategories();
+            availableFilters = categories;
+            fillFilterChoices(
+                document.getElementById("account-filters"),
+                categories,
+                profile.category ? [profile.category] : []
+            );
+        } catch (error) {
+            console.error(error);
+        }
     }
 }
+
+async function saveAccountProfile() {
+    const user = auth.currentUser;
+    const message = document.getElementById("account-form-message");
+    const nameInput = document.getElementById("display-name");
+    const fileInput = document.getElementById("profile-image");
+    const areaInput = document.getElementById("account-area");
+
+    if (!user || !nameInput) {
+        return;
+    }
+
+    const isStore = accountProfile.role === "business";
+    const displayName = nameInput.value.trim();
+
+    if (!displayName) {
+        message.textContent = isStore ? "Enter the store name." : "Enter a display name.";
+        return;
+    }
+
+    try {
+        const updates = { displayName: displayName };
+        const file = fileInput && fileInput.files[0];
+
+        if (file) {
+            if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+                message.textContent = "Choose an image under 5 MB.";
+                return;
+            }
+
+            updates.photoUrl = await compressProductImage(file, 320, 180000);
+        }
+
+        if (isStore) {
+            updates.storeName = displayName;
+            updates.area = areaInput ? areaInput.value.trim() : "";
+        }
+
+        await setDoc(doc(db, "users", user.uid), updates, { merge: true });
+        accountProfile.displayName = displayName;
+        accountProfile.storeName = isStore ? displayName : accountProfile.storeName;
+        accountProfile.area = isStore ? updates.area : accountProfile.area;
+
+        if (updates.photoUrl) {
+            accountProfile.photoUrl = updates.photoUrl;
+        }
+
+        if (isStore) {
+            if (!currentBusiness) {
+                currentBusiness = { email: user.email };
+            }
+
+            currentBusiness.storeName = displayName;
+            currentBusiness.area = accountProfile.area;
+            currentBusiness.email = user.email;
+            currentBusiness.phone = accountProfile.phone;
+            currentBusiness.whatsapp = accountProfile.whatsapp;
+            currentBusiness.acceptsCard = accountProfile.acceptsCard;
+            currentBusiness.cardPaymentUrl = accountProfile.cardPaymentUrl;
+            currentBusiness.category = accountProfile.category;
+            await syncStoreOntoProducts(user, currentBusiness);
+
+            if (storeNameInput) {
+                storeNameInput.value = displayName;
+            }
+
+            if (addProductSection) {
+                addProductSection.hidden = false;
+            }
+        }
+
+        showAccountPhoto(
+            accountProfile.photoUrl,
+            displayName.charAt(0).toUpperCase()
+        );
+
+        if (fileInput) {
+            fileInput.value = "";
+        }
+
+        message.textContent = isStore ? "Store saved." : "Account saved.";
+    } catch (error) {
+        message.textContent = error.message;
+    }
+}
+
+async function publishFromAccount() {
+    const user = auth.currentUser;
+    const message = document.getElementById("account-publish-message");
+    const filters = checkedFilters(document.getElementById("account-filters"));
+    const name = document.getElementById("account-product-name").value.trim();
+    const price = Number(document.getElementById("account-product-price").value);
+    const stock = Number(document.getElementById("account-product-stock").value);
+    const description = document.getElementById("account-product-description").value.trim();
+    const fileInput = document.getElementById("account-product-image");
+
+    if (!user || accountProfile.role !== "business") {
+        return;
+    }
+
+    if (!accountProfile.storeName) {
+        message.textContent = "Save the store name first.";
+        return;
+    }
+
+    if (!name || !price || !description) {
+        message.textContent = "Enter the name, price, and description.";
+        return;
+    }
+
+    if (!filters.length) {
+        message.textContent = "Choose at least one filter.";
+        return;
+    }
+
+    try {
+        const imageUrl = await uploadProductImage(user, fileInput.files[0]);
+        await addDoc(collection(db, "products"), {
+            name: name,
+            price: price,
+            stock: stock,
+            description: description,
+            imageUrl: imageUrl,
+            filters: filters,
+            category: filters[0],
+            businessId: user.email,
+            ownerUid: user.uid,
+            hidden: false,
+            storeName: accountProfile.storeName,
+            area: accountProfile.area || "",
+            phone: accountProfile.phone || "",
+            whatsapp: accountProfile.whatsapp || "",
+            acceptsCard: Boolean(accountProfile.acceptsCard),
+            cardPaymentUrl: accountProfile.cardPaymentUrl || ""
+        });
+
+        document.getElementById("account-product-name").value = "";
+        document.getElementById("account-product-price").value = "";
+        document.getElementById("account-product-stock").value = "";
+        document.getElementById("account-product-description").value = "";
+        fileInput.value = "";
+        message.textContent = "Published in " + filters.join(", ") + ".";
+        await loadMyProducts();
+        await loadDiscover();
+    } catch (error) {
+        message.textContent = error.message;
+    }
+}
+
+setupAccountMenu();
 
 function renderDiscover() {
     if (!discoverList || !filterBar) {
         return;
     }
 
+    const publicProducts = discoverProducts.filter((product) => !product.hidden);
     const names = [...new Set(
-        discoverProducts
-            .map((product) => product.category)
+        publicProducts
+            .flatMap((product) => filtersOnProduct(product))
             .filter(Boolean)
     )];
 
@@ -880,15 +1510,34 @@ function renderDiscover() {
         filterBar.appendChild(button);
     });
 
-    const visibleProducts = activeFilter === "All"
-        ? discoverProducts
-        : discoverProducts.filter((product) => product.category === activeFilter);
+    const searchText = discoverSearch
+        ? discoverSearch.value.trim().toLowerCase()
+        : "";
+
+    let visibleProducts = activeFilter === "All"
+        ? publicProducts
+        : publicProducts.filter((product) => filtersOnProduct(product).includes(activeFilter));
+
+    if (searchText) {
+        visibleProducts = visibleProducts.filter((product) => {
+            const haystack = [
+                product.name,
+                product.storeName,
+                product.area,
+                product.category,
+                ...filtersOnProduct(product)
+            ].join(" ").toLowerCase();
+            return haystack.includes(searchText);
+        });
+    }
 
     discoverList.innerHTML = "";
 
     if (visibleProducts.length === 0) {
         const empty = document.createElement("p");
-        empty.textContent = "Nothing in this category yet.";
+        empty.textContent = searchText
+            ? "Nothing matches that search."
+            : "Nothing in this category yet.";
         discoverList.appendChild(empty);
         return;
     }
@@ -910,7 +1559,9 @@ function renderDiscover() {
 
         const store = document.createElement("p");
         store.className = "store-name";
-        store.textContent = product.storeName || "Store";
+        store.textContent = product.area
+            ? (product.storeName || "Store") + " · " + product.area
+            : (product.storeName || "Store");
 
         const price = document.createElement("p");
         price.textContent = "Price: " + product.price;
@@ -946,6 +1597,60 @@ async function loadDiscover() {
     }
 }
 
+function productActions(product) {
+    const actions = document.createElement("div");
+    actions.className = "product-actions";
+    const productName = product.name || "a product";
+
+    if (product.phone) {
+        const call = document.createElement("a");
+        call.href = "tel:" + product.phone.replace(/[^\d+]/g, "");
+        call.textContent = "Call store";
+        actions.appendChild(call);
+    }
+
+    const whatsappDigits = (product.whatsapp || "").replace(/\D/g, "");
+
+    if (whatsappDigits) {
+        const message = encodeURIComponent(
+            "Hello, I want " + productName + " from " + (product.storeName || "your store") + "."
+        );
+        const whatsapp = document.createElement("a");
+        whatsapp.href = "https://wa.me/" + whatsappDigits + "?text=" + message;
+        whatsapp.target = "_blank";
+        whatsapp.rel = "noopener";
+        whatsapp.textContent = "WhatsApp";
+        actions.appendChild(whatsapp);
+    }
+
+    if (product.acceptsCard) {
+        const payUrl = safeHttpUrl(product.cardPaymentUrl || "");
+
+        if (payUrl) {
+            const pay = document.createElement("a");
+            pay.href = payUrl;
+            pay.target = "_blank";
+            pay.rel = "noopener";
+            pay.textContent = "Pay by card";
+            actions.appendChild(pay);
+        } else if (whatsappDigits) {
+            const message = encodeURIComponent("I want to pay by card for " + productName + ".");
+            const pay = document.createElement("a");
+            pay.href = "https://wa.me/" + whatsappDigits + "?text=" + message;
+            pay.target = "_blank";
+            pay.rel = "noopener";
+            pay.textContent = "Pay by card";
+            actions.appendChild(pay);
+        } else {
+            const note = document.createElement("p");
+            note.textContent = "This store accepts card payments. Contact the store to pay.";
+            actions.appendChild(note);
+        }
+    }
+
+    return actions;
+}
+
 async function loadProductPage() {
     const productView = document.getElementById("product-view");
 
@@ -969,6 +1674,12 @@ async function loadProductPage() {
         }
 
         const product = productSnapshot.data();
+
+        if (product.hidden) {
+            productView.textContent = "This product is not available.";
+            return;
+        }
+
         document.title = (product.name || "Product") + " — Chaw";
         productView.innerHTML = "";
 
@@ -977,14 +1688,16 @@ async function loadProductPage() {
 
         const category = document.createElement("p");
         category.className = "product-kicker";
-        category.textContent = product.category || "Chaw";
+        category.textContent = filtersOnProduct(product).join(" · ") || "Chaw";
 
         const title = document.createElement("h1");
         title.textContent = product.name || "Product";
 
         const store = document.createElement("p");
         store.className = "store-name";
-        store.textContent = product.storeName || "Store";
+        store.textContent = product.area
+            ? (product.storeName || "Store") + " · " + product.area
+            : (product.storeName || "Store");
 
         const price = document.createElement("p");
         price.className = "price-large";
@@ -997,7 +1710,7 @@ async function loadProductPage() {
         description.className = "product-description";
         description.textContent = product.description || "";
 
-        copy.append(category, title, store, price, stock, description);
+        copy.append(category, title, store, price, stock, description, productActions(product));
 
         if (product.imageUrl) {
             const image = document.createElement("img");
@@ -1011,6 +1724,12 @@ async function loadProductPage() {
         productView.textContent = "Could not open this product.";
         console.error(error);
     }
+}
+
+if (discoverSearch) {
+    discoverSearch.addEventListener("input", () => {
+        renderDiscover();
+    });
 }
 
 async function startAuth() {
