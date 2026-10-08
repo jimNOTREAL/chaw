@@ -4,6 +4,8 @@ import {
     getAuth,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
+    signInWithPopup,
+    GoogleAuthProvider,
     onAuthStateChanged,
     setPersistence,
     browserLocalPersistence,
@@ -163,6 +165,37 @@ if (signupButton) {
     });
 }
 
+const googleButton = document.getElementById("google-signin");
+
+if (googleButton) {
+    googleButton.addEventListener("click", async () => {
+        try {
+            isSigningUp = true;
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            const profileRef = doc(db, "users", user.uid);
+            const profileSnap = await getDoc(profileRef);
+
+            if (!profileSnap.exists()) {
+                await setDoc(profileRef, {
+                    email: user.email,
+                    displayName: user.displayName || "",
+                    photoUrl: user.photoURL || "",
+                    role: "customer"
+                });
+            }
+
+            window.location.href = nextPage();
+        } catch (error) {
+            isSigningUp = false;
+            authMessage.textContent = error.code === "auth/operation-not-allowed"
+                ? "Turn on Google sign-in in Firebase, then try again."
+                : error.message;
+            console.error(error);
+        }
+    });
+}
 if (loginButton) {
     loginButton.addEventListener("click", async () => {
         const email = emailInput.value.trim();
@@ -1148,8 +1181,6 @@ if (saveStoreButton) {
 function updateNav(user) {
     const joinLink = document.getElementById("join-link");
     const accountButton = document.getElementById("account-button");
-    const accountPanel = document.getElementById("account-panel");
-
     const dashboardLink = document.getElementById("dashboard-link");
 
     if (joinLink) {
@@ -1160,14 +1191,16 @@ function updateNav(user) {
         accountButton.hidden = !user;
     }
 
+    const accountLink = document.getElementById("account-link");
+    if (accountLink) {
+        accountLink.hidden = !user;
+    }
+
     if (dashboardLink) {
         dashboardLink.hidden = true;
     }
 
     if (!user) {
-        if (accountPanel) {
-            accountPanel.hidden = true;
-        }
         return;
     }
 
@@ -1180,6 +1213,18 @@ let accountProfile = {
 };
 
 function setupAccountMenu() {
+    const list = document.querySelector("nav ul");
+    if (list && !document.getElementById("account-link")) {
+        const item = document.createElement("li");
+        item.id = "account-link";
+        item.hidden = true;
+        const link = document.createElement("a");
+        link.href = "account.html";
+        link.textContent = "Account";
+        item.appendChild(link);
+        list.appendChild(item);
+    }
+
     const accountButton = document.getElementById("account-button");
     if (accountButton) {
         accountButton.addEventListener("click", () => {
@@ -1283,6 +1328,11 @@ async function loadAccountProfile(user) {
 
     if (panel) {
         panel.classList.toggle("store-account", isStore);
+    }
+
+    const layout = document.getElementById("account-page");
+    if (layout) {
+        layout.classList.toggle("store-layout", isStore);
     }
 
     const dashboardLink = document.getElementById("dashboard-link");
@@ -1615,6 +1665,10 @@ function clearAccountPieceForm() {
         publishButton.textContent = "Publish";
         delete publishButton.dataset.editingId;
     }
+    const publishTitle = document.getElementById("account-publish-title");
+    if (publishTitle) {
+        publishTitle.textContent = "Add a piece";
+    }
     if (cancelButton) {
         cancelButton.hidden = true;
     }
@@ -1684,6 +1738,10 @@ async function loadAccountProducts(uid) {
                 const fileInput = document.getElementById("account-product-image");
                 if (fileInput) {
                     fileInput.value = "";
+                }
+                const publishTitle = document.getElementById("account-publish-title");
+                if (publishTitle) {
+                    publishTitle.textContent = "Edit this piece";
                 }
                 const publishButton = document.getElementById("account-publish-button");
                 publishButton.textContent = "Save changes";

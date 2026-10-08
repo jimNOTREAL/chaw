@@ -150,13 +150,78 @@ nav ul a:hover {
     overflow: auto;
 }
 
-.account-panel.account-page {
+#account-page.account-layout {
+    width: min(760px, calc(100% - 40px));
+    margin: 28px auto 80px;
+}
+
+#account-page.store-layout {
+    width: min(1180px, calc(100% - 48px));
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.8fr);
+    gap: 28px;
+    align-items: start;
+}
+
+#account-page .account-panel,
+#account-page .account-panel.account-page,
+#account-page .account-panel.store-account {
     position: static;
-    width: min(680px, calc(100% - 12%));
-    margin: 48px auto 100px;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-width: none;
     max-height: none;
+    margin: 0;
     overflow: visible;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     text-align: left;
+}
+
+#account-page.store-layout .account-panel {
+    position: sticky;
+    top: 92px;
+    max-height: calc(100vh - 110px);
+    overflow: auto;
+}
+
+.account-catalog h2 {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: clamp(40px, 5vw, 64px);
+    margin-bottom: 8px;
+}
+
+.account-catalog > p {
+    color: var(--muted);
+    margin-bottom: 18px;
+}
+
+#account-product-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 16px;
+}
+
+.google-signin {
+    width: 100%;
+    margin-top: 10px;
+    padding: 14px;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    font-family: "Jost", sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.google-signin:hover {
+    background: var(--ink);
+    color: var(--paper);
 }
 
 .account-page h2 {
@@ -394,71 +459,86 @@ nav ul a:hover {
 }
 
 .home-shop .discover-grid {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 16px;
     width: 100%;
-    overflow-x: auto;
+    overflow: visible;
     padding: 8px 0 16px;
 }
 
 .home-shop .product-card {
-    flex: 0 0 320px;
-    width: 320px;
-    max-width: 320px;
-    flex-direction: row;
-    align-items: stretch;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    flex-direction: column;
     position: relative;
-    padding-bottom: 0;
-    overflow: visible;
-    margin-top: 16px;
+    padding-bottom: 16px;
+    overflow: hidden;
+    grid-column: span 2;
+}
+
+.home-shop .product-card:nth-child(5n + 1) {
+    grid-column: span 4;
 }
 
 .home-shop .product-card > a {
-    display: grid;
-    grid-template-columns: 118px minmax(0, 1fr);
-    align-items: start;
-    width: 100%;
-    min-width: 0;
-    min-height: 168px;
-    padding-bottom: 48px;
+    display: block;
+    min-height: 0;
+    padding-bottom: 0;
 }
 
 .home-shop .product-card img {
-    grid-column: 1;
-    grid-row: 1 / span 4;
-    width: 118px;
-    height: 168px;
-    min-height: 168px;
+    width: 100%;
+    height: 220px;
+    min-height: 0;
     margin: 0;
     object-fit: cover;
+    grid-column: auto;
+    grid-row: auto;
 }
 
 .home-shop .product-card h2,
 .home-shop .product-card p {
-    grid-column: 2;
+    grid-column: auto;
     min-width: 0;
 }
 
 .home-shop .product-card h2 {
-    margin-top: 10px;
-    font-size: 22px;
+    margin-top: 12px;
+    font-size: 26px;
 }
 
-.home-shop .product-card .product-description,
-.home-shop .product-card > a > p:last-of-type {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+.home-shop .product-card:nth-child(5n + 1) > a {
+    display: grid;
+    grid-template-columns: minmax(140px, 46%) minmax(0, 1fr);
+    min-height: 240px;
+    padding-bottom: 52px;
+}
+
+.home-shop .product-card:nth-child(5n + 1) img {
+    width: 100%;
+    height: 100%;
+    min-height: 240px;
+    grid-column: 1;
+    grid-row: 1 / span 4;
+}
+
+.home-shop .product-card:nth-child(5n + 1) h2,
+.home-shop .product-card:nth-child(5n + 1) p {
+    grid-column: 2;
 }
 
 .home-shop .product-card .cart-button {
+    position: static;
+    margin: 10px 16px 0;
+}
+
+.home-shop .product-card:nth-child(5n + 1) .cart-button {
     position: absolute;
-    left: 130px;
-    bottom: 14px;
+    left: 48%;
+    bottom: 16px;
     margin: 0;
 }
 
@@ -1012,6 +1092,43 @@ footer {
         justify-content: center;
     }
 
+    .home-shop .discover-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .home-shop .product-card,
+    .home-shop .product-card:nth-child(5n + 1) {
+        grid-column: auto;
+    }
+
+    .home-shop .product-card:nth-child(5n + 1) > a {
+        display: block;
+        min-height: 0;
+        padding-bottom: 0;
+    }
+
+    .home-shop .product-card:nth-child(5n + 1) img {
+        height: 220px;
+        min-height: 0;
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .home-shop .product-card:nth-child(5n + 1) .cart-button {
+        position: static;
+        left: auto;
+        margin: 10px 16px 0;
+    }
+
+    #account-page.store-layout {
+        grid-template-columns: 1fr;
+    }
+
+    #account-page.store-layout .account-panel {
+        position: static;
+        max-height: none;
+    }
+
     .hero h1 {
         font-size: 52px;
     }
@@ -1113,9 +1230,15 @@ footer {
     margin-top: 12px;
 }
 
-#account-product-list .row-actions button,
-#account-cancel-edit {
+#account-product-list .row-actions button {
     width: auto;
+    margin: 0;
+    padding: 10px 14px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: "Jost", sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.12em;
 }
 
 .payment-choice {

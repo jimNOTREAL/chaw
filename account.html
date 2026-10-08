@@ -31,7 +31,13 @@
         </button>
     </nav>
 
-    <main id="account-page">
+    <main id="account-page" class="account-layout">
+        <section id="account-products" class="account-catalog" hidden>
+            <h2>Edit your pieces</h2>
+            <p>Press Edit on a piece. Change it on the right, then press Save changes.</p>
+            <div id="account-product-list"></div>
+        </section>
+
         <div id="account-panel" class="account-panel account-page">
             <div class="account-photo-wrap">
                 <img id="account-photo" alt="" hidden>
@@ -77,13 +83,8 @@
                 <div id="order-list"></div>
             </div>
 
-            <div id="account-products" hidden>
-                <h2>Your pieces</h2>
-                <div id="account-product-list"></div>
-            </div>
-
             <div id="account-publish" hidden>
-                <h2>Add a piece</h2>
+                <h2 id="account-publish-title">Add a piece</h2>
                 <p>Choose the filters customers can use.</p>
                 <div id="account-filters" class="filter-choices"></div>
                 <input id="account-product-name" type="text" placeholder="Piece name">
