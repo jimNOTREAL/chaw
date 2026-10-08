@@ -529,8 +529,7 @@ async function loadMyProducts() {
             }
 
             productItem.querySelector("h3").textContent = product.name;
-            productItem.querySelector(".line-price").textContent =
-                "Price: " + product.price;
+            productItem.querySelector(".line-price").textContent = money(product.price);
             productItem.querySelector(".line-stock").textContent =
                 "Stock: " + product.stock;
             productItem.querySelector(".line-description").textContent =
@@ -630,6 +629,11 @@ function formatAmount(amount) {
     });
 }
 
+function money(amount) {
+    const number = Number(amount);
+    return (Number.isFinite(number) ? formatAmount(number) : "0") + " IQD";
+}
+
 async function loadSales() {
     if (!salesMonth || !salesOverall || !salesList) {
         return;
@@ -674,8 +678,8 @@ async function loadSales() {
 
         sales.sort((first, second) => second.soldAt - first.soldAt);
 
-        salesMonth.textContent = "This month: " + formatAmount(monthTotal);
-        salesOverall.textContent = "All sales: " + formatAmount(overallTotal);
+        salesMonth.textContent = "This month: " + money(monthTotal);
+        salesOverall.textContent = "All sales: " + money(overallTotal);
         salesList.innerHTML = "";
 
         if (sales.length === 0) {
@@ -694,7 +698,7 @@ async function loadSales() {
                 " × " +
                 sale.quantity +
                 " — " +
-                formatAmount(sale.total);
+                money(sale.total);
 
             salesList.appendChild(saleItem);
         });
@@ -1201,6 +1205,11 @@ function setupAccountMenu() {
         publishButton.addEventListener("click", publishFromAccount);
     }
 
+    const cancelEditButton = document.getElementById("account-cancel-edit");
+    if (cancelEditButton) {
+        cancelEditButton.addEventListener("click", clearAccountPieceForm);
+    }
+
     setupCartLink();
 }
 
@@ -1342,6 +1351,11 @@ async function loadAccountProfile(user) {
         cardUrlInput.value = accountProfile.cardPaymentUrl;
     }
 
+    const piecesSection = document.getElementById("account-products");
+    if (piecesSection && !isStore) {
+        piecesSection.hidden = true;
+    }
+
     if (publishSection) {
         publishSection.hidden = !isStore;
     }
@@ -1368,6 +1382,7 @@ async function loadAccountProfile(user) {
                 profile.category ? [profile.category] : []
             );
             await loadStoreOrders(user.uid);
+            await loadAccountProducts(user.uid);
         } catch (error) {
             console.error(error);
         }
@@ -1496,12 +1511,14 @@ async function saveAccountProfile() {
 async function publishFromAccount() {
     const user = auth.currentUser;
     const message = document.getElementById("account-publish-message");
+    const publishButton = document.getElementById("account-publish-button");
     const filters = checkedFilters(document.getElementById("account-filters"));
     const name = document.getElementById("account-product-name").value.trim();
     const price = Number(document.getElementById("account-product-price").value);
     const stock = Number(document.getElementById("account-product-stock").value);
     const description = document.getElementById("account-product-description").value.trim();
     const fileInput = document.getElementById("account-product-image");
+    const editingId = publishButton ? publishButton.dataset.editingId : "";
 
     if (!user || accountProfile.role !== "business") {
         return;
@@ -1517,6 +1534,11 @@ async function publishFromAccount() {
         return;
     }
 
+    if (!Number.isFinite(stock) || stock < 0) {
+        message.textContent = "Enter the stock.";
+        return;
+    }
+
     if (!filters.length) {
         message.textContent = "Choose at least one filter.";
         return;
@@ -1524,35 +1546,182 @@ async function publishFromAccount() {
 
     try {
         const imageUrl = await uploadProductImage(user, fileInput.files[0]);
-        await addDoc(collection(db, "products"), {
+        const fields = {
             name: name,
             price: price,
             stock: stock,
             description: description,
-            imageUrl: imageUrl,
             filters: filters,
             category: filters[0],
-            businessId: user.email,
-            ownerUid: user.uid,
-            hidden: false,
             storeName: accountProfile.storeName,
             area: accountProfile.area || "",
             phone: accountProfile.phone || "",
             whatsapp: accountProfile.whatsapp || "",
             acceptsCard: Boolean(accountProfile.acceptsCard),
             cardPaymentUrl: accountProfile.cardPaymentUrl || ""
-        });
+        };
 
-        document.getElementById("account-product-name").value = "";
-        document.getElementById("account-product-price").value = "";
-        document.getElementById("account-product-stock").value = "";
-        document.getElementById("account-product-description").value = "";
-        fileInput.value = "";
-        message.textContent = "Published in " + filters.join(", ") + ".";
-        await loadMyProducts();
+        if (imageUrl) {
+            fields.imageUrl = imageUrl;
+        }
+
+        if (editingId) {
+            await updateDoc(doc(db, "products", editingId), fields);
+            message.textContent = "Piece updated.";
+        } else {
+            await addDoc(collection(db, "products"), {
+                ...fields,
+                imageUrl: imageUrl,
+                businessId: user.email,
+                ownerUid: user.uid,
+                hidden: false
+            });
+            message.textContent = "Published in " + filters.join(", ") + ".";
+        }
+
+        clearAccountPieceForm();
+        await loadAccountProducts(user.uid);
         await loadDiscover();
     } catch (error) {
         message.textContent = error.message;
+    }
+}
+
+function clearAccountPieceForm() {
+    const nameInput = document.getElementById("account-product-name");
+    const priceInput = document.getElementById("account-product-price");
+    const stockInput = document.getElementById("account-product-stock");
+    const descriptionInput = document.getElementById("account-product-description");
+    const fileInput = document.getElementById("account-product-image");
+    const publishButton = document.getElementById("account-publish-button");
+    const cancelButton = document.getElementById("account-cancel-edit");
+
+    if (nameInput) {
+        nameInput.value = "";
+    }
+    if (priceInput) {
+        priceInput.value = "";
+    }
+    if (stockInput) {
+        stockInput.value = "";
+    }
+    if (descriptionInput) {
+        descriptionInput.value = "";
+    }
+    if (fileInput) {
+        fileInput.value = "";
+    }
+    if (publishButton) {
+        publishButton.textContent = "Publish";
+        delete publishButton.dataset.editingId;
+    }
+    if (cancelButton) {
+        cancelButton.hidden = true;
+    }
+}
+
+async function loadAccountProducts(uid) {
+    const section = document.getElementById("account-products");
+    const list = document.getElementById("account-product-list");
+
+    if (!section || !list) {
+        return;
+    }
+
+    section.hidden = false;
+
+    try {
+        const snapshot = await getDocs(query(
+            collection(db, "products"),
+            where("ownerUid", "==", uid)
+        ));
+        list.replaceChildren();
+
+        if (snapshot.empty) {
+            const empty = document.createElement("p");
+            empty.textContent = "You have not published any pieces yet.";
+            list.appendChild(empty);
+            return;
+        }
+
+        snapshot.forEach((productDocument) => {
+            const product = productDocument.data();
+            const productId = productDocument.id;
+            const card = document.createElement("article");
+
+            if (product.imageUrl) {
+                const image = document.createElement("img");
+                image.src = product.imageUrl;
+                image.alt = product.name || "Piece photo";
+                card.appendChild(image);
+            }
+
+            const title = document.createElement("h3");
+            title.textContent = product.name || "Piece";
+            const price = document.createElement("p");
+            price.textContent = money(product.price);
+            const stock = document.createElement("p");
+            stock.textContent = "In stock: " + product.stock;
+            const description = document.createElement("p");
+            description.textContent = product.description || "";
+
+            const actions = document.createElement("div");
+            actions.className = "row-actions";
+
+            const editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.textContent = "Edit";
+            editButton.addEventListener("click", () => {
+                document.getElementById("account-product-name").value = product.name || "";
+                document.getElementById("account-product-price").value = product.price;
+                document.getElementById("account-product-stock").value = product.stock;
+                document.getElementById("account-product-description").value = product.description || "";
+                fillFilterChoices(
+                    document.getElementById("account-filters"),
+                    availableFilters,
+                    filtersOnProduct(product)
+                );
+                const fileInput = document.getElementById("account-product-image");
+                if (fileInput) {
+                    fileInput.value = "";
+                }
+                const publishButton = document.getElementById("account-publish-button");
+                publishButton.textContent = "Save changes";
+                publishButton.dataset.editingId = productId;
+                const cancelButton = document.getElementById("account-cancel-edit");
+                if (cancelButton) {
+                    cancelButton.hidden = false;
+                }
+                document.getElementById("account-publish").scrollIntoView({ behavior: "smooth" });
+            });
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", async () => {
+                if (!confirm("Delete this piece?")) {
+                    return;
+                }
+
+                try {
+                    await deleteDoc(doc(db, "products", productId));
+                    if (document.getElementById("account-publish-button").dataset.editingId === productId) {
+                        clearAccountPieceForm();
+                    }
+                    await loadAccountProducts(uid);
+                    await loadDiscover();
+                } catch (error) {
+                    stock.textContent = error.message;
+                }
+            });
+
+            actions.append(editButton, deleteButton);
+            card.append(title, price, stock, description, actions);
+            list.appendChild(card);
+        });
+    } catch (error) {
+        list.textContent = "Could not load your pieces.";
+        console.error(error);
     }
 }
 
@@ -1640,7 +1809,7 @@ function renderDiscover() {
             : (product.storeName || "Store");
 
         const price = document.createElement("p");
-        price.textContent = "Price: " + product.price;
+        price.textContent = money(product.price);
 
         const description = document.createElement("p");
         description.textContent = product.description || "";
@@ -1809,7 +1978,7 @@ async function loadProductPage() {
 
         const price = document.createElement("p");
         price.className = "price-large";
-        price.textContent = product.price;
+        price.textContent = money(product.price);
 
         const stock = document.createElement("p");
         stock.textContent = "In stock: " + product.stock;
@@ -1970,7 +2139,7 @@ function renderCartPage() {
         store.textContent = item.storeName || "";
 
         const price = document.createElement("p");
-        price.textContent = "Price " + item.price + " × " + item.quantity;
+        price.textContent = money(item.price) + " × " + item.quantity;
 
         const controls = document.createElement("div");
         controls.className = "cart-controls";
@@ -2003,7 +2172,7 @@ function renderCartPage() {
     if (totalLine) {
         const pieces = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
         totalLine.textContent = cart.length
-            ? pieces + (pieces === 1 ? " piece" : " pieces") + " · Total " + total
+            ? pieces + (pieces === 1 ? " piece" : " pieces") + " · Total " + money(total)
             : "";
     }
 
@@ -2041,7 +2210,7 @@ function paymentLabel(method) {
 
 function orderLines(order) {
     return (order.items || []).map((item) => {
-        return item.quantity + " × " + item.name + " — " + item.price;
+        return item.quantity + " × " + item.name + " — " + money(item.price);
     }).join(", ");
 }
 

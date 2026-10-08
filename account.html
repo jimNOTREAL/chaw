@@ -77,17 +77,23 @@
                 <div id="order-list"></div>
             </div>
 
+            <div id="account-products" hidden>
+                <h2>Your pieces</h2>
+                <div id="account-product-list"></div>
+            </div>
+
             <div id="account-publish" hidden>
                 <h2>Add a piece</h2>
                 <p>Choose the filters customers can use.</p>
                 <div id="account-filters" class="filter-choices"></div>
                 <input id="account-product-name" type="text" placeholder="Piece name">
-                <input id="account-product-price" type="number" placeholder="Price">
+                <input id="account-product-price" type="number" placeholder="Price (IQD)">
                 <input id="account-product-stock" type="number" placeholder="Stock">
                 <input id="account-product-description" type="text" placeholder="Description">
                 <label class="file-label" for="account-product-image">Photo</label>
                 <input id="account-product-image" type="file" accept="image/*">
                 <button type="button" id="account-publish-button">Publish</button>
+                <button type="button" id="account-cancel-edit" hidden>Cancel</button>
                 <p id="account-publish-message"></p>
             </div>
         </div>
