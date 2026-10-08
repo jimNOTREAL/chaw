@@ -51,6 +51,10 @@ const adminPanel = document.getElementById("admin-panel");
 const categoryWordInput = document.getElementById("category-word");
 const categorySectionSelect = document.getElementById("category-section");
 const categorySectionNameInput = document.getElementById("category-section-name");
+const categorySectionArInput = document.getElementById("category-section-ar");
+const categorySectionCkbInput = document.getElementById("category-section-ckb");
+const categoryWordArInput = document.getElementById("category-word-ar");
+const categoryWordCkbInput = document.getElementById("category-word-ckb");
 const addCategoryButton = document.getElementById("add-category-button");
 const categoryList = document.getElementById("category-list");
 const businessEmailInput = document.getElementById("business-email");
@@ -363,7 +367,7 @@ function fillNamedSelect(select, categories, selectedName) {
     categories.forEach((category) => {
         const option = document.createElement("option");
         option.value = category.name;
-        option.textContent = category.name;
+        option.textContent = tagLabel(category.name);
         select.appendChild(option);
     });
 
@@ -426,6 +430,91 @@ function sectionKeyOf(category) {
     return guessSection(category && category.name);
 }
 
+const tagGlossary = [
+    { en: "Pants", ar: "بنطلون", ckb: "پانتۆڵ" },
+    { en: "Jacket", ar: "جاكيت", ckb: "چاکەت" },
+    { en: "Shirt", ar: "قميص", ckb: "قەمیس" },
+    { en: "Overshirt", ar: "قمصلة", ckb: "قەمسەڵە" },
+    { en: "Blouse", ar: "بلوزة", ckb: "بلووز" },
+    { en: "Vest", ar: "صدرية", ckb: "باڵە" },
+    { en: "Piece", ar: "قطعة", ckb: "کاڵا" },
+    { en: "Red", ar: "أحمر", ckb: "سور" },
+    { en: "Blue", ar: "أزرق", ckb: "شین" },
+    { en: "Green", ar: "أخضر", ckb: "سەوز" },
+    { en: "Black", ar: "أسود", ckb: "ڕەش" },
+    { en: "White", ar: "أبيض", ckb: "سپی" },
+    { en: "Yellow", ar: "أصفر", ckb: "زەرد" },
+    { en: "Pink", ar: "وردي", ckb: "پەمەیی" },
+    { en: "Brown", ar: "بني", ckb: "قاوەیی" },
+    { en: "Grey", ar: "رمادي", ckb: "خۆڵەمێشی", also: ["gray"] },
+    { en: "Dark blue", ar: "أزرق غامق", ckb: "شینی تۆخ", also: ["dark blue"] },
+    { en: "All colors", ar: "كل الألوان", ckb: "هەموو ڕەنگەکان", also: ["all color", "all colors"] },
+    { en: "Department", ar: "القسم", ckb: "بەش" },
+    { en: "Cargo pants", ar: "بنطلون كارجو", ckb: "پانتۆڵی کارگۆ" },
+    { en: "Coat", ar: "معطف", ckb: "پالتۆ" },
+    { en: "Dress shirt", ar: "قميص رسمي", ckb: "قەمیسی فەرمی" },
+    { en: "Hoodie", ar: "هودي", ckb: "هودی" },
+    { en: "Jeans", ar: "جينز", ckb: "جینز", also: ["jeans"] },
+    { en: "Long-sleeve shirt", ar: "قميص كم طويل", ckb: "قەمیسی قۆڵ درێژ", also: ["long-sleeve shirt"] },
+    { en: "Short-sleeve shirt", ar: "قميص كم قصير", ckb: "قەمیسی قۆڵ کورت", also: ["short-sleeve shirt"] },
+    { en: "Shoes", ar: "حذاء", ckb: "پێڵاو", also: ["shoes"] },
+    { en: "Sweater", ar: "كنزة", ckb: "سویتر", also: ["sweater"] },
+    { en: "Sweatpants", ar: "بنطلون رياضي", ckb: "پانتۆڵی وەرزشی", also: ["sweatpants"] },
+    { en: "Sweatshirt", ar: "سويت شيرت", ckb: "سویتشێرت", also: ["sweatshirt"] },
+    { en: "T-shirt", ar: "تي شيرت", ckb: "تی شێرت", also: ["t-shirt"] },
+    { en: "Turtleneck", ar: "ياقة عالية", ckb: "ملی باڵا", also: ["turtle neck", "turtleneck"] },
+    { en: "Children", ar: "أطفال", ckb: "منداڵان", also: ["children"] },
+    { en: "Men", ar: "رجال", ckb: "پیاوان" },
+    { en: "Women", ar: "نساء", ckb: "ئافرەتان" },
+    { en: "Light blue", ar: "أزرق فاتح", ckb: "شینی کاڵ", also: ["light blue"] },
+    { en: "Beige", ar: "بيج", ckb: "بێج" },
+    { en: "Navy", ar: "كحلي", ckb: "کەحلی" },
+    { en: "Orange", ar: "برتقالي", ckb: "پرتەقاڵی" },
+    { en: "Purple", ar: "بنفسجي", ckb: "مۆر" },
+    { en: "Gold", ar: "ذهبي", ckb: "زێڕین" },
+    { en: "Silver", ar: "فضي", ckb: "زیو" },
+    { en: "Small", ar: "صغير", ckb: "بچووک" },
+    { en: "Medium", ar: "وسط", ckb: "ناوەند" },
+    { en: "Large", ar: "كبير", ckb: "گەورە" }
+];
+
+function uiLang() {
+    const lang = document.documentElement.lang;
+    return lang === "ar" || lang === "ckb" ? lang : "en";
+}
+
+function glossaryHit(name) {
+    const word = String(name || "").trim().toLowerCase();
+
+    return tagGlossary.find((entry) => {
+        return [entry.en, entry.ar, entry.ckb].concat(entry.also || []).some((label) => {
+            return label.toLowerCase() === word;
+        });
+    });
+}
+
+function tagLabel(name) {
+    const lang = uiLang();
+    const found = availableFilters.find((category) => category.name === name);
+
+    if (found) {
+        if (lang === "ar" && found.nameAr) {
+            return found.nameAr;
+        }
+
+        if (lang === "ckb" && found.nameCkb) {
+            return found.nameCkb;
+        }
+
+        if (lang === "en" && found.nameEn) {
+            return found.nameEn;
+        }
+    }
+
+    const hit = glossaryHit(name);
+    return hit ? hit[lang] : name;
+}
+
 function sectionLabel(key) {
     if (key === "size") {
         return t("sectionSize");
@@ -443,7 +532,21 @@ function sectionLabel(key) {
         return t("sectionOther");
     }
 
-    return key;
+    const lang = uiLang();
+    const sample = availableFilters.find((category) => sectionKeyOf(category) === key);
+
+    if (sample) {
+        if (lang === "ar" && sample.sectionAr) {
+            return sample.sectionAr;
+        }
+
+        if (lang === "ckb" && sample.sectionCkb) {
+            return sample.sectionCkb;
+        }
+    }
+
+    const hit = glossaryHit(key);
+    return hit ? hit[lang] : key;
 }
 
 function sectionForName(name) {
@@ -583,7 +686,7 @@ function fillFilterChoices(container, categories, selectedNames) {
             input.type = "checkbox";
             input.value = category.name;
             input.checked = selected.has(category.name);
-            label.append(input, document.createTextNode(category.name));
+            label.append(input, document.createTextNode(tagLabel(category.name)));
             options.appendChild(label);
         });
 
@@ -929,7 +1032,12 @@ async function loadCategories() {
         categories.push({
             id: categoryDocument.id,
             name: categoryDocument.data().name,
-            section: categoryDocument.data().section || ""
+            nameAr: categoryDocument.data().nameAr || "",
+            nameCkb: categoryDocument.data().nameCkb || "",
+            nameEn: categoryDocument.data().nameEn || "",
+            section: categoryDocument.data().section || "",
+            sectionAr: categoryDocument.data().sectionAr || "",
+            sectionCkb: categoryDocument.data().sectionCkb || ""
         });
     });
 
@@ -988,6 +1096,32 @@ async function loadAdminPanel() {
             const removeButton = document.createElement("button");
 
             label.textContent = category.name;
+            const suggested = glossaryHit(category.name);
+            const arabicInput = document.createElement("input");
+            const kurdishInput = document.createElement("input");
+            arabicInput.type = "text";
+            kurdishInput.type = "text";
+            arabicInput.className = "tag-lang-input";
+            kurdishInput.className = "tag-lang-input";
+            arabicInput.placeholder = t("wordArabic");
+            kurdishInput.placeholder = t("wordKurdish");
+            arabicInput.value = category.nameAr || (suggested ? suggested.ar : "");
+            kurdishInput.value = category.nameCkb || (suggested ? suggested.ckb : "");
+            const saveTranslations = async () => {
+                try {
+                    await updateDoc(doc(db, "categories", category.id), {
+                        nameAr: arabicInput.value.trim(),
+                        nameCkb: kurdishInput.value.trim()
+                    });
+                } catch (error) {
+                    adminMessage.textContent = error.code === "permission-denied"
+                        ? t("saveNeedsRules")
+                        : error.message;
+                    console.error(error);
+                }
+            };
+            arabicInput.addEventListener("change", saveTranslations);
+            kurdishInput.addEventListener("change", saveTranslations);
             knownSectionKeys(categories).concat("other").forEach((key) => {
                 if ([...sectionSelect.options].some((option) => option.value === key)) {
                     return;
@@ -1025,7 +1159,7 @@ async function loadAdminPanel() {
                 }
             });
 
-            row.append(label, sectionSelect, removeButton);
+            row.append(label, arabicInput, kurdishInput, sectionSelect, removeButton);
             block.appendChild(row);
         });
 
@@ -1043,7 +1177,7 @@ async function loadAdminPanel() {
         const removeButton = document.createElement("button");
         const storeLabel = account.storeName ? " — " + account.storeName : "";
         const categoryLabel = account.category
-            ? t("inCategory", { category: account.category })
+            ? t("inCategory", { category: tagLabel(account.category) })
             : t("noCategoryYet");
 
         label.textContent = (account.email || account.id) + storeLabel + categoryLabel;
@@ -1261,7 +1395,33 @@ async function prepareDashboard(user) {
 if (categorySectionSelect && categorySectionNameInput && !categorySectionSelect.dataset.bound) {
     categorySectionSelect.dataset.bound = "1";
     categorySectionSelect.addEventListener("change", () => {
-        categorySectionNameInput.hidden = categorySectionSelect.value !== "__new";
+        const showCustomSection = categorySectionSelect.value !== "__new";
+        categorySectionNameInput.hidden = showCustomSection;
+        if (categorySectionArInput) {
+            categorySectionArInput.hidden = showCustomSection;
+        }
+        if (categorySectionCkbInput) {
+            categorySectionCkbInput.hidden = showCustomSection;
+        }
+    });
+}
+
+if (categoryWordInput && !categoryWordInput.dataset.bound) {
+    categoryWordInput.dataset.bound = "1";
+    categoryWordInput.addEventListener("change", () => {
+        const hit = glossaryHit(categoryWordInput.value.trim());
+
+        if (!hit) {
+            return;
+        }
+
+        if (categoryWordArInput && !categoryWordArInput.value.trim()) {
+            categoryWordArInput.value = hit.ar;
+        }
+
+        if (categoryWordCkbInput && !categoryWordCkbInput.value.trim()) {
+            categoryWordCkbInput.value = hit.ckb;
+        }
     });
 }
 
@@ -1295,10 +1455,34 @@ if (addCategoryButton) {
                 return;
             }
 
-            await addDoc(collection(db, "categories"), { name: name, section: section });
+            const record = {
+                name: name,
+                nameAr: categoryWordArInput ? categoryWordArInput.value.trim() : "",
+                nameCkb: categoryWordCkbInput ? categoryWordCkbInput.value.trim() : "",
+                section: section
+            };
+
+            if (categorySectionSelect && categorySectionSelect.value === "__new") {
+                record.sectionAr = categorySectionArInput ? categorySectionArInput.value.trim() : "";
+                record.sectionCkb = categorySectionCkbInput ? categorySectionCkbInput.value.trim() : "";
+            }
+
+            await addDoc(collection(db, "categories"), record);
             categoryWordInput.value = "";
+            if (categoryWordArInput) {
+                categoryWordArInput.value = "";
+            }
+            if (categoryWordCkbInput) {
+                categoryWordCkbInput.value = "";
+            }
             if (categorySectionNameInput) {
                 categorySectionNameInput.value = "";
+            }
+            if (categorySectionArInput) {
+                categorySectionArInput.value = "";
+            }
+            if (categorySectionCkbInput) {
+                categorySectionCkbInput.value = "";
             }
             adminMessage.textContent = t("filterAdded");
             await loadAdminPanel();
@@ -1580,6 +1764,11 @@ async function loadAccountProfile(user) {
     const layout = document.getElementById("account-page");
     if (layout) {
         layout.classList.toggle("store-layout", isStore);
+    }
+
+    const storeJump = document.getElementById("store-jump");
+    if (storeJump) {
+        storeJump.hidden = !isStore;
     }
 
     const dashboardLink = document.getElementById("dashboard-link");
@@ -1966,6 +2155,9 @@ async function loadAccountProducts(uid) {
             price.textContent = money(product.price);
             const stock = document.createElement("p");
             stock.textContent = t("inStockLabel", { stock: product.stock });
+            const tags = document.createElement("p");
+            tags.className = "piece-tags";
+            tags.textContent = filtersOnProduct(product).map((name) => tagLabel(name)).join(" · ");
             const description = document.createElement("p");
             description.textContent = product.description || "";
 
@@ -2024,7 +2216,7 @@ async function loadAccountProducts(uid) {
             });
 
             actions.append(editButton, deleteButton);
-            card.append(title, price, stock, description, actions);
+            card.append(title, price, stock, tags, description, actions);
             list.appendChild(card);
         });
     } catch (error) {
@@ -2047,7 +2239,19 @@ function renderDiscover() {
             .filter(Boolean)
     )];
 
+    const requestedTag = new URLSearchParams(window.location.search).get("tag");
+
+    if (requestedTag && !renderDiscover.tagApplied) {
+        activeFilter = requestedTag;
+        renderDiscover.tagApplied = true;
+    }
+
     filterBar.innerHTML = "";
+
+    const browse = document.createElement("p");
+    browse.className = "filter-bar-label";
+    browse.textContent = t("browseBy");
+    filterBar.appendChild(browse);
 
     const allButton = document.createElement("button");
     allButton.type = "button";
@@ -2073,7 +2277,7 @@ function renderDiscover() {
         group.items.forEach((category) => {
             const button = document.createElement("button");
             button.type = "button";
-            button.textContent = category.name;
+            button.textContent = tagLabel(category.name);
             button.className = category.name === activeFilter ? "active" : "";
             button.addEventListener("click", () => {
                 activeFilter = category.name;
@@ -2101,7 +2305,8 @@ function renderDiscover() {
                 product.storeName,
                 product.area,
                 product.category,
-                ...filtersOnProduct(product)
+                ...filtersOnProduct(product),
+                ...filtersOnProduct(product).map((name) => tagLabel(name))
             ].join(" ").toLowerCase();
             return haystack.includes(searchText);
         });
@@ -2302,7 +2507,19 @@ async function loadProductPage() {
 
         const category = document.createElement("p");
         category.className = "product-kicker";
-        category.textContent = filtersOnProduct(product).join(" · ") || "Chaw";
+        const productTags = filtersOnProduct(product);
+
+        if (!productTags.length) {
+            category.textContent = "Chaw";
+        }
+
+        productTags.forEach((name) => {
+            const tagLink = document.createElement("a");
+            tagLink.className = "tag-link";
+            tagLink.href = "discover.html?tag=" + encodeURIComponent(name);
+            tagLink.textContent = tagLabel(name);
+            category.appendChild(tagLink);
+        });
 
         const title = document.createElement("h1");
         title.textContent = product.name || t("product");

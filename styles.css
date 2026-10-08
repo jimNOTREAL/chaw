@@ -355,6 +355,51 @@ nav ul a:hover {
     margin-bottom: 8px;
 }
 
+.filter-bar-label {
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.tag-link {
+    display: inline-block;
+    margin-inline-end: 12px;
+    color: var(--wine);
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.piece-tags {
+    color: var(--wine);
+    font-size: 13px;
+}
+
+.page-jump {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 22px;
+}
+
+.page-jump a {
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--gold);
+}
+
+.tag-lang-input {
+    width: 140px !important;
+    margin: 0 8px 0 0 !important;
+    padding: 6px 8px !important;
+}
+
 .filter-options {
     display: flex;
     flex-wrap: wrap;
@@ -1381,6 +1426,9 @@ footer {
 
 [dir="rtl"] nav ul a,
 [dir="rtl"] .nav-button,
+[dir="rtl"] .page-jump a,
+[dir="rtl"] .tag-link,
+[dir="rtl"] .filter-bar-label,
 [dir="rtl"] .payment-choice legend,
 [dir="rtl"] #account-product-list .row-actions button {
     letter-spacing: 0;

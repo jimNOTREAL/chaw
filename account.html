@@ -49,6 +49,12 @@
     </nav>
 
     <main id="account-page" class="account-layout">
+        <nav id="store-jump" class="page-jump" hidden>
+            <a href="#account-products" data-i18n="jumpPieces">Pieces</a>
+            <a href="#account-orders" data-i18n="jumpOrders">Orders</a>
+            <a href="#account-publish" data-i18n="jumpAdd">Add a piece</a>
+            <a href="#account-details" data-i18n="jumpDetails">Details</a>
+        </nav>
         <section id="account-products" class="account-catalog" hidden>
             <h2 data-i18n="editYourPieces">Edit your pieces</h2>
             <p data-i18n="editPiecesHelp">Press Edit on a piece. Change it on the right, then press Save changes.</p>
@@ -65,7 +71,7 @@
             <p id="account-store-kicker" hidden data-i18n="storeKicker">Store</p>
             <p id="account-email"></p>
 
-            <h2 data-i18n="yourDetails">Your details</h2>
+            <h2 id="account-details" data-i18n="yourDetails">Your details</h2>
             <label class="file-label" id="display-name-label" for="display-name" data-i18n="displayName">Display name</label>
             <input id="display-name" type="text" maxlength="40" data-i18n-placeholder="displayName" placeholder="Display name">
             <label class="file-label" for="account-phone" data-i18n="phone">Phone</label>
