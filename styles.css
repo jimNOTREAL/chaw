@@ -946,6 +946,43 @@ select:focus {
     opacity: 1;
 }
 
+.auth-box .auth-link {
+    width: auto;
+    margin-top: 8px;
+    padding: 0;
+    background: transparent;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: none;
+    font-size: 14px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.auth-box .auth-link:hover {
+    background: transparent;
+    color: var(--ink);
+}
+
+.auth-or {
+    margin: 16px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.auth-box .google-signin {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+}
+
+.auth-box .google-signin:hover {
+    background: var(--ink);
+    color: var(--paper);
+}
+
 #auth-message,
 #product-message,
 #admin-message,
@@ -1441,6 +1478,10 @@ footer {
 [dir="rtl"] .payment-choice legend,
 [dir="rtl"] .order-card button,
 [dir="rtl"] .order-card .order-actions a,
+[dir="rtl"] .auth-box button,
+[dir="rtl"] .auth-box .auth-link,
+[dir="rtl"] .google-signin,
+[dir="rtl"] .auth-or,
 [dir="rtl"] #account-product-list .row-actions button {
     letter-spacing: 0;
     text-transform: none;

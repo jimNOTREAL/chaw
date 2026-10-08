@@ -6,6 +6,7 @@ import {
     signInWithEmailAndPassword,
     signInWithPopup,
     GoogleAuthProvider,
+    sendPasswordResetEmail,
     onAuthStateChanged,
     setPersistence,
     browserLocalPersistence,
@@ -28,7 +29,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008c";
+import { t, onLanguageChange } from "./lang.js?v=20261008d";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -144,11 +145,104 @@ function requireBuyer() {
 }
 
 let isSigningUp = false;
+let authMode = "login";
+
+function authErrorText(error) {
+    const code = error && error.code;
+
+    if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-login-credentials") {
+        return t("wrongEmailOrPassword");
+    }
+
+    if (code === "auth/invalid-email") {
+        return t("enterRealEmail");
+    }
+
+    if (code === "auth/email-already-in-use") {
+        return t("emailAlreadyUsed");
+    }
+
+    if (code === "auth/weak-password") {
+        return t("passwordTooShort");
+    }
+
+    if (code === "auth/missing-password") {
+        return t("enterPassword");
+    }
+
+    if (code === "auth/too-many-requests") {
+        return t("tooManyTries");
+    }
+
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        return t("googleClosed");
+    }
+
+    if (code === "auth/operation-not-allowed") {
+        return t("googleOff");
+    }
+
+    if (code === "auth/network-request-failed") {
+        return t("checkConnection");
+    }
+
+    return t("couldNotSignIn");
+}
+
+function showAuthMode(mode) {
+    authMode = mode === "signup" ? "signup" : "login";
+    const creating = authMode === "signup";
+    const heading = document.getElementById("auth-heading");
+    const lead = document.getElementById("auth-lead");
+    const forgotButton = document.getElementById("forgot-password");
+    const switchButton = document.getElementById("auth-switch");
+
+    if (heading) {
+        heading.textContent = creating ? t("createHeading") : t("signInHeading");
+    }
+
+    if (lead) {
+        lead.textContent = creating ? t("createLead") : t("signInLead");
+    }
+
+    if (signupButton) {
+        signupButton.hidden = !creating;
+        signupButton.textContent = t("createAccount");
+    }
+
+    if (loginButton) {
+        loginButton.hidden = creating;
+        loginButton.textContent = t("login");
+    }
+
+    if (forgotButton) {
+        forgotButton.hidden = creating;
+        forgotButton.textContent = t("forgotPassword");
+    }
+
+    if (switchButton) {
+        switchButton.textContent = creating ? t("haveAccount") : t("needAccount");
+    }
+
+    if (passwordInput) {
+        passwordInput.autocomplete = creating ? "new-password" : "current-password";
+    }
+}
 
 if (signupButton) {
     signupButton.addEventListener("click", async () => {
         const email = emailInput.value.trim();
         const password = passwordInput.value;
+
+        if (!email) {
+            authMessage.textContent = t("enterEmailFirst");
+            return;
+        }
+
+        if (!password) {
+            authMessage.textContent = t("enterPassword");
+            return;
+        }
 
         try {
             isSigningUp = true;
@@ -169,7 +263,7 @@ if (signupButton) {
             window.location.href = nextPage();
         } catch (error) {
             isSigningUp = false;
-            authMessage.textContent = error.message;
+            authMessage.textContent = authErrorText(error);
             console.error(error);
         }
     });
@@ -199,9 +293,7 @@ if (googleButton) {
             window.location.href = nextPage();
         } catch (error) {
             isSigningUp = false;
-            authMessage.textContent = error.code === "auth/operation-not-allowed"
-                ? t("googleOff")
-                : error.message;
+            authMessage.textContent = authErrorText(error);
             console.error(error);
         }
     });
@@ -211,15 +303,64 @@ if (loginButton) {
         const email = emailInput.value.trim();
         const password = passwordInput.value;
 
+        if (!email) {
+            authMessage.textContent = t("enterEmailFirst");
+            return;
+        }
+
+        if (!password) {
+            authMessage.textContent = t("enterPassword");
+            return;
+        }
+
         try {
             await signInWithEmailAndPassword(auth, email, password);
             window.location.href = nextPage();
         } catch (error) {
-            authMessage.textContent = error.message;
+            authMessage.textContent = authErrorText(error);
             console.error(error);
         }
     });
 }
+
+const forgotButton = document.getElementById("forgot-password");
+
+if (forgotButton) {
+    forgotButton.addEventListener("click", async () => {
+        const email = emailInput.value.trim();
+
+        if (!email) {
+            authMessage.textContent = t("enterEmailFirst");
+            return;
+        }
+
+        try {
+            await sendPasswordResetEmail(auth, email);
+            authMessage.textContent = t("resetSent");
+        } catch (error) {
+            authMessage.textContent = authErrorText(error);
+            console.error(error);
+        }
+    });
+}
+
+const authSwitch = document.getElementById("auth-switch");
+
+if (authSwitch) {
+    authSwitch.addEventListener("click", () => {
+        showAuthMode(authMode === "signup" ? "login" : "signup");
+        if (authMessage) {
+            authMessage.textContent = "";
+        }
+    });
+    showAuthMode("login");
+}
+
+onLanguageChange(() => {
+    if (document.getElementById("auth-heading")) {
+        showAuthMode(authMode);
+    }
+});
 
 function compressProductImage(file, maxSize = 800, maxLength = 700000) {
     return new Promise((resolve, reject) => {
