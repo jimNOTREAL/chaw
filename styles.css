@@ -117,6 +117,29 @@ nav ul a:hover {
     text-transform: none;
 }
 
+.lang-switch {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lang-switch button {
+    border: 0;
+    background: transparent;
+    color: var(--paper);
+    font-family: "Noto Sans Arabic", "Jost", sans-serif;
+    font-size: 14px;
+    line-height: 1;
+    padding: 8px 6px;
+    cursor: pointer;
+    opacity: 0.62;
+}
+
+.lang-switch button[aria-pressed="true"] {
+    opacity: 1;
+    color: var(--gold);
+}
+
 .account-button img,
 .account-button span {
     width: 100%;
@@ -1295,4 +1318,52 @@ footer {
     color: var(--ink);
     font-size: 13px;
     letter-spacing: 0.08em;
+}
+
+[dir="rtl"] body,
+[dir="rtl"] button,
+[dir="rtl"] input,
+[dir="rtl"] select,
+[dir="rtl"] textarea {
+    font-family: "Noto Sans Arabic", "Jost", sans-serif;
+}
+
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] .feature h3,
+[dir="rtl"] .features h2 {
+    font-family: "Noto Naskh Arabic", "Cormorant Garamond", serif;
+    letter-spacing: 0;
+}
+
+[dir="rtl"] nav ul a,
+[dir="rtl"] .nav-button,
+[dir="rtl"] .payment-choice legend,
+[dir="rtl"] #account-product-list .row-actions button {
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 15px;
+}
+
+[dir="rtl"] .hero-content,
+[dir="rtl"] .home-shop,
+[dir="rtl"] .product-copy,
+[dir="rtl"] .cart-page,
+[dir="rtl"] .account-layout,
+[dir="rtl"] .auth-box {
+    text-align: right;
+}
+
+[dir="rtl"] .home-shop .product-card:nth-child(5n + 1) .cart-button {
+    left: auto;
+    right: 48%;
+}
+
+@media (max-width: 800px) {
+    [dir="rtl"] .hero,
+    [dir="rtl"] .hero-content,
+    [dir="rtl"] .home-shop {
+        text-align: center;
+    }
 }

@@ -28,6 +28,8 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
+import { t, onLanguageChange } from "./lang.js";
+
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const signupButton = document.getElementById("signup-button");
@@ -192,7 +194,7 @@ if (googleButton) {
         } catch (error) {
             isSigningUp = false;
             authMessage.textContent = error.code === "auth/operation-not-allowed"
-                ? "Turn on Google sign-in in Firebase, then try again."
+                ? t("googleOff")
                 : error.message;
             console.error(error);
         }
@@ -240,7 +242,7 @@ function compressProductImage(file, maxSize = 800, maxLength = 700000) {
             const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
 
             if (dataUrl.length > maxLength) {
-                reject(new Error("Photo is still too large. Choose a smaller one."));
+                reject(new Error(t("photoTooLarge")));
                 return;
             }
 
@@ -249,7 +251,7 @@ function compressProductImage(file, maxSize = 800, maxLength = 700000) {
 
         image.onerror = () => {
             URL.revokeObjectURL(objectUrl);
-            reject(new Error("Could not read the photo."));
+            reject(new Error(t("couldNotReadPhoto")));
         };
 
         image.src = objectUrl;
@@ -262,11 +264,11 @@ async function uploadProductImage(user, file) {
     }
 
     if (!file.type.startsWith("image/")) {
-        throw new Error("Please choose an image file.");
+        throw new Error(t("chooseImageFile"));
     }
 
     if (file.size > 5 * 1024 * 1024) {
-        throw new Error("Image must be under 5 MB.");
+        throw new Error(t("imageUnder5"));
     }
 
     return compressProductImage(file);
@@ -290,7 +292,7 @@ function clearProductForm() {
         );
     }
 
-    addProductButton.textContent = "Publish Product";
+    addProductButton.textContent = t("publishProduct");
     delete addProductButton.dataset.editingId;
 }
 
@@ -353,7 +355,7 @@ function fillNamedSelect(select, categories, selectedName) {
     select.innerHTML = "";
     const placeholder = document.createElement("option");
     placeholder.value = "";
-    placeholder.textContent = "Choose a filter word";
+    placeholder.textContent = t("chooseFilterWord");
     select.appendChild(placeholder);
 
     categories.forEach((category) => {
@@ -399,7 +401,7 @@ function fillFilterChoices(container, categories, selectedNames) {
     container.innerHTML = "";
 
     if (names.length === 0) {
-        container.innerHTML = "<p>The admin has not added filter words yet.</p>";
+        container.innerHTML = "<p>" + t("noFilterWordsYet") + "</p>";
         return;
     }
 
@@ -434,12 +436,12 @@ if (addProductButton) {
 
         if (!user) {
             productMessage.textContent =
-                "You must be logged in to publish a product.";
+                t("mustBeLoggedIn");
             return;
         }
 
         if (!productName || !productPrice || !productDescription) {
-            productMessage.textContent = "Please fill in all product fields.";
+            productMessage.textContent = t("fillProductFields");
             return;
         }
 
@@ -469,16 +471,16 @@ if (addProductButton) {
                 }
 
                 await updateDoc(doc(db, "products", editingId), updates);
-                productMessage.textContent = "Product updated.";
+                productMessage.textContent = t("productUpdated");
             } else {
                 if (!currentBusiness || !currentBusiness.storeName) {
                     productMessage.textContent =
-                        "Save your store name before publishing.";
+                        t("saveStoreBeforePublishing");
                     return;
                 }
 
                 if (!filters.length) {
-                    productMessage.textContent = "Choose at least one filter for this product.";
+                    productMessage.textContent = t("chooseOneFilter");
                     return;
                 }
 
@@ -496,7 +498,7 @@ if (addProductButton) {
                     ...contactFields(currentBusiness)
                 });
 
-                productMessage.textContent = "Product published successfully!";
+                productMessage.textContent = t("productPublished");
             }
 
             clearProductForm();
@@ -519,7 +521,7 @@ async function loadMyProducts() {
 
     if (!user) {
         productList.innerHTML =
-            "<p>Please log in to see your products.</p>";
+            "<p>" + t("pleaseLogInProducts") + "</p>";
         return;
     }
 
@@ -535,7 +537,7 @@ async function loadMyProducts() {
 
         if (productsSnapshot.empty) {
             productList.innerHTML =
-                "<p>You haven't published any products yet.</p>";
+                "<p>" + t("noProductsPublished") + "</p>";
             return;
         }
 
@@ -549,24 +551,24 @@ async function loadMyProducts() {
                 <p class="line-price"></p>
                 <p class="line-stock"></p>
                 <p class="line-description"></p>
-                <label class="file-label">Quantity sold</label>
+                <label class="file-label">${t("quantitySold")}</label>
                 <input class="sale-quantity" type="number" min="1" value="1">
-                <button type="button" class="edit-product-button">Edit</button>
-                <button type="button" class="record-sale-button">Record sale</button>
-                <button type="button" class="delete-product-button">Delete</button>
+                <button type="button" class="edit-product-button">${t("edit")}</button>
+                <button type="button" class="record-sale-button">${t("recordSale")}</button>
+                <button type="button" class="delete-product-button">${t("delete")}</button>
             `;
 
             if (product.imageUrl) {
                 const productImage = document.createElement("img");
                 productImage.src = product.imageUrl;
-                productImage.alt = product.name || "Product photo";
+                productImage.alt = product.name || t("productPhoto");
                 productItem.prepend(productImage);
             }
 
             productItem.querySelector("h3").textContent = product.name;
             productItem.querySelector(".line-price").textContent = money(product.price);
             productItem.querySelector(".line-stock").textContent =
-                "Stock: " + product.stock;
+                t("stockLabel", { stock: product.stock });
             productItem.querySelector(".line-description").textContent =
                 product.description;
 
@@ -584,7 +586,7 @@ async function loadMyProducts() {
                         productImageInput.value = "";
                     }
 
-                    addProductButton.textContent = "Save changes";
+                    addProductButton.textContent = t("saveChanges");
                     addProductButton.dataset.editingId = productId;
                 });
 
@@ -596,13 +598,13 @@ async function loadMyProducts() {
 
                     if (!Number.isInteger(quantity) || quantity < 1) {
                         productMessage.textContent =
-                            "Enter a whole number of items sold.";
+                            t("enterWholeNumber");
                         return;
                     }
 
                     if (quantity > Number(product.stock)) {
                         productMessage.textContent =
-                            "You cannot sell more than the stock you have.";
+                            t("cannotSellMore");
                         return;
                     }
 
@@ -623,7 +625,7 @@ async function loadMyProducts() {
                             stock: Number(product.stock) - quantity
                         });
 
-                        productMessage.textContent = "Sale recorded.";
+                        productMessage.textContent = t("saleRecorded");
                         await loadMyProducts();
                         await loadSales();
                     } catch (error) {
@@ -635,13 +637,13 @@ async function loadMyProducts() {
             productItem
                 .querySelector(".delete-product-button")
                 .addEventListener("click", async () => {
-                    if (!confirm("Delete this product?")) {
+                    if (!confirm(t("deleteThisProduct"))) {
                         return;
                     }
 
                     try {
                         await deleteDoc(doc(db, "products", productId));
-                        productMessage.textContent = "Product deleted.";
+                        productMessage.textContent = t("productDeleted");
                         await loadMyProducts();
                     } catch (error) {
                         productMessage.textContent = error.message;
@@ -652,7 +654,7 @@ async function loadMyProducts() {
             productList.appendChild(productItem);
         });
     } catch (error) {
-        productList.innerHTML = "<p>Could not load products.</p>";
+        productList.innerHTML = "<p>" + t("couldNotLoadProducts") + "</p>";
         console.error(error);
     }
 }
@@ -677,8 +679,8 @@ async function loadSales() {
     const user = auth.currentUser;
 
     if (!user) {
-        salesMonth.textContent = "This month: 0";
-        salesOverall.textContent = "All sales: 0";
+        salesMonth.textContent = t("thisMonthZero");
+        salesOverall.textContent = t("allSalesZero");
         salesList.innerHTML = "";
         return;
     }
@@ -713,12 +715,12 @@ async function loadSales() {
 
         sales.sort((first, second) => second.soldAt - first.soldAt);
 
-        salesMonth.textContent = "This month: " + money(monthTotal);
-        salesOverall.textContent = "All sales: " + money(overallTotal);
+        salesMonth.textContent = t("thisMonth", { amount: money(monthTotal) });
+        salesOverall.textContent = t("allSales", { amount: money(overallTotal) });
         salesList.innerHTML = "";
 
         if (sales.length === 0) {
-            salesList.innerHTML = "<p>No sales recorded yet.</p>";
+            salesList.innerHTML = "<p>" + t("noSalesYet") + "</p>";
             return;
         }
 
@@ -738,7 +740,7 @@ async function loadSales() {
             salesList.appendChild(saleItem);
         });
     } catch (error) {
-        salesList.innerHTML = "<p>Could not load sales.</p>";
+        salesList.innerHTML = "<p>" + t("couldNotLoadSales") + "</p>";
         console.error(error);
     }
 }
@@ -786,7 +788,7 @@ async function loadAdminPanel() {
     fillNamedSelect(businessCategorySelect, categories, businessCategorySelect ? businessCategorySelect.value : "");
 
     if (categories.length === 0) {
-        categoryList.innerHTML = "<p>No filter words yet.</p>";
+        categoryList.innerHTML = "<p>" + t("noFilterWords") + "</p>";
     }
 
     categories.forEach((category) => {
@@ -797,7 +799,7 @@ async function loadAdminPanel() {
         label.textContent = category.name;
         removeButton.type = "button";
         removeButton.className = "row-button";
-        removeButton.textContent = "Remove";
+        removeButton.textContent = t("remove");
         removeButton.addEventListener("click", async () => {
             try {
                 await deleteDoc(doc(db, "categories", category.id));
@@ -813,7 +815,7 @@ async function loadAdminPanel() {
     });
 
     if (businesses.length === 0) {
-        businessList.innerHTML = "<p>No business accounts yet.</p>";
+        businessList.innerHTML = "<p>" + t("noBusinessAccounts") + "</p>";
     }
 
     businesses.forEach((account) => {
@@ -821,18 +823,20 @@ async function loadAdminPanel() {
         const label = document.createElement("span");
         const removeButton = document.createElement("button");
         const storeLabel = account.storeName ? " — " + account.storeName : "";
-        const categoryLabel = account.category ? " in " + account.category : " — no category yet";
+        const categoryLabel = account.category
+            ? t("inCategory", { category: account.category })
+            : t("noCategoryYet");
 
         label.textContent = (account.email || account.id) + storeLabel + categoryLabel;
         removeButton.type = "button";
         removeButton.className = "row-button";
-        removeButton.textContent = "Remove";
+        removeButton.textContent = t("remove");
         removeButton.addEventListener("click", async () => {
             try {
                 await updateDoc(doc(db, "users", account.id), {
                     role: "customer"
                 });
-                adminMessage.textContent = "Business access removed.";
+                adminMessage.textContent = t("businessRemoved");
                 await loadAdminPanel();
             } catch (error) {
                 adminMessage.textContent = error.message;
@@ -850,11 +854,11 @@ async function loadAdminPanel() {
         if (businesses.length === 0) {
             unfinishedList.innerHTML = "";
         } else if (unfinished.length === 0) {
-            unfinishedList.innerHTML = "<p>Every business has a store name.</p>";
+            unfinishedList.innerHTML = "<p>" + t("everyBusinessNamed") + "</p>";
         } else {
             unfinished.forEach((account) => {
                 const row = document.createElement("p");
-                row.textContent = (account.email || account.id) + " has not saved a store name.";
+                row.textContent = t("hasNotSavedStore", { name: account.email || account.id });
                 unfinishedList.appendChild(row);
             });
         }
@@ -865,7 +869,7 @@ async function loadAdminPanel() {
         publicProductList.innerHTML = "";
 
         if (productSnapshot.empty) {
-            publicProductList.innerHTML = "<p>No products yet.</p>";
+            publicProductList.innerHTML = "<p>" + t("noProductsYet") + "</p>";
         }
 
         productSnapshot.forEach((productDocument) => {
@@ -875,21 +879,21 @@ async function loadAdminPanel() {
             const hideButton = document.createElement("button");
 
             label.textContent =
-                (product.name || "Product") +
+                (product.name || t("product")) +
                 " — " +
-                (product.storeName || "Store") +
-                (product.hidden ? " (hidden)" : "");
+                (product.storeName || t("store")) +
+                (product.hidden ? t("hiddenTag") : "");
             hideButton.type = "button";
             hideButton.className = "row-button";
-            hideButton.textContent = product.hidden ? "Show" : "Hide";
+            hideButton.textContent = product.hidden ? t("show") : t("hide");
             hideButton.addEventListener("click", async () => {
                 try {
                     await updateDoc(doc(db, "products", productDocument.id), {
                         hidden: !product.hidden
                     });
                     adminMessage.textContent = product.hidden
-                        ? "Product is public again."
-                        : "Product hidden from Discover.";
+                        ? t("productPublicAgain")
+                        : t("productHidden");
                     await loadAdminPanel();
                     await loadDiscover();
                 } catch (error) {
@@ -1006,7 +1010,7 @@ async function prepareDashboard(user) {
         }
 
         if (!currentBusiness.storeName && accountNote) {
-            accountNote.textContent = "Save the store name, then publish from your account.";
+            accountNote.textContent = t("saveStoreThenPublish");
         }
 
         if (storeSetup) {
@@ -1016,7 +1020,7 @@ async function prepareDashboard(user) {
         if (currentBusiness.storeName) {
             addProductSection.hidden = false;
             if (accountNote) {
-                accountNote.textContent = "Publishing as " + currentBusiness.storeName + ".";
+                accountNote.textContent = t("publishingAs", { name: currentBusiness.storeName });
             }
         }
 
@@ -1040,7 +1044,7 @@ if (addCategoryButton) {
         const name = categoryWordInput.value.trim();
 
         if (!name) {
-            adminMessage.textContent = "Type a filter word first.";
+            adminMessage.textContent = t("typeFilterFirst");
             return;
         }
 
@@ -1051,13 +1055,13 @@ if (addCategoryButton) {
             });
 
             if (alreadyExists) {
-                adminMessage.textContent = "That filter word already exists.";
+                adminMessage.textContent = t("filterExists");
                 return;
             }
 
             await addDoc(collection(db, "categories"), { name: name });
             categoryWordInput.value = "";
-            adminMessage.textContent = "Filter word added.";
+            adminMessage.textContent = t("filterAdded");
             await loadAdminPanel();
             await loadDiscover();
         } catch (error) {
@@ -1072,12 +1076,12 @@ if (allowBusinessButton) {
         const category = businessCategorySelect ? businessCategorySelect.value : "";
 
         if (!email || !category) {
-            adminMessage.textContent = "Type the email and choose a category.";
+            adminMessage.textContent = t("typeEmailCategory");
             return;
         }
 
         if (email === adminEmail.toLowerCase()) {
-            adminMessage.textContent = "The admin account stays the admin.";
+            adminMessage.textContent = t("adminStaysAdmin");
             return;
         }
 
@@ -1089,7 +1093,7 @@ if (allowBusinessButton) {
 
             if (!account) {
                 adminMessage.textContent =
-                    "No signed-up account uses that email yet.";
+                    t("noAccountEmail");
                 return;
             }
 
@@ -1122,7 +1126,7 @@ if (allowBusinessButton) {
             if (businessCategorySelect) {
                 businessCategorySelect.value = "";
             }
-            adminMessage.textContent = email + " can publish in " + category + ".";
+            adminMessage.textContent = t("canPublishIn", { email: email, category: category });
             await loadAdminPanel();
         } catch (error) {
             adminMessage.textContent = error.message;
@@ -1140,17 +1144,17 @@ if (saveStoreButton) {
         }
 
         if (!details.storeName) {
-            accountNote.textContent = "Enter the store name.";
+            accountNote.textContent = t("enterTheStoreName");
             return;
         }
 
         if (!details.category) {
-            accountNote.textContent = "The admin has to give this account a category.";
+            accountNote.textContent = t("adminMustGiveCategory");
             return;
         }
 
         if (details.acceptsCard && details.cardPaymentUrl && !safeHttpUrl(details.cardPaymentUrl)) {
-            accountNote.textContent = "The card link must start with https://";
+            accountNote.textContent = t("cardMustHttps");
             return;
         }
 
@@ -1173,7 +1177,7 @@ if (saveStoreButton) {
             };
             await syncStoreOntoProducts(user, currentBusiness);
             addProductSection.hidden = false;
-            accountNote.textContent = "Publishing as " + details.storeName + ".";
+            accountNote.textContent = t("publishingAs", { name: details.storeName });
         } catch (error) {
             accountNote.textContent = error.message;
         }
@@ -1223,7 +1227,7 @@ function setupAccountMenu() {
         item.hidden = true;
         const link = document.createElement("a");
         link.href = "account.html";
-        link.textContent = "Account";
+        link.textContent = t("account");
         item.appendChild(link);
         list.appendChild(item);
     }
@@ -1349,11 +1353,11 @@ async function loadAccountProfile(user) {
     }
 
     if (nameLabel) {
-        nameLabel.textContent = isStore ? "Store name" : "Display name";
+        nameLabel.textContent = isStore ? t("storeName") : t("displayName");
     }
 
     if (photoLabel) {
-        photoLabel.textContent = isStore ? "Store photo" : "Profile photo";
+        photoLabel.textContent = isStore ? t("storePhoto") : t("profilePhoto");
     }
 
     if (areaInput && areaLabel) {
@@ -1423,7 +1427,7 @@ async function loadAccountProfile(user) {
 
     if (nameInput && document.activeElement !== nameInput) {
         nameInput.value = isStore ? storeName : accountProfile.displayName;
-        nameInput.placeholder = isStore ? "Store name" : "Display name";
+        nameInput.placeholder = isStore ? t("storeName") : t("displayName");
     }
 
     if (isStore) {
@@ -1470,7 +1474,7 @@ async function saveAccountProfile() {
     const displayName = nameInput.value.trim();
 
     if (!displayName) {
-        message.textContent = isStore ? "Enter the store name." : "Enter a display name.";
+        message.textContent = isStore ? t("enterStoreName") : t("enterDisplayName");
         return;
     }
 
@@ -1480,7 +1484,7 @@ async function saveAccountProfile() {
 
         if (file) {
             if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
-                message.textContent = "Choose an image under 5 MB.";
+                message.textContent = t("chooseImageUnder5");
                 return;
             }
 
@@ -1495,7 +1499,7 @@ async function saveAccountProfile() {
             const cardUrl = cardUrlInput ? cardUrlInput.value.trim() : "";
 
             if (updates.acceptsCard && cardUrl && !safeHttpUrl(cardUrl)) {
-                message.textContent = "The card link must start with http:// or https://";
+                message.textContent = t("cardLinkHttp");
                 return;
             }
 
@@ -1559,7 +1563,7 @@ async function saveAccountProfile() {
             fileInput.value = "";
         }
 
-        message.textContent = isStore ? "Store saved." : "Account saved.";
+        message.textContent = isStore ? t("storeSaved") : t("accountSaved");
     } catch (error) {
         message.textContent = error.message;
     }
@@ -1582,22 +1586,22 @@ async function publishFromAccount() {
     }
 
     if (!accountProfile.storeName) {
-        message.textContent = "Save the store name first.";
+        message.textContent = t("saveStoreFirst");
         return;
     }
 
     if (!name || !price || !description) {
-        message.textContent = "Enter the name, price, and description.";
+        message.textContent = t("enterNamePrice");
         return;
     }
 
     if (!Number.isFinite(stock) || stock < 0) {
-        message.textContent = "Enter the stock.";
+        message.textContent = t("enterStock");
         return;
     }
 
     if (!filters.length) {
-        message.textContent = "Choose at least one filter.";
+        message.textContent = t("chooseFilter");
         return;
     }
 
@@ -1624,7 +1628,7 @@ async function publishFromAccount() {
 
         if (editingId) {
             await updateDoc(doc(db, "products", editingId), fields);
-            message.textContent = "Piece updated.";
+            message.textContent = t("pieceUpdated");
         } else {
             await addDoc(collection(db, "products"), {
                 ...fields,
@@ -1633,7 +1637,7 @@ async function publishFromAccount() {
                 ownerUid: user.uid,
                 hidden: false
             });
-            message.textContent = "Published in " + filters.join(", ") + ".";
+            message.textContent = t("publishedIn", { filters: filters.join(", ") });
         }
 
         clearAccountPieceForm();
@@ -1669,12 +1673,12 @@ function clearAccountPieceForm() {
         fileInput.value = "";
     }
     if (publishButton) {
-        publishButton.textContent = "Publish";
+        publishButton.textContent = t("publish");
         delete publishButton.dataset.editingId;
     }
     const publishTitle = document.getElementById("account-publish-title");
     if (publishTitle) {
-        publishTitle.textContent = "Add a piece";
+        publishTitle.textContent = t("addAPiece");
     }
     if (cancelButton) {
         cancelButton.hidden = true;
@@ -1700,7 +1704,7 @@ async function loadAccountProducts(uid) {
 
         if (snapshot.empty) {
             const empty = document.createElement("p");
-            empty.textContent = "You have not published any pieces yet.";
+            empty.textContent = t("noPiecesYet");
             list.appendChild(empty);
             return;
         }
@@ -1713,16 +1717,16 @@ async function loadAccountProducts(uid) {
             if (product.imageUrl) {
                 const image = document.createElement("img");
                 image.src = product.imageUrl;
-                image.alt = product.name || "Piece photo";
+                image.alt = product.name || t("piecePhoto");
                 card.appendChild(image);
             }
 
             const title = document.createElement("h3");
-            title.textContent = product.name || "Piece";
+            title.textContent = product.name || t("piece");
             const price = document.createElement("p");
             price.textContent = money(product.price);
             const stock = document.createElement("p");
-            stock.textContent = "In stock: " + product.stock;
+            stock.textContent = t("inStockLabel", { stock: product.stock });
             const description = document.createElement("p");
             description.textContent = product.description || "";
 
@@ -1731,7 +1735,7 @@ async function loadAccountProducts(uid) {
 
             const editButton = document.createElement("button");
             editButton.type = "button";
-            editButton.textContent = "Edit";
+            editButton.textContent = t("edit");
             editButton.addEventListener("click", () => {
                 document.getElementById("account-product-name").value = product.name || "";
                 document.getElementById("account-product-price").value = product.price;
@@ -1748,10 +1752,10 @@ async function loadAccountProducts(uid) {
                 }
                 const publishTitle = document.getElementById("account-publish-title");
                 if (publishTitle) {
-                    publishTitle.textContent = "Edit this piece";
+                    publishTitle.textContent = t("editThisPiece");
                 }
                 const publishButton = document.getElementById("account-publish-button");
-                publishButton.textContent = "Save changes";
+                publishButton.textContent = t("saveChanges");
                 publishButton.dataset.editingId = productId;
                 const cancelButton = document.getElementById("account-cancel-edit");
                 if (cancelButton) {
@@ -1762,9 +1766,9 @@ async function loadAccountProducts(uid) {
 
             const deleteButton = document.createElement("button");
             deleteButton.type = "button";
-            deleteButton.textContent = "Delete";
+            deleteButton.textContent = t("delete");
             deleteButton.addEventListener("click", async () => {
-                if (!confirm("Delete this piece?")) {
+                if (!confirm(t("deleteThisPiece"))) {
                     return;
                 }
 
@@ -1785,7 +1789,7 @@ async function loadAccountProducts(uid) {
             list.appendChild(card);
         });
     } catch (error) {
-        list.textContent = "Could not load your pieces.";
+        list.textContent = t("couldNotLoadPieces");
         console.error(error);
     }
 }
@@ -1809,7 +1813,7 @@ function renderDiscover() {
     ["All", ...names].forEach((name) => {
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = name;
+        button.textContent = name === "All" ? t("all") : name;
         button.className = name === activeFilter ? "active" : "";
         button.addEventListener("click", () => {
             activeFilter = name;
@@ -1844,8 +1848,8 @@ function renderDiscover() {
     if (visibleProducts.length === 0) {
         const empty = document.createElement("p");
         empty.textContent = searchText
-            ? "Nothing matches that search."
-            : "Nothing in this category yet.";
+            ? t("nothingMatches")
+            : t("nothingInCategory");
         discoverList.appendChild(empty);
         return;
     }
@@ -1860,18 +1864,18 @@ function renderDiscover() {
         if (product.imageUrl) {
             const image = document.createElement("img");
             image.src = product.imageUrl;
-            image.alt = product.name || "Product photo";
+            image.alt = product.name || t("productPhoto");
             link.appendChild(image);
         }
 
         const title = document.createElement("h2");
-        title.textContent = product.name || "Product";
+        title.textContent = product.name || t("product");
 
         const store = document.createElement("p");
         store.className = "store-name";
         store.textContent = product.area
-            ? (product.storeName || "Store") + " · " + product.area
-            : (product.storeName || "Store");
+            ? (product.storeName || t("store")) + " · " + product.area
+            : (product.storeName || t("store"));
 
         const price = document.createElement("p");
         price.textContent = money(product.price);
@@ -1884,7 +1888,7 @@ function renderDiscover() {
         const addButton = document.createElement("button");
         addButton.type = "button";
         addButton.className = "cart-button";
-        addButton.textContent = auth.currentUser ? "Put in the cart" : "Sign in to buy";
+        addButton.textContent = auth.currentUser ? t("putInCart") : t("signInToBuy");
         addButton.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -1919,7 +1923,7 @@ async function loadDiscover() {
 
         renderDiscover();
     } catch (error) {
-        discoverList.innerHTML = "<p>Could not load products.</p>";
+        discoverList.innerHTML = "<p>" + t("couldNotLoadProducts") + "</p>";
         console.error(error);
     }
 }
@@ -1932,7 +1936,7 @@ function productActions(product, productId) {
     if (product.phone) {
         const call = document.createElement("a");
         call.href = "tel:" + product.phone.replace(/[^\d+]/g, "");
-        call.textContent = "Call store";
+        call.textContent = t("callStore");
         actions.appendChild(call);
     }
 
@@ -1940,14 +1944,17 @@ function productActions(product, productId) {
 
     if (whatsappDigits) {
         const message = encodeURIComponent(
-            "Hello, I want " + productName + " from " + (product.storeName || "your store") + "."
+            t("whatsappHello", {
+                product: productName,
+                store: product.storeName || t("store")
+            })
         );
         const whatsapp = document.createElement("a");
         whatsapp.className = "whatsapp-button";
         whatsapp.href = "https://wa.me/" + whatsappDigits + "?text=" + message;
         whatsapp.target = "_blank";
         whatsapp.rel = "noopener";
-        whatsapp.textContent = "WhatsApp";
+        whatsapp.textContent = t("whatsapp");
         actions.appendChild(whatsapp);
     }
 
@@ -1959,19 +1966,19 @@ function productActions(product, productId) {
             pay.href = payUrl;
             pay.target = "_blank";
             pay.rel = "noopener";
-            pay.textContent = "Pay by card";
+            pay.textContent = t("payByCard");
             actions.appendChild(pay);
         } else if (whatsappDigits) {
-            const message = encodeURIComponent("I want to pay by card for " + productName + ".");
+            const message = encodeURIComponent(t("whatsappCard", { product: productName }));
             const pay = document.createElement("a");
             pay.href = "https://wa.me/" + whatsappDigits + "?text=" + message;
             pay.target = "_blank";
             pay.rel = "noopener";
-            pay.textContent = "Pay by card";
+            pay.textContent = t("payByCard");
             actions.appendChild(pay);
         } else {
             const note = document.createElement("p");
-            note.textContent = "This store accepts card payments. Contact the store to pay.";
+            note.textContent = t("cardContact");
             actions.appendChild(note);
         }
     }
@@ -1979,7 +1986,7 @@ function productActions(product, productId) {
     if (productId) {
         const addButton = document.createElement("button");
         addButton.type = "button";
-        addButton.textContent = auth.currentUser ? "Put in the cart" : "Sign in to buy";
+        addButton.textContent = auth.currentUser ? t("putInCart") : t("signInToBuy");
         addButton.addEventListener("click", () => {
             if (!requireBuyer()) {
                 return;
@@ -2003,7 +2010,7 @@ async function loadProductPage() {
     const productId = new URLSearchParams(window.location.search).get("id");
 
     if (!productId) {
-        productView.textContent = "This product could not be found.";
+        productView.textContent = t("productMissing");
         return;
     }
 
@@ -2011,18 +2018,18 @@ async function loadProductPage() {
         const productSnapshot = await getDoc(doc(db, "products", productId));
 
         if (!productSnapshot.exists()) {
-            productView.textContent = "This product could not be found.";
+            productView.textContent = t("productMissing");
             return;
         }
 
         const product = productSnapshot.data();
 
         if (product.hidden) {
-            productView.textContent = "This product is not available.";
+            productView.textContent = t("productUnavailable");
             return;
         }
 
-        document.title = (product.name || "Product") + " — Chaw";
+        document.title = (product.name || t("product")) + " — Chaw";
         productView.innerHTML = "";
 
         const copy = document.createElement("div");
@@ -2033,20 +2040,20 @@ async function loadProductPage() {
         category.textContent = filtersOnProduct(product).join(" · ") || "Chaw";
 
         const title = document.createElement("h1");
-        title.textContent = product.name || "Product";
+        title.textContent = product.name || t("product");
 
         const store = document.createElement("p");
         store.className = "store-name";
         store.textContent = product.area
-            ? (product.storeName || "Store") + " · " + product.area
-            : (product.storeName || "Store");
+            ? (product.storeName || t("store")) + " · " + product.area
+            : (product.storeName || t("store"));
 
         const price = document.createElement("p");
         price.className = "price-large";
         price.textContent = money(product.price);
 
         const stock = document.createElement("p");
-        stock.textContent = "In stock: " + product.stock;
+        stock.textContent = t("inStock", { stock: product.stock });
 
         const description = document.createElement("p");
         description.className = "product-description";
@@ -2057,13 +2064,13 @@ async function loadProductPage() {
         if (product.imageUrl) {
             const image = document.createElement("img");
             image.src = product.imageUrl;
-            image.alt = product.name || "Product photo";
+            image.alt = product.name || t("productPhoto");
             productView.append(image, copy);
         } else {
             productView.appendChild(copy);
         }
     } catch (error) {
-        productView.textContent = "Could not open this product.";
+        productView.textContent = t("productOpenFailed");
         console.error(error);
     }
 }
@@ -2093,7 +2100,7 @@ function renderCartCount() {
     }
 
     const count = cartCount();
-    link.textContent = count ? "Cart (" + count + ")" : "Cart";
+    link.textContent = count ? t("cartCount", { count: count }) : t("cart");
 }
 
 function setupCartLink() {
@@ -2118,13 +2125,13 @@ function setupCartLink() {
 
 function addProductToCart(product, productId) {
     if (!requireBuyer()) {
-        return "Sign in to buy.";
+        return t("signInToBuyPeriod");
     }
 
     const stock = Number(product.stock || 0);
 
     if (stock < 1) {
-        return "Out of stock.";
+        return t("outOfStock");
     }
 
     const cart = readCart();
@@ -2132,7 +2139,7 @@ function addProductToCart(product, productId) {
     const nextQuantity = (existing ? Number(existing.quantity) : 0) + 1;
 
     if (nextQuantity > stock) {
-        return "Only " + stock + " left.";
+        return t("onlyLeft", { stock: stock });
     }
 
     if (existing) {
@@ -2140,7 +2147,7 @@ function addProductToCart(product, productId) {
     } else {
         cart.push({
             id: productId,
-            name: product.name || "Piece",
+            name: product.name || t("piece"),
             price: Number(product.price || 0),
             quantity: 1,
             storeName: product.storeName || "",
@@ -2152,7 +2159,7 @@ function addProductToCart(product, productId) {
     }
 
     writeCart(cart);
-    return "Added to cart.";
+    return t("addedToCart");
 }
 
 function changeCartQuantity(index, delta) {
@@ -2186,7 +2193,7 @@ function renderCartPage() {
 
     if (!cart.length) {
         const empty = document.createElement("p");
-        empty.textContent = "Your cart is empty.";
+        empty.textContent = t("cartEmpty");
         list.appendChild(empty);
     }
 
@@ -2221,7 +2228,7 @@ function renderCartPage() {
 
         const remove = document.createElement("button");
         remove.type = "button";
-        remove.textContent = "Remove";
+        remove.textContent = t("remove");
         remove.addEventListener("click", () => {
             const next = readCart();
             next.splice(index, 1);
@@ -2237,7 +2244,11 @@ function renderCartPage() {
     if (totalLine) {
         const pieces = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
         totalLine.textContent = cart.length
-            ? pieces + (pieces === 1 ? " piece" : " pieces") + " · Total " + money(total)
+            ? t("totalLine", {
+                count: pieces,
+                pieces: pieces === 1 ? t("pieceWord") : t("piecesWord"),
+                amount: money(total)
+            })
             : "";
     }
 
@@ -2260,17 +2271,29 @@ function renderCheckoutDetails() {
     }
 
     if (!auth.currentUser) {
-        address.textContent = "Sign in to buy. Your delivery location is saved on your account.";
+        address.textContent = t("signInToBuyLocation");
         return;
     }
 
     address.textContent = accountProfile.deliveryLocation
-        ? "Deliver to: " + accountProfile.deliveryLocation
-        : "Add a delivery location on your account before you place the order.";
+        ? t("deliverTo", { location: accountProfile.deliveryLocation })
+        : t("addLocationBefore");
 }
 
 function paymentLabel(method) {
-    return method === "card" ? "Pay by card" : "Pay on delivery";
+    return method === "card" ? t("payByCard") : t("payOnDelivery");
+}
+
+function statusLabel(status) {
+    if (status === "on the way") {
+        return t("onTheWay");
+    }
+
+    if (status === "delivered") {
+        return t("delivered");
+    }
+
+    return t("statusNew");
 }
 
 function orderLines(order) {
@@ -2287,7 +2310,7 @@ async function loadCustomerOrders(user) {
     }
 
     if (!user) {
-        list.textContent = "Sign in to see orders you have placed.";
+        list.textContent = t("signInToSeeOrders");
         return;
     }
 
@@ -2304,7 +2327,7 @@ async function loadCustomerOrders(user) {
 
         if (!orders.length) {
             const empty = document.createElement("p");
-            empty.textContent = "No orders yet.";
+            empty.textContent = t("noOrders");
             list.appendChild(empty);
             return;
         }
@@ -2319,18 +2342,19 @@ async function loadCustomerOrders(user) {
             const payment = document.createElement("p");
             payment.textContent = paymentLabel(order.paymentMethod);
             const status = document.createElement("p");
-            status.textContent = "Status: " + (order.status || "new");
+            status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
             card.append(title, items, payment, status);
             list.appendChild(card);
         });
     } catch (error) {
-        list.textContent = "Orders will show after the new database rules are published.";
+        list.textContent = t("ordersAfterRules");
         console.error(error);
     }
 }
 
 let stopWatchingOrders = null;
 let knownOrderIds = null;
+let latestAlertOrders = [];
 
 function ensureOrderAlert() {
     if (document.getElementById("order-alert")) {
@@ -2348,12 +2372,15 @@ function ensureOrderAlert() {
 }
 
 function showOrderAlert(orders) {
+    latestAlertOrders = orders || [];
     ensureOrderAlert();
     const banner = document.getElementById("order-alert");
     const accountLink = document.querySelector("#account-link a");
 
     if (accountLink) {
-        accountLink.textContent = orders.length ? "Account (" + orders.length + ")" : "Account";
+        accountLink.textContent = orders.length
+            ? t("accountCount", { count: orders.length })
+            : t("account");
     }
 
     if (!banner) {
@@ -2371,16 +2398,19 @@ function showOrderAlert(orders) {
     const text = document.createElement("p");
     const first = orders[0];
     text.textContent = orders.length === 1
-        ? "New order from " + (first.customerName || "a customer") + ". Deliver to " + (first.location || "their saved address") + "."
-        : orders.length + " new orders are waiting.";
+        ? t("newOrderFrom", {
+            name: first.customerName || t("aCustomer"),
+            location: first.location || t("theirSavedAddress")
+        })
+        : t("newOrdersWaiting", { count: orders.length });
 
     const open = document.createElement("a");
     open.href = "account.html";
-    open.textContent = "Open orders";
+    open.textContent = t("openOrders");
 
     const dismiss = document.createElement("button");
     dismiss.type = "button";
-    dismiss.textContent = "Mark seen";
+    dismiss.textContent = t("markSeen");
     dismiss.addEventListener("click", () => markOrdersSeen(orders));
 
     banner.append(text, open, dismiss);
@@ -2401,8 +2431,12 @@ function notifyStore(order) {
         return;
     }
 
-    const note = new Notification("New Chaw order", {
-        body: (order.customerName || "A customer") + " ordered " + orderLines(order) + ". Deliver to " + (order.location || "their address") + "."
+    const note = new Notification(t("newChawOrder"), {
+        body: t("orderedDeliver", {
+            name: order.customerName || t("aCustomerCap"),
+            items: orderLines(order),
+            location: order.location || t("theirAddress")
+        })
     });
     note.onclick = () => {
         window.location.href = "account.html";
@@ -2497,7 +2531,7 @@ async function loadStoreOrders(uid) {
 
         if (!orders.length) {
             const empty = document.createElement("p");
-            empty.textContent = "No orders yet.";
+            empty.textContent = t("noOrders");
             list.appendChild(empty);
             return;
         }
@@ -2506,19 +2540,19 @@ async function loadStoreOrders(uid) {
             const card = document.createElement("article");
             card.className = "order-card" + ((order.status || "new") === "new" && !order.seen ? " new-order" : "");
             const title = document.createElement("h4");
-            title.textContent = order.customerName || order.customerEmail || "Customer";
+            title.textContent = order.customerName || order.customerEmail || t("customer");
             const location = document.createElement("p");
-            location.textContent = "Deliver to: " + (order.location || "");
+            location.textContent = t("deliverTo", { location: order.location || "" });
             const phone = document.createElement("p");
             if (order.customerPhone) {
-                phone.textContent = "Phone: " + order.customerPhone;
+                phone.textContent = t("phoneLine", { phone: order.customerPhone });
             }
             const payment = document.createElement("p");
             payment.textContent = paymentLabel(order.paymentMethod);
             const items = document.createElement("p");
             items.textContent = orderLines(order);
             const status = document.createElement("p");
-            status.textContent = "Status: " + (order.status || "new");
+            status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
             card.append(title, location);
             if (order.customerPhone) {
                 card.appendChild(phone);
@@ -2528,7 +2562,7 @@ async function loadStoreOrders(uid) {
             if (order.status !== "delivered") {
                 const button = document.createElement("button");
                 button.type = "button";
-                button.textContent = order.status === "on the way" ? "Mark delivered" : "On the way";
+                button.textContent = order.status === "on the way" ? t("markDelivered") : t("onTheWay");
                 button.addEventListener("click", async () => {
                     const nextStatus = order.status === "on the way" ? "delivered" : "on the way";
 
@@ -2545,7 +2579,7 @@ async function loadStoreOrders(uid) {
             list.appendChild(card);
         });
     } catch (error) {
-        list.textContent = "Orders will show after the new database rules are published.";
+        list.textContent = t("ordersAfterRules");
         console.error(error);
     }
 }
@@ -2559,7 +2593,7 @@ async function placeOrder() {
     }
 
     if (!cart.length) {
-        message.textContent = "Your cart is empty.";
+        message.textContent = t("yourCartEmpty");
         return;
     }
 
@@ -2587,7 +2621,7 @@ async function placeOrder() {
     }
 
     if (!location.trim()) {
-        message.textContent = "Open your account and save a delivery location first.";
+        message.textContent = t("saveLocationFirst");
         return;
     }
 
@@ -2595,7 +2629,7 @@ async function placeOrder() {
     const paymentMethod = selectedPayment && selectedPayment.value === "card" ? "card" : "delivery";
 
     if (cart.some((item) => !item.ownerUid)) {
-        message.textContent = "One piece has no store, so it cannot be ordered.";
+        message.textContent = t("pieceHasNoStore");
         return;
     }
 
@@ -2623,16 +2657,16 @@ async function placeOrder() {
                 const productRef = doc(db, "products", productId);
                 const productSnap = await transaction.get(productRef);
                 const productName = cart.find((item) => item.id === productId);
-                const name = productName ? productName.name : "A piece";
+                const name = productName ? productName.name : t("aPiece");
 
                 if (!productSnap.exists()) {
-                    throw new Error(name + " is no longer available.");
+                    throw new Error(t("noLongerAvailable", { name: name }));
                 }
 
                 const stock = Number(productSnap.data().stock || 0);
 
                 if (stock < quantity) {
-                    throw new Error("Only " + stock + " left of " + name + ".");
+                    throw new Error(t("onlyLeftOf", { stock: stock, name: name }));
                 }
 
                 stockUpdates.push({
@@ -2685,7 +2719,7 @@ async function placeOrder() {
                 if (url && !payLinks.some((link) => link.url === url)) {
                     payLinks.push({
                         url: url,
-                        storeName: item.storeName || "the store"
+                        storeName: item.storeName || t("theStore")
                     });
                 }
             });
@@ -2695,8 +2729,8 @@ async function placeOrder() {
         message.replaceChildren();
         const sent = document.createElement("span");
         sent.textContent = paymentMethod === "card"
-            ? "Order sent. Pay by card with the store."
-            : "Order sent. Pay on delivery. The store has your location.";
+            ? t("orderSentCard")
+            : t("orderSentDelivery");
         message.appendChild(sent);
 
         payLinks.forEach((link) => {
@@ -2704,7 +2738,7 @@ async function placeOrder() {
             pay.href = link.url;
             pay.target = "_blank";
             pay.rel = "noopener";
-            pay.textContent = "Pay " + link.storeName + " by card";
+            pay.textContent = t("payStoreByCard", { store: link.storeName });
             message.appendChild(document.createElement("br"));
             message.appendChild(pay);
         });
@@ -2715,8 +2749,8 @@ async function placeOrder() {
     } catch (error) {
         const denied = error.code === "permission-denied";
         message.textContent = denied
-            ? "Publish the new database rules so the order can lower the stock, then try again."
-            : (error.message || "Could not place the order.");
+            ? t("publishRulesStock")
+            : (error.message || t("couldNotPlaceOrder"));
         console.error(error);
     }
 }
@@ -2726,6 +2760,75 @@ if (discoverSearch) {
         renderDiscover();
     });
 }
+
+function refreshAccountLabels() {
+    const isStore = accountProfile.role === "business";
+    const nameLabel = document.getElementById("display-name-label");
+    const nameInput = document.getElementById("display-name");
+    const photoLabel = document.querySelector("label[for='profile-image']");
+    const publishButton = document.getElementById("account-publish-button");
+    const publishTitle = document.getElementById("account-publish-title");
+
+    if (nameLabel) {
+        nameLabel.textContent = isStore ? t("storeName") : t("displayName");
+    }
+
+    if (nameInput) {
+        nameInput.placeholder = isStore ? t("storeName") : t("displayName");
+    }
+
+    if (photoLabel) {
+        photoLabel.textContent = isStore ? t("storePhoto") : t("profilePhoto");
+    }
+
+    if (publishButton && publishTitle) {
+        if (publishButton.dataset.editingId) {
+            publishTitle.textContent = t("editThisPiece");
+            publishButton.textContent = t("saveChanges");
+        } else {
+            publishTitle.textContent = t("addAPiece");
+            publishButton.textContent = t("publish");
+        }
+    }
+
+    if (addProductButton) {
+        addProductButton.textContent = addProductButton.dataset.editingId
+            ? t("saveChanges")
+            : t("publishProduct");
+    }
+}
+
+onLanguageChange(() => {
+    renderCartCount();
+    showOrderAlert(latestAlertOrders);
+    renderDiscover();
+    renderCartPage();
+    refreshAccountLabels();
+
+    const user = auth.currentUser;
+
+    if (document.getElementById("product-view")) {
+        loadProductPage();
+    }
+
+    if (user && document.getElementById("my-orders")) {
+        loadCustomerOrders(user);
+    }
+
+    if (user && document.getElementById("account-product-list")) {
+        loadAccountProducts(user.uid);
+    }
+
+    if (user && document.getElementById("order-list") && accountProfile.role === "business") {
+        loadStoreOrders(user.uid);
+    }
+
+    if (user && onDashboardPage()) {
+        loadMyProducts();
+        loadSales();
+        prepareDashboard(user);
+    }
+});
 
 async function startAuth() {
     try {

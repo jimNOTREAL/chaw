@@ -1,32 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-i18n-title="titleHome">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="mBHxZFwyummUPR-p25GcNPcNndZfxeIaQWR3AUuWx_I">
 
+    <script>
+        (function () {
+            var saved = localStorage.getItem("chaw-lang");
+            var lang = (saved === "en" || saved === "ar" || saved === "ckb") ? saved : "";
+            if (!lang) {
+                var list = navigator.languages || [navigator.language || "en"];
+                lang = "en";
+                for (var i = 0; i < list.length; i++) {
+                    var tag = String(list[i]).toLowerCase();
+                    if (tag === "ckb" || tag.indexOf("ku") === 0) { lang = "ckb"; break; }
+                    if (tag.indexOf("ar") === 0) { lang = "ar"; break; }
+                }
+            }
+            document.documentElement.lang = lang;
+            document.documentElement.dir = (lang === "ar" || lang === "ckb") ? "rtl" : "ltr";
+        })();
+    </script>
     <title>Chaw — Discover What's Around You</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <nav>
-        <a href="index.html" class="brand" aria-label="Chaw home">
+        <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
             <img src="chaw-eye-white.png" alt="Chaw eye logo">
             <div class="logo">Chaw</div>
         </a>
 
         <ul>
-            <li><a href="index.html">Home</a></li>
-            <li><a href="discover.html">Discover</a></li>
-            <li id="dashboard-link" hidden><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="index.html" data-i18n="home">Home</a></li>
+            <li><a href="discover.html" data-i18n="discover">Discover</a></li>
+            <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
         </ul>
 
-        <a href="login.html" class="nav-button" id="join-link">Sign in</a>
-        <button type="button" id="account-button" class="account-button" hidden aria-label="Your account">
+        <a href="login.html" class="nav-button" id="join-link" data-i18n="signIn">Sign in</a>
+        <button type="button" id="account-button" class="account-button" hidden data-i18n-aria="yourAccount" aria-label="Your account">
             <img id="nav-avatar" alt="" hidden>
             <span id="nav-initial"></span>
         </button>
@@ -35,52 +52,52 @@
     <main>
         <section class="hero" id="home">
             <div class="hero-content">
-                <h1>
+                <h1 data-i18n-html="heroTitle">
                     Discover what's <span>around you.</span>
                 </h1>
 
-                <p>
+                <p data-i18n="heroText">
                     Chaw connects people with local businesses,
                     products and places worth discovering.
                     Everything you need, closer than you think.
                 </p>
 
-                <a href="#shop" class="hero-button">
+                <a href="#shop" class="hero-button" data-i18n="exploreChaw">
                     Explore Chaw
                 </a>
             </div>
 
             <section class="home-shop" id="shop">
-                <h2>The collection</h2>
-                <input id="discover-search" class="discover-search" type="search" placeholder="Search products or stores">
+                <h2 data-i18n="theCollection">The collection</h2>
+                <input id="discover-search" class="discover-search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search products or stores">
                 <div id="filter-bar" class="filter-bar"></div>
                 <div id="discover-list" class="discover-grid"></div>
             </section>
         </section>
 
         <section class="features" id="discover">
-            <h2>Everything local.</h2>
+            <h2 data-i18n="everythingLocal">Everything local.</h2>
 
             <div class="feature-container">
                 <div class="feature">
-                    <h3>🛍 Discover</h3>
-                    <p>
+                    <h3 data-i18n="featureDiscover">🛍 Discover</h3>
+                    <p data-i18n="featureDiscoverText">
                         Find products, stores and services
                         around you without wasting time searching.
                     </p>
                 </div>
 
                 <div class="feature">
-                    <h3>🏪 Local Businesses</h3>
-                    <p>
+                    <h3 data-i18n="featureBusinesses">🏪 Local Businesses</h3>
+                    <p data-i18n="featureBusinessesText">
                         Businesses can showcase what they offer
                         and reach more customers through Chaw.
                     </p>
                 </div>
 
                 <div class="feature">
-                    <h3>📍 Near You</h3>
-                    <p>
+                    <h3 data-i18n="featureNear">📍 Near You</h3>
+                    <p data-i18n="featureNearText">
                         Explore what's available in your city
                         and discover businesses you didn't know existed.
                     </p>
@@ -90,7 +107,7 @@
     </main>
 
     <footer>
-        <p>© 2026 Chaw. All rights reserved.</p>
+        <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
     <script type="module" src="app.js"></script>

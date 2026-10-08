@@ -1,43 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-i18n-title="titleProduct">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <script>
+        (function () {
+            var saved = localStorage.getItem("chaw-lang");
+            var lang = (saved === "en" || saved === "ar" || saved === "ckb") ? saved : "";
+            if (!lang) {
+                var list = navigator.languages || [navigator.language || "en"];
+                lang = "en";
+                for (var i = 0; i < list.length; i++) {
+                    var tag = String(list[i]).toLowerCase();
+                    if (tag === "ckb" || tag.indexOf("ku") === 0) { lang = "ckb"; break; }
+                    if (tag.indexOf("ar") === 0) { lang = "ar"; break; }
+                }
+            }
+            document.documentElement.lang = lang;
+            document.documentElement.dir = (lang === "ar" || lang === "ckb") ? "rtl" : "ltr";
+        })();
+    </script>
     <title>Product — Chaw</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <nav>
-        <a href="index.html" class="brand" aria-label="Chaw home">
+        <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
             <img src="chaw-eye-white.png" alt="Chaw eye logo">
             <div class="logo">Chaw</div>
         </a>
 
         <ul>
-            <li><a href="index.html">Home</a></li>
-            <li><a href="discover.html">Discover</a></li>
-            <li id="dashboard-link" hidden><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="index.html" data-i18n="home">Home</a></li>
+            <li><a href="discover.html" data-i18n="discover">Discover</a></li>
+            <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
         </ul>
 
-        <a href="login.html" class="nav-button" id="join-link">Sign in</a>
-        <button type="button" id="account-button" class="account-button" hidden aria-label="Your account">
+        <a href="login.html" class="nav-button" id="join-link" data-i18n="signIn">Sign in</a>
+        <button type="button" id="account-button" class="account-button" hidden data-i18n-aria="yourAccount" aria-label="Your account">
             <img id="nav-avatar" alt="" hidden>
             <span id="nav-initial"></span>
         </button>
     </nav>
 
     <main>
-        <a class="back-link" href="discover.html">Back to discover</a>
+        <a class="back-link" href="discover.html" data-i18n="backToDiscover">Back to discover</a>
         <article id="product-view" class="product-page"></article>
     </main>
 
     <footer>
-        <p>© 2026 Chaw. All rights reserved.</p>
+        <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
     <script type="module" src="app.js"></script>
