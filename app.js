@@ -5,6 +5,8 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     GoogleAuthProvider,
     sendPasswordResetEmail,
     onAuthStateChanged,
@@ -29,7 +31,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008d";
+import { t, onLanguageChange } from "./lang.js?v=20261008g";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -178,6 +180,18 @@ function authErrorText(error) {
         return t("googleClosed");
     }
 
+    if (code === "auth/popup-blocked") {
+        return t("googlePopupBlocked");
+    }
+
+    if (code === "auth/account-exists-with-different-credential") {
+        return t("googleWrongMethod");
+    }
+
+    if (code === "auth/unauthorized-domain") {
+        return t("googleUnauthorized");
+    }
+
     if (code === "auth/operation-not-allowed") {
         return t("googleOff");
     }
@@ -269,31 +283,85 @@ if (signupButton) {
     });
 }
 
+function googleProvider() {
+    const provider = new GoogleAuthProvider();
+    provider.addScope("profile");
+    provider.addScope("email");
+    provider.setCustomParameters({ prompt: "select_account" });
+    return provider;
+}
+
+function googleButtonLabel(text) {
+    const label = googleButton && googleButton.querySelector("span");
+    if (label) {
+        label.textContent = text;
+    }
+}
+
+async function saveGoogleProfile(user) {
+    const profileRef = doc(db, "users", user.uid);
+    const profileSnap = await getDoc(profileRef);
+
+    if (!profileSnap.exists()) {
+        await setDoc(profileRef, {
+            email: user.email || "",
+            displayName: user.displayName || "",
+            photoUrl: user.photoURL || "",
+            role: "customer"
+        });
+        return;
+    }
+
+    const data = profileSnap.data();
+    const updates = {};
+
+    if (!data.email && user.email) {
+        updates.email = user.email;
+    }
+
+    if (!data.displayName && user.displayName) {
+        updates.displayName = user.displayName;
+    }
+
+    if (!data.photoUrl && user.photoURL) {
+        updates.photoUrl = user.photoURL;
+    }
+
+    if (Object.keys(updates).length) {
+        await updateDoc(profileRef, updates);
+    }
+}
+
 const googleButton = document.getElementById("google-signin");
 
 if (googleButton) {
     googleButton.addEventListener("click", async () => {
+        googleButton.disabled = true;
+        googleButtonLabel(t("openingGoogle"));
+
         try {
             isSigningUp = true;
-            const provider = new GoogleAuthProvider();
-            const result = await signInWithPopup(auth, provider);
-            const user = result.user;
-            const profileRef = doc(db, "users", user.uid);
-            const profileSnap = await getDoc(profileRef);
-
-            if (!profileSnap.exists()) {
-                await setDoc(profileRef, {
-                    email: user.email,
-                    displayName: user.displayName || "",
-                    photoUrl: user.photoURL || "",
-                    role: "customer"
-                });
-            }
-
+            const result = await signInWithPopup(auth, googleProvider());
+            await saveGoogleProfile(result.user);
             window.location.href = nextPage();
         } catch (error) {
+            if (error.code === "auth/popup-blocked") {
+                try {
+                    await signInWithRedirect(auth, googleProvider());
+                    return;
+                } catch (redirectError) {
+                    error = redirectError;
+                }
+            }
+
             isSigningUp = false;
-            authMessage.textContent = authErrorText(error);
+            googleButton.disabled = false;
+            googleButtonLabel(t("continueGoogle"));
+            if (authMessage && error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
+                authMessage.textContent = authErrorText(error);
+            } else if (authMessage) {
+                authMessage.textContent = "";
+            }
             console.error(error);
         }
     });
@@ -3674,8 +3742,19 @@ onLanguageChange(() => {
 async function startAuth() {
     try {
         await setPersistence(auth, browserLocalPersistence);
+        const redirectResult = await getRedirectResult(auth);
+
+        if (redirectResult && redirectResult.user) {
+            isSigningUp = true;
+            await saveGoogleProfile(redirectResult.user);
+            isSigningUp = false;
+        }
     } catch (error) {
+        isSigningUp = false;
         console.error(error);
+        if (authMessage) {
+            authMessage.textContent = authErrorText(error);
+        }
     }
 
     onAuthStateChanged(auth, (user) => {
