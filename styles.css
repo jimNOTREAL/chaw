@@ -866,6 +866,7 @@ main h1 {
 .product-actions button,
 .cart-page button,
 .order-card button,
+.order-card .order-actions a,
 .product-card .cart-button {
     display: inline-block;
     padding: 12px 16px;
@@ -884,6 +885,7 @@ main h1 {
 .product-actions button:hover,
 .cart-page button:hover,
 .order-card button:hover,
+.order-card .order-actions a:hover,
 .product-card .cart-button:hover {
     background: var(--wine);
 }
@@ -1325,6 +1327,13 @@ footer {
     margin-bottom: 8px;
 }
 
+.order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
 .cart-controls {
     display: flex;
     gap: 8px;
@@ -1430,6 +1439,8 @@ footer {
 [dir="rtl"] .tag-link,
 [dir="rtl"] .filter-bar-label,
 [dir="rtl"] .payment-choice legend,
+[dir="rtl"] .order-card button,
+[dir="rtl"] .order-card .order-actions a,
 [dir="rtl"] #account-product-list .row-actions button {
     letter-spacing: 0;
     text-transform: none;

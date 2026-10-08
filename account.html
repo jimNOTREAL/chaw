@@ -26,7 +26,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20261008c">
 </head>
 <body>
     <nav>
@@ -89,6 +89,9 @@
                 <label class="file-label" for="account-whatsapp" data-i18n="whatsappNumber">WhatsApp number</label>
                 <input id="account-whatsapp" type="tel" maxlength="30" placeholder="9647XXXXXXXX">
                 <p class="field-hint" data-i18n="whatsappHint">Customers see a WhatsApp button on your pieces. Include the country code.</p>
+                <label class="file-label" for="account-driver-whatsapp" data-i18n="driverWhatsapp">Driver WhatsApp</label>
+                <input id="account-driver-whatsapp" type="tel" maxlength="30" placeholder="9647XXXXXXXX">
+                <p class="field-hint" data-i18n="driverWhatsappHint">This number receives the address when you send an order. Include the country code.</p>
                 <h2 data-i18n="cardPayments">Card payments</h2>
                 <label class="check-label" for="account-accept-card">
                     <input id="account-accept-card" type="checkbox">
@@ -132,6 +135,6 @@
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261008b"></script>
+    <script type="module" src="app.js?v=20261008c"></script>
 </body>
 </html>

@@ -28,7 +28,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008b";
+import { t, onLanguageChange } from "./lang.js?v=20261008c";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -1836,6 +1836,7 @@ async function loadAccountProfile(user) {
         category: profile.category || "",
         phone: profile.phone || "",
         whatsapp: profile.whatsapp || "",
+        driverWhatsapp: profile.driverWhatsapp || "",
         acceptsCard: Boolean(profile.acceptsCard),
         cardPaymentUrl: profile.cardPaymentUrl || ""
     };
@@ -1910,6 +1911,11 @@ async function loadAccountProfile(user) {
         whatsappInput.value = accountProfile.whatsapp;
     }
 
+    const driverWhatsappInput = document.getElementById("account-driver-whatsapp");
+    if (driverWhatsappInput && document.activeElement !== driverWhatsappInput) {
+        driverWhatsappInput.value = accountProfile.driverWhatsapp;
+    }
+
     const acceptCardInput = document.getElementById("account-accept-card");
     if (acceptCardInput) {
         acceptCardInput.checked = accountProfile.acceptsCard;
@@ -1974,6 +1980,7 @@ async function saveAccountProfile() {
     const deliveryInput = document.getElementById("delivery-location");
     const phoneInput = document.getElementById("account-phone");
     const whatsappInput = document.getElementById("account-whatsapp");
+    const driverWhatsappInput = document.getElementById("account-driver-whatsapp");
     const acceptCardBox = document.getElementById("account-accept-card");
     const cardUrlInput = document.getElementById("account-card-url");
 
@@ -2006,6 +2013,7 @@ async function saveAccountProfile() {
             updates.storeName = displayName;
             updates.area = areaInput ? areaInput.value.trim() : "";
             updates.whatsapp = whatsappInput ? whatsappInput.value.trim() : "";
+            updates.driverWhatsapp = driverWhatsappInput ? driverWhatsappInput.value.trim() : "";
             updates.acceptsCard = Boolean(acceptCardBox && acceptCardBox.checked);
             const cardUrl = cardUrlInput ? cardUrlInput.value.trim() : "";
 
@@ -2033,6 +2041,7 @@ async function saveAccountProfile() {
         accountProfile.phone = updates.phone || "";
         if (isStore) {
             accountProfile.whatsapp = updates.whatsapp || "";
+            accountProfile.driverWhatsapp = updates.driverWhatsapp || "";
             accountProfile.acceptsCard = updates.acceptsCard;
             accountProfile.cardPaymentUrl = updates.cardPaymentUrl || "";
         }
@@ -2075,6 +2084,9 @@ async function saveAccountProfile() {
         }
 
         message.textContent = isStore ? t("storeSaved") : t("accountSaved");
+        if (isStore) {
+            await loadStoreOrders(user.uid);
+        }
     } catch (error) {
         message.textContent = error.message;
     }
@@ -2876,9 +2888,11 @@ function renderCheckoutDetails() {
         return;
     }
 
-    address.textContent = accountProfile.deliveryLocation
-        ? t("deliverTo", { location: accountProfile.deliveryLocation })
-        : t("addLocationBefore");
+    address.textContent = !accountProfile.deliveryLocation
+        ? t("addLocationBefore")
+        : !String(accountProfile.phone || "").trim()
+            ? t("deliverTo", { location: accountProfile.deliveryLocation }) + " " + t("addPhoneBefore")
+            : t("deliverTo", { location: accountProfile.deliveryLocation });
 }
 
 function paymentLabel(method) {
@@ -3109,6 +3123,66 @@ function watchStoreOrders(user) {
     });
 }
 
+function mapsSearchUrl(location) {
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location || "");
+}
+
+function driverOrderMessage(order) {
+    return t("driverOrder", {
+        name: order.customerName || order.customerEmail || t("customer"),
+        phone: order.customerPhone || t("noPhone"),
+        location: order.location || "",
+        items: orderLines(order),
+        payment: paymentLabel(order.paymentMethod)
+    });
+}
+
+function appendOrderActions(card, order) {
+    const actions = document.createElement("div");
+    actions.className = "order-actions";
+
+    if (order.location) {
+        const maps = document.createElement("a");
+        maps.href = mapsSearchUrl(order.location);
+        maps.target = "_blank";
+        maps.rel = "noopener";
+        maps.textContent = t("openInMaps");
+        actions.appendChild(maps);
+    }
+
+    if (order.customerPhone) {
+        const call = document.createElement("a");
+        call.href = "tel:" + String(order.customerPhone).replace(/[^\d+]/g, "");
+        call.textContent = t("callCustomer");
+        actions.appendChild(call);
+    }
+
+    const digits = String(accountProfile.driverWhatsapp || "").replace(/\D/g, "");
+    const note = document.createElement("p");
+
+    if (digits) {
+        const send = document.createElement("a");
+        send.href = "https://wa.me/" + digits + "?text=" + encodeURIComponent(driverOrderMessage(order));
+        send.target = "_blank";
+        send.rel = "noopener";
+        send.textContent = t("sendToDriver");
+        actions.appendChild(send);
+    } else {
+        const send = document.createElement("button");
+        send.type = "button";
+        send.textContent = t("sendToDriver");
+        send.addEventListener("click", () => {
+            note.textContent = t("addDriverNumber");
+            if (!note.isConnected) {
+                card.appendChild(note);
+            }
+        });
+        actions.appendChild(send);
+    }
+
+    card.appendChild(actions);
+}
+
 async function loadStoreOrders(uid) {
     const section = document.getElementById("account-orders");
     const list = document.getElementById("order-list");
@@ -3159,6 +3233,7 @@ async function loadStoreOrders(uid) {
                 card.appendChild(phone);
             }
             card.append(payment, items, status);
+            appendOrderActions(card, order);
 
             if (order.status !== "delivered") {
                 const button = document.createElement("button");
@@ -3223,6 +3298,11 @@ async function placeOrder() {
 
     if (!location.trim()) {
         message.textContent = t("saveLocationFirst");
+        return;
+    }
+
+    if (!customerPhone.trim()) {
+        message.textContent = t("savePhoneFirst");
         return;
     }
 
