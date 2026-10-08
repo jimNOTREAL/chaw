@@ -510,7 +510,10 @@ main h1 {
     margin-top: 22px;
 }
 
-.product-actions a {
+.product-actions a,
+.product-actions button,
+.cart-page button,
+.order-card button {
     display: inline-block;
     padding: 12px 16px;
     background: var(--ink);
@@ -519,9 +522,15 @@ main h1 {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     font-size: 11px;
+    font-family: "Jost", sans-serif;
+    border: none;
+    cursor: pointer;
 }
 
-.product-actions a:hover {
+.product-actions a:hover,
+.product-actions button:hover,
+.cart-page button:hover,
+.order-card button:hover {
     background: var(--wine);
 }
 
@@ -840,4 +849,57 @@ footer {
     .product-page img {
         height: 420px;
     }
+}
+
+.cart-page {
+    width: min(760px, 100%);
+    margin: 0 auto;
+    padding: 48px 8% 100px;
+}
+
+.cart-page h2 {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: 32px;
+    margin: 48px 0 12px;
+}
+
+.cart-item,
+.order-card {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.cart-item h3,
+.order-card h3,
+.order-card h4 {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+
+.cart-item p,
+.order-card p,
+#cart-total,
+#cart-message,
+#delivery-hint {
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+.cart-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+#cart-total {
+    margin-top: 18px;
+    color: var(--ink);
+}
+
+#checkout-button {
+    margin-top: 8px;
 }

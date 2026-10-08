@@ -1172,9 +1172,16 @@ function setupAccountMenu() {
         <input id="display-name" type="text" maxlength="40" placeholder="Display name">
         <label class="file-label" id="account-area-label" for="account-area" hidden>Area</label>
         <input id="account-area" type="text" placeholder="Area or city" hidden>
+        <label class="file-label" id="delivery-label" for="delivery-location">Delivery location</label>
+        <input id="delivery-location" type="text" maxlength="160" placeholder="Street, area, city">
+        <p id="delivery-hint">The store uses this address so the delivery knows where to go.</p>
         <label class="file-label" for="profile-image">Profile photo</label>
         <input id="profile-image" type="file" accept="image/*">
         <button type="button" id="save-account-button">Save</button>
+        <div id="account-orders" hidden>
+            <h3>Orders</h3>
+            <div id="order-list"></div>
+        </div>
         <div id="account-publish" hidden>
             <h3>Add a piece</h3>
             <p>Choose the filters customers can use.</p>
@@ -1219,6 +1226,7 @@ function setupAccountMenu() {
 
     panel.querySelector("#save-account-button").addEventListener("click", saveAccountProfile);
     panel.querySelector("#account-publish-button").addEventListener("click", publishFromAccount);
+    setupCartLink();
 }
 
 function showAccountPhoto(photoUrl, letter) {
@@ -1281,6 +1289,7 @@ async function loadAccountProfile(user) {
         role: profile.role || "customer",
         storeName: storeName,
         area: profile.area || "",
+        deliveryLocation: profile.deliveryLocation || "",
         category: profile.category || "",
         phone: profile.phone || "",
         whatsapp: profile.whatsapp || "",
@@ -1315,6 +1324,24 @@ async function loadAccountProfile(user) {
         areaInput.value = accountProfile.area;
     }
 
+    const deliveryInput = document.getElementById("delivery-location");
+    const deliveryLabel = document.getElementById("delivery-label");
+    const deliveryHint = document.getElementById("delivery-hint");
+    if (deliveryInput) {
+        deliveryInput.value = accountProfile.deliveryLocation;
+    }
+    if (deliveryLabel) {
+        deliveryLabel.hidden = false;
+    }
+    if (deliveryHint) {
+        deliveryHint.hidden = false;
+    }
+
+    const ordersSection = document.getElementById("account-orders");
+    if (ordersSection && !isStore) {
+        ordersSection.hidden = true;
+    }
+
     if (publishSection) {
         publishSection.hidden = !isStore;
     }
@@ -1340,6 +1367,7 @@ async function loadAccountProfile(user) {
                 categories,
                 profile.category ? [profile.category] : []
             );
+            await loadStoreOrders(user.uid);
         } catch (error) {
             console.error(error);
         }
@@ -1352,6 +1380,7 @@ async function saveAccountProfile() {
     const nameInput = document.getElementById("display-name");
     const fileInput = document.getElementById("profile-image");
     const areaInput = document.getElementById("account-area");
+    const deliveryInput = document.getElementById("delivery-location");
 
     if (!user || !nameInput) {
         return;
@@ -1383,10 +1412,15 @@ async function saveAccountProfile() {
             updates.area = areaInput ? areaInput.value.trim() : "";
         }
 
+        if (deliveryInput) {
+            updates.deliveryLocation = deliveryInput.value.trim();
+        }
+
         await setDoc(doc(db, "users", user.uid), updates, { merge: true });
         accountProfile.displayName = displayName;
         accountProfile.storeName = isStore ? displayName : accountProfile.storeName;
         accountProfile.area = isStore ? updates.area : accountProfile.area;
+        accountProfile.deliveryLocation = updates.deliveryLocation || "";
 
         if (updates.photoUrl) {
             accountProfile.photoUrl = updates.photoUrl;
@@ -1609,7 +1643,7 @@ async function loadDiscover() {
     }
 }
 
-function productActions(product) {
+function productActions(product, productId) {
     const actions = document.createElement("div");
     actions.className = "product-actions";
     const productName = product.name || "a product";
@@ -1658,6 +1692,16 @@ function productActions(product) {
             note.textContent = "This store accepts card payments. Contact the store to pay.";
             actions.appendChild(note);
         }
+    }
+
+    if (productId) {
+        const addButton = document.createElement("button");
+        addButton.type = "button";
+        addButton.textContent = "Add to cart";
+        addButton.addEventListener("click", () => {
+            addButton.textContent = addProductToCart(product, productId);
+        });
+        actions.appendChild(addButton);
     }
 
     return actions;
@@ -1722,7 +1766,7 @@ async function loadProductPage() {
         description.className = "product-description";
         description.textContent = product.description || "";
 
-        copy.append(category, title, store, price, stock, description, productActions(product));
+        copy.append(category, title, store, price, stock, description, productActions(product, productId));
 
         if (product.imageUrl) {
             const image = document.createElement("img");
@@ -1734,6 +1778,382 @@ async function loadProductPage() {
         }
     } catch (error) {
         productView.textContent = "Could not open this product.";
+        console.error(error);
+    }
+}
+
+function readCart() {
+    try {
+        const items = JSON.parse(localStorage.getItem("chaw-cart") || "[]");
+        return Array.isArray(items) ? items : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function writeCart(items) {
+    localStorage.setItem("chaw-cart", JSON.stringify(items));
+    renderCartCount();
+}
+
+function cartCount() {
+    return readCart().reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+}
+
+function renderCartCount() {
+    const link = document.getElementById("cart-link");
+    if (!link) {
+        return;
+    }
+
+    const count = cartCount();
+    link.textContent = count ? "Cart (" + count + ")" : "Cart";
+}
+
+function setupCartLink() {
+    if (document.getElementById("cart-link")) {
+        renderCartCount();
+        return;
+    }
+
+    const list = document.querySelector("nav ul");
+    if (!list) {
+        return;
+    }
+
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.id = "cart-link";
+    link.href = "cart.html";
+    item.appendChild(link);
+    list.appendChild(item);
+    renderCartCount();
+}
+
+function addProductToCart(product, productId) {
+    const stock = Number(product.stock || 0);
+
+    if (stock < 1) {
+        return "Out of stock.";
+    }
+
+    const cart = readCart();
+    const existing = cart.find((item) => item.id === productId);
+    const nextQuantity = (existing ? Number(existing.quantity) : 0) + 1;
+
+    if (nextQuantity > stock) {
+        return "Only " + stock + " left.";
+    }
+
+    if (existing) {
+        existing.quantity = nextQuantity;
+    } else {
+        cart.push({
+            id: productId,
+            name: product.name || "Piece",
+            price: Number(product.price || 0),
+            quantity: 1,
+            storeName: product.storeName || "",
+            ownerUid: product.ownerUid || "",
+            imageUrl: product.imageUrl || ""
+        });
+    }
+
+    writeCart(cart);
+    return "Added to cart.";
+}
+
+function changeCartQuantity(index, delta) {
+    const cart = readCart();
+    const item = cart[index];
+
+    if (!item) {
+        return;
+    }
+
+    item.quantity = Number(item.quantity) + delta;
+
+    if (item.quantity < 1) {
+        cart.splice(index, 1);
+    }
+
+    writeCart(cart);
+    renderCartPage();
+}
+
+function renderCartPage() {
+    const list = document.getElementById("cart-list");
+
+    if (!list) {
+        return;
+    }
+
+    const totalLine = document.getElementById("cart-total");
+    const cart = readCart();
+    list.replaceChildren();
+
+    if (!cart.length) {
+        const empty = document.createElement("p");
+        empty.textContent = "Your cart is empty.";
+        list.appendChild(empty);
+    }
+
+    let total = 0;
+
+    cart.forEach((item, index) => {
+        total += Number(item.price) * Number(item.quantity);
+        const card = document.createElement("article");
+        card.className = "cart-item";
+
+        const title = document.createElement("h3");
+        title.textContent = item.name;
+
+        const store = document.createElement("p");
+        store.textContent = item.storeName || "";
+
+        const price = document.createElement("p");
+        price.textContent = "Price " + item.price + " × " + item.quantity;
+
+        const controls = document.createElement("div");
+        controls.className = "cart-controls";
+
+        const minus = document.createElement("button");
+        minus.type = "button";
+        minus.textContent = "−";
+        minus.addEventListener("click", () => changeCartQuantity(index, -1));
+
+        const plus = document.createElement("button");
+        plus.type = "button";
+        plus.textContent = "+";
+        plus.addEventListener("click", () => changeCartQuantity(index, 1));
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => {
+            const next = readCart();
+            next.splice(index, 1);
+            writeCart(next);
+            renderCartPage();
+        });
+
+        controls.append(minus, plus, remove);
+        card.append(title, store, price, controls);
+        list.appendChild(card);
+    });
+
+    if (totalLine) {
+        totalLine.textContent = cart.length ? "Total " + total : "";
+    }
+}
+
+function orderLines(order) {
+    return (order.items || []).map((item) => {
+        return item.quantity + " × " + item.name + " — " + item.price;
+    }).join(", ");
+}
+
+async function loadCustomerOrders(user) {
+    const list = document.getElementById("my-orders");
+
+    if (!list) {
+        return;
+    }
+
+    if (!user) {
+        list.textContent = "Sign in to see orders you have placed.";
+        return;
+    }
+
+    try {
+        const snapshot = await getDocs(query(
+            collection(db, "orders"),
+            where("customerUid", "==", user.uid)
+        ));
+        const orders = snapshot.docs.map((orderDocument) => {
+            return { id: orderDocument.id, ...orderDocument.data() };
+        });
+        orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        list.replaceChildren();
+
+        if (!orders.length) {
+            const empty = document.createElement("p");
+            empty.textContent = "No orders yet.";
+            list.appendChild(empty);
+            return;
+        }
+
+        orders.forEach((order) => {
+            const card = document.createElement("article");
+            card.className = "order-card";
+            const title = document.createElement("h3");
+            title.textContent = order.storeName || "Store";
+            const items = document.createElement("p");
+            items.textContent = orderLines(order);
+            const status = document.createElement("p");
+            status.textContent = "Status: " + (order.status || "new");
+            card.append(title, items, status);
+            list.appendChild(card);
+        });
+    } catch (error) {
+        list.textContent = "Orders will show after the new database rules are published.";
+        console.error(error);
+    }
+}
+
+async function loadStoreOrders(uid) {
+    const section = document.getElementById("account-orders");
+    const list = document.getElementById("order-list");
+
+    if (!section || !list) {
+        return;
+    }
+
+    section.hidden = false;
+
+    try {
+        const snapshot = await getDocs(query(
+            collection(db, "orders"),
+            where("ownerUid", "==", uid)
+        ));
+        const orders = snapshot.docs.map((orderDocument) => {
+            return { id: orderDocument.id, ...orderDocument.data() };
+        });
+        orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        list.replaceChildren();
+
+        if (!orders.length) {
+            const empty = document.createElement("p");
+            empty.textContent = "No orders yet.";
+            list.appendChild(empty);
+            return;
+        }
+
+        orders.forEach((order) => {
+            const card = document.createElement("article");
+            card.className = "order-card";
+            const title = document.createElement("h4");
+            title.textContent = order.customerName || order.customerEmail || "Customer";
+            const location = document.createElement("p");
+            location.textContent = "Deliver to: " + (order.location || "");
+            const items = document.createElement("p");
+            items.textContent = orderLines(order);
+            const status = document.createElement("p");
+            status.textContent = "Status: " + (order.status || "new");
+            card.append(title, location, items, status);
+
+            if (order.status !== "delivered") {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = order.status === "on the way" ? "Mark delivered" : "On the way";
+                button.addEventListener("click", async () => {
+                    const nextStatus = order.status === "on the way" ? "delivered" : "on the way";
+
+                    try {
+                        await updateDoc(doc(db, "orders", order.id), { status: nextStatus });
+                        await loadStoreOrders(uid);
+                    } catch (error) {
+                        status.textContent = error.message;
+                    }
+                });
+                card.appendChild(button);
+            }
+
+            list.appendChild(card);
+        });
+    } catch (error) {
+        list.textContent = "Orders will show after the new database rules are published.";
+        console.error(error);
+    }
+}
+
+async function placeOrder() {
+    const message = document.getElementById("cart-message");
+    const cart = readCart();
+
+    if (!message) {
+        return;
+    }
+
+    if (!cart.length) {
+        message.textContent = "Your cart is empty.";
+        return;
+    }
+
+    const user = auth.currentUser;
+
+    if (!user) {
+        message.textContent = "Sign in, then save a delivery location in your account.";
+        return;
+    }
+
+    let location = "";
+    let customerName = "";
+
+    try {
+        const profileSnap = await getDoc(doc(db, "users", user.uid));
+
+        if (profileSnap.exists()) {
+            location = profileSnap.data().deliveryLocation || "";
+            customerName = profileSnap.data().displayName || "";
+        }
+    } catch (error) {
+        console.error(error);
+    }
+
+    if (!location.trim()) {
+        message.textContent = "Open your account and save a delivery location first.";
+        return;
+    }
+
+    if (cart.some((item) => !item.ownerUid)) {
+        message.textContent = "One piece has no store, so it cannot be ordered.";
+        return;
+    }
+
+    const groups = new Map();
+
+    cart.forEach((item) => {
+        if (!groups.has(item.ownerUid)) {
+            groups.set(item.ownerUid, []);
+        }
+
+        groups.get(item.ownerUid).push(item);
+    });
+
+    try {
+        for (const [ownerUid, items] of groups) {
+            const total = items.reduce((sum, item) => {
+                return sum + Number(item.price) * Number(item.quantity);
+            }, 0);
+
+            await addDoc(collection(db, "orders"), {
+                customerUid: user.uid,
+                customerName: customerName || user.email || "",
+                customerEmail: user.email || "",
+                location: location.trim(),
+                ownerUid: ownerUid,
+                storeName: items[0].storeName || "",
+                items: items.map((item) => {
+                    return {
+                        productId: item.id,
+                        name: item.name,
+                        price: Number(item.price),
+                        quantity: Number(item.quantity)
+                    };
+                }),
+                total: total,
+                status: "new",
+                createdAt: Date.now()
+            });
+        }
+
+        writeCart([]);
+        message.textContent = "Order sent. The store has your location.";
+        renderCartPage();
+        await loadCustomerOrders(user);
+    } catch (error) {
+        message.textContent = "Could not place the order. Publish the new database rules, then try again.";
         console.error(error);
     }
 }
@@ -1771,7 +2191,18 @@ async function startAuth() {
 
         loadDiscover();
         loadProductPage();
+
+        if (document.getElementById("cart-list")) {
+            renderCartPage();
+            loadCustomerOrders(user);
+        }
     });
 }
 
+const checkoutButton = document.getElementById("checkout-button");
+if (checkoutButton) {
+    checkoutButton.addEventListener("click", placeOrder);
+}
+
+renderCartPage();
 startAuth();
