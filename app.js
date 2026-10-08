@@ -107,6 +107,30 @@ function onDashboardPage() {
     return window.location.pathname.endsWith("dashboard.html");
 }
 
+function nextPage() {
+    const next = new URLSearchParams(window.location.search).get("next") || "";
+
+    if (/^[a-zA-Z0-9._-]+\.html(\?[a-zA-Z0-9=&%._-]*)?$/.test(next)) {
+        return next;
+    }
+
+    return "index.html";
+}
+
+function buyerNext() {
+    const file = window.location.pathname.split("/").pop() || "index.html";
+    return file + window.location.search;
+}
+
+function requireBuyer() {
+    if (auth.currentUser) {
+        return true;
+    }
+
+    window.location.href = "login.html?next=" + encodeURIComponent(buyerNext());
+    return false;
+}
+
 let isSigningUp = false;
 
 if (signupButton) {
@@ -130,7 +154,7 @@ if (signupButton) {
                 role: "customer"
             });
 
-            window.location.href = "index.html";
+            window.location.href = nextPage();
         } catch (error) {
             isSigningUp = false;
             authMessage.textContent = error.message;
@@ -146,7 +170,7 @@ if (loginButton) {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = "index.html";
+            window.location.href = nextPage();
         } catch (error) {
             authMessage.textContent = error.message;
             console.error(error);
@@ -1152,80 +1176,31 @@ let accountProfile = {
 };
 
 function setupAccountMenu() {
-    if (document.getElementById("account-panel")) {
-        return;
-    }
-
-    const panel = document.createElement("div");
-    panel.id = "account-panel";
-    panel.className = "account-panel";
-    panel.hidden = true;
-        panel.innerHTML = `
-        <div class="account-photo-wrap">
-            <img id="account-photo" alt="" hidden>
-            <span id="account-initial"></span>
-            <button type="button" id="logout-button">Log out</button>
-        </div>
-        <p id="account-store-kicker" hidden>Store</p>
-        <p id="account-email"></p>
-        <label class="file-label" id="display-name-label" for="display-name">Display name</label>
-        <input id="display-name" type="text" maxlength="40" placeholder="Display name">
-        <label class="file-label" id="account-area-label" for="account-area" hidden>Area</label>
-        <input id="account-area" type="text" placeholder="Area or city" hidden>
-        <label class="file-label" id="delivery-label" for="delivery-location">Delivery location</label>
-        <input id="delivery-location" type="text" maxlength="160" placeholder="Street, area, city">
-        <p id="delivery-hint">The store uses this address so the delivery knows where to go.</p>
-        <label class="file-label" for="profile-image">Profile photo</label>
-        <input id="profile-image" type="file" accept="image/*">
-        <button type="button" id="save-account-button">Save</button>
-        <div id="account-orders" hidden>
-            <h3>Orders</h3>
-            <div id="order-list"></div>
-        </div>
-        <div id="account-publish" hidden>
-            <h3>Add a piece</h3>
-            <p>Choose the filters customers can use.</p>
-            <div id="account-filters" class="filter-choices"></div>
-            <input id="account-product-name" type="text" placeholder="Piece name">
-            <input id="account-product-price" type="number" placeholder="Price">
-            <input id="account-product-stock" type="number" placeholder="Stock">
-            <input id="account-product-description" type="text" placeholder="Description">
-            <label class="file-label" for="account-product-image">Photo</label>
-            <input id="account-product-image" type="file" accept="image/*">
-            <button type="button" id="account-publish-button">Publish</button>
-            <p id="account-publish-message"></p>
-        </div>
-        <p id="account-form-message"></p>
-    `;
-    document.body.appendChild(panel);
-
     const accountButton = document.getElementById("account-button");
     if (accountButton) {
         accountButton.addEventListener("click", () => {
-            panel.hidden = !panel.hidden;
+            window.location.href = "account.html";
         });
     }
 
-    document.addEventListener("click", (event) => {
-        if (panel.hidden) {
-            return;
-        }
+    const logoutButton = document.getElementById("logout-button");
+    if (logoutButton) {
+        logoutButton.addEventListener("click", async () => {
+            await signOut(auth);
+            window.location.href = "index.html";
+        });
+    }
 
-        const target = event.target;
-        if (panel.contains(target) || (accountButton && accountButton.contains(target))) {
-            return;
-        }
+    const saveButton = document.getElementById("save-account-button");
+    if (saveButton) {
+        saveButton.addEventListener("click", saveAccountProfile);
+    }
 
-        panel.hidden = true;
-    });
+    const publishButton = document.getElementById("account-publish-button");
+    if (publishButton) {
+        publishButton.addEventListener("click", publishFromAccount);
+    }
 
-    panel.querySelector("#logout-button").addEventListener("click", async () => {
-        await signOut(auth);
-        window.location.href = "index.html";
-    });
-
-    panel.querySelector("#save-account-button").addEventListener("click", saveAccountProfile);
-    panel.querySelector("#account-publish-button").addEventListener("click", publishFromAccount);
     setupCartLink();
 }
 
@@ -1342,6 +1317,31 @@ async function loadAccountProfile(user) {
         ordersSection.hidden = true;
     }
 
+    const storeContact = document.getElementById("store-contact");
+    if (storeContact) {
+        storeContact.hidden = !isStore;
+    }
+
+    const phoneInput = document.getElementById("account-phone");
+    if (phoneInput && document.activeElement !== phoneInput) {
+        phoneInput.value = accountProfile.phone;
+    }
+
+    const whatsappInput = document.getElementById("account-whatsapp");
+    if (whatsappInput && document.activeElement !== whatsappInput) {
+        whatsappInput.value = accountProfile.whatsapp;
+    }
+
+    const acceptCardInput = document.getElementById("account-accept-card");
+    if (acceptCardInput) {
+        acceptCardInput.checked = accountProfile.acceptsCard;
+    }
+
+    const cardUrlInput = document.getElementById("account-card-url");
+    if (cardUrlInput && document.activeElement !== cardUrlInput) {
+        cardUrlInput.value = accountProfile.cardPaymentUrl;
+    }
+
     if (publishSection) {
         publishSection.hidden = !isStore;
     }
@@ -1372,6 +1372,10 @@ async function loadAccountProfile(user) {
             console.error(error);
         }
     }
+
+    if (document.getElementById("checkout-address")) {
+        renderCheckoutDetails();
+    }
 }
 
 async function saveAccountProfile() {
@@ -1381,6 +1385,10 @@ async function saveAccountProfile() {
     const fileInput = document.getElementById("profile-image");
     const areaInput = document.getElementById("account-area");
     const deliveryInput = document.getElementById("delivery-location");
+    const phoneInput = document.getElementById("account-phone");
+    const whatsappInput = document.getElementById("account-whatsapp");
+    const acceptCardBox = document.getElementById("account-accept-card");
+    const cardUrlInput = document.getElementById("account-card-url");
 
     if (!user || !nameInput) {
         return;
@@ -1410,6 +1418,20 @@ async function saveAccountProfile() {
         if (isStore) {
             updates.storeName = displayName;
             updates.area = areaInput ? areaInput.value.trim() : "";
+            updates.whatsapp = whatsappInput ? whatsappInput.value.trim() : "";
+            updates.acceptsCard = Boolean(acceptCardBox && acceptCardBox.checked);
+            const cardUrl = cardUrlInput ? cardUrlInput.value.trim() : "";
+
+            if (updates.acceptsCard && cardUrl && !safeHttpUrl(cardUrl)) {
+                message.textContent = "The card link must start with http:// or https://";
+                return;
+            }
+
+            updates.cardPaymentUrl = safeHttpUrl(cardUrl);
+        }
+
+        if (phoneInput) {
+            updates.phone = phoneInput.value.trim();
         }
 
         if (deliveryInput) {
@@ -1421,6 +1443,12 @@ async function saveAccountProfile() {
         accountProfile.storeName = isStore ? displayName : accountProfile.storeName;
         accountProfile.area = isStore ? updates.area : accountProfile.area;
         accountProfile.deliveryLocation = updates.deliveryLocation || "";
+        accountProfile.phone = updates.phone || "";
+        if (isStore) {
+            accountProfile.whatsapp = updates.whatsapp || "";
+            accountProfile.acceptsCard = updates.acceptsCard;
+            accountProfile.cardPaymentUrl = updates.cardPaymentUrl || "";
+        }
 
         if (updates.photoUrl) {
             accountProfile.photoUrl = updates.photoUrl;
@@ -1622,10 +1650,15 @@ function renderDiscover() {
         const addButton = document.createElement("button");
         addButton.type = "button";
         addButton.className = "cart-button";
-        addButton.textContent = "Put in the cart";
+        addButton.textContent = auth.currentUser ? "Put in the cart" : "Sign in to buy";
         addButton.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
+
+            if (!requireBuyer()) {
+                return;
+            }
+
             addButton.textContent = addProductToCart(product, product.id);
         });
 
@@ -1676,6 +1709,7 @@ function productActions(product, productId) {
             "Hello, I want " + productName + " from " + (product.storeName || "your store") + "."
         );
         const whatsapp = document.createElement("a");
+        whatsapp.className = "whatsapp-button";
         whatsapp.href = "https://wa.me/" + whatsappDigits + "?text=" + message;
         whatsapp.target = "_blank";
         whatsapp.rel = "noopener";
@@ -1711,8 +1745,12 @@ function productActions(product, productId) {
     if (productId) {
         const addButton = document.createElement("button");
         addButton.type = "button";
-        addButton.textContent = "Put in the cart";
+        addButton.textContent = auth.currentUser ? "Put in the cart" : "Sign in to buy";
         addButton.addEventListener("click", () => {
+            if (!requireBuyer()) {
+                return;
+            }
+
             addButton.textContent = addProductToCart(product, productId);
         });
         actions.appendChild(addButton);
@@ -1845,6 +1883,10 @@ function setupCartLink() {
 }
 
 function addProductToCart(product, productId) {
+    if (!requireBuyer()) {
+        return "Sign in to buy.";
+    }
+
     const stock = Number(product.stock || 0);
 
     if (stock < 1) {
@@ -1869,7 +1911,9 @@ function addProductToCart(product, productId) {
             quantity: 1,
             storeName: product.storeName || "",
             ownerUid: product.ownerUid || "",
-            imageUrl: product.imageUrl || ""
+            imageUrl: product.imageUrl || "",
+            acceptsCard: Boolean(product.acceptsCard),
+            cardPaymentUrl: product.cardPaymentUrl || ""
         });
     }
 
@@ -1957,8 +2001,42 @@ function renderCartPage() {
     });
 
     if (totalLine) {
-        totalLine.textContent = cart.length ? "Total " + total : "";
+        const pieces = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        totalLine.textContent = cart.length
+            ? pieces + (pieces === 1 ? " piece" : " pieces") + " · Total " + total
+            : "";
     }
+
+    renderCheckoutDetails();
+}
+
+function renderCheckoutDetails() {
+    const box = document.getElementById("checkout-box");
+    const address = document.getElementById("checkout-address");
+
+    if (!box) {
+        return;
+    }
+
+    const cart = readCart();
+    box.hidden = cart.length === 0;
+
+    if (!address) {
+        return;
+    }
+
+    if (!auth.currentUser) {
+        address.textContent = "Sign in to buy. Your delivery location is saved on your account.";
+        return;
+    }
+
+    address.textContent = accountProfile.deliveryLocation
+        ? "Deliver to: " + accountProfile.deliveryLocation
+        : "Add a delivery location on your account before you place the order.";
+}
+
+function paymentLabel(method) {
+    return method === "card" ? "Pay by card" : "Pay on delivery";
 }
 
 function orderLines(order) {
@@ -2004,9 +2082,11 @@ async function loadCustomerOrders(user) {
             title.textContent = order.storeName || "Store";
             const items = document.createElement("p");
             items.textContent = orderLines(order);
+            const payment = document.createElement("p");
+            payment.textContent = paymentLabel(order.paymentMethod);
             const status = document.createElement("p");
             status.textContent = "Status: " + (order.status || "new");
-            card.append(title, items, status);
+            card.append(title, items, payment, status);
             list.appendChild(card);
         });
     } catch (error) {
@@ -2050,11 +2130,21 @@ async function loadStoreOrders(uid) {
             title.textContent = order.customerName || order.customerEmail || "Customer";
             const location = document.createElement("p");
             location.textContent = "Deliver to: " + (order.location || "");
+            const phone = document.createElement("p");
+            if (order.customerPhone) {
+                phone.textContent = "Phone: " + order.customerPhone;
+            }
+            const payment = document.createElement("p");
+            payment.textContent = paymentLabel(order.paymentMethod);
             const items = document.createElement("p");
             items.textContent = orderLines(order);
             const status = document.createElement("p");
             status.textContent = "Status: " + (order.status || "new");
-            card.append(title, location, items, status);
+            card.append(title, location);
+            if (order.customerPhone) {
+                card.appendChild(phone);
+            }
+            card.append(payment, items, status);
 
             if (order.status !== "delivered") {
                 const button = document.createElement("button");
@@ -2097,12 +2187,13 @@ async function placeOrder() {
     const user = auth.currentUser;
 
     if (!user) {
-        message.textContent = "Sign in, then save a delivery location in your account.";
+        window.location.href = "login.html?next=" + encodeURIComponent("cart.html");
         return;
     }
 
     let location = "";
     let customerName = "";
+    let customerPhone = "";
 
     try {
         const profileSnap = await getDoc(doc(db, "users", user.uid));
@@ -2110,6 +2201,7 @@ async function placeOrder() {
         if (profileSnap.exists()) {
             location = profileSnap.data().deliveryLocation || "";
             customerName = profileSnap.data().displayName || "";
+            customerPhone = profileSnap.data().phone || "";
         }
     } catch (error) {
         console.error(error);
@@ -2119,6 +2211,9 @@ async function placeOrder() {
         message.textContent = "Open your account and save a delivery location first.";
         return;
     }
+
+    const selectedPayment = document.querySelector("input[name='payment']:checked");
+    const paymentMethod = selectedPayment && selectedPayment.value === "card" ? "card" : "delivery";
 
     if (cart.some((item) => !item.ownerUid)) {
         message.textContent = "One piece has no store, so it cannot be ordered.";
@@ -2146,6 +2241,8 @@ async function placeOrder() {
                 customerName: customerName || user.email || "",
                 customerEmail: user.email || "",
                 location: location.trim(),
+                customerPhone: customerPhone,
+                paymentMethod: paymentMethod,
                 ownerUid: ownerUid,
                 storeName: items[0].storeName || "",
                 items: items.map((item) => {
@@ -2162,8 +2259,39 @@ async function placeOrder() {
             });
         }
 
+        const payLinks = [];
+
+        if (paymentMethod === "card") {
+            cart.forEach((item) => {
+                const url = safeHttpUrl(item.cardPaymentUrl || "");
+
+                if (url && !payLinks.some((link) => link.url === url)) {
+                    payLinks.push({
+                        url: url,
+                        storeName: item.storeName || "the store"
+                    });
+                }
+            });
+        }
+
         writeCart([]);
-        message.textContent = "Order sent. The store has your location.";
+        message.replaceChildren();
+        const sent = document.createElement("span");
+        sent.textContent = paymentMethod === "card"
+            ? "Order sent. Pay by card with the store."
+            : "Order sent. Pay on delivery. The store has your location.";
+        message.appendChild(sent);
+
+        payLinks.forEach((link) => {
+            const pay = document.createElement("a");
+            pay.href = link.url;
+            pay.target = "_blank";
+            pay.rel = "noopener";
+            pay.textContent = "Pay " + link.storeName + " by card";
+            message.appendChild(document.createElement("br"));
+            message.appendChild(pay);
+        });
+
         renderCartPage();
         await loadCustomerOrders(user);
     } catch (error) {
@@ -2190,7 +2318,7 @@ async function startAuth() {
 
         if (user) {
             if (onLoginPage() && !isSigningUp) {
-                window.location.href = "index.html";
+                window.location.href = nextPage();
                 return;
             }
 
@@ -2198,8 +2326,11 @@ async function startAuth() {
             loadSales();
             prepareDashboard(user);
         } else {
-            if (onDashboardPage()) {
-                window.location.href = "login.html";
+            if (onDashboardPage() || document.getElementById("account-page")) {
+                const next = document.getElementById("account-page") ? "account.html" : "";
+                window.location.href = next
+                    ? "login.html?next=" + encodeURIComponent(next)
+                    : "login.html";
             }
         }
 

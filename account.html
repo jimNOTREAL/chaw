@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Account — Chaw</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html" class="brand" aria-label="Chaw home">
+            <img src="chaw-eye-white.png" alt="Chaw eye logo">
+            <div class="logo">Chaw</div>
+        </a>
+
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="discover.html">Discover</a></li>
+            <li id="dashboard-link" hidden><a href="dashboard.html">Dashboard</a></li>
+        </ul>
+
+        <a href="login.html" class="nav-button" id="join-link">Sign in</a>
+        <button type="button" id="account-button" class="account-button" hidden aria-label="Your account">
+            <img id="nav-avatar" alt="" hidden>
+            <span id="nav-initial"></span>
+        </button>
+    </nav>
+
+    <main id="account-page">
+        <div id="account-panel" class="account-panel account-page">
+            <div class="account-photo-wrap">
+                <img id="account-photo" alt="" hidden>
+                <span id="account-initial"></span>
+                <button type="button" id="logout-button">Log out</button>
+            </div>
+            <p id="account-store-kicker" hidden>Store</p>
+            <p id="account-email"></p>
+
+            <h2>Your details</h2>
+            <label class="file-label" id="display-name-label" for="display-name">Display name</label>
+            <input id="display-name" type="text" maxlength="40" placeholder="Display name">
+            <label class="file-label" for="account-phone">Phone</label>
+            <input id="account-phone" type="tel" maxlength="30" placeholder="Phone number">
+            <label class="file-label" id="delivery-label" for="delivery-location">Delivery location</label>
+            <input id="delivery-location" type="text" maxlength="160" placeholder="Street, area, city">
+            <p id="delivery-hint">The store uses this address so the delivery knows where to go.</p>
+            <label class="file-label" for="profile-image">Profile photo</label>
+            <input id="profile-image" type="file" accept="image/*">
+
+            <div id="store-contact" hidden>
+                <h2>Store contact</h2>
+                <label class="file-label" id="account-area-label" for="account-area">Area</label>
+                <input id="account-area" type="text" placeholder="Area or city">
+                <label class="file-label" for="account-whatsapp">WhatsApp number</label>
+                <input id="account-whatsapp" type="tel" maxlength="30" placeholder="9647XXXXXXXX">
+                <p class="field-hint">Customers see a WhatsApp button on your pieces. Include the country code.</p>
+                <h2>Card payments</h2>
+                <label class="check-label" for="account-accept-card">
+                    <input id="account-accept-card" type="checkbox">
+                    Customers can pay by card
+                </label>
+                <label class="file-label" for="account-card-url">Card payment link</label>
+                <input id="account-card-url" type="url" placeholder="https://">
+                <p class="field-hint">Paste the link where customers pay. Chaw never stores card numbers.</p>
+            </div>
+
+            <button type="button" id="save-account-button">Save</button>
+            <p id="account-form-message"></p>
+
+            <div id="account-orders" hidden>
+                <h2>Orders</h2>
+                <div id="order-list"></div>
+            </div>
+
+            <div id="account-publish" hidden>
+                <h2>Add a piece</h2>
+                <p>Choose the filters customers can use.</p>
+                <div id="account-filters" class="filter-choices"></div>
+                <input id="account-product-name" type="text" placeholder="Piece name">
+                <input id="account-product-price" type="number" placeholder="Price">
+                <input id="account-product-stock" type="number" placeholder="Stock">
+                <input id="account-product-description" type="text" placeholder="Description">
+                <label class="file-label" for="account-product-image">Photo</label>
+                <input id="account-product-image" type="file" accept="image/*">
+                <button type="button" id="account-publish-button">Publish</button>
+                <p id="account-publish-message"></p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2026 Chaw. All rights reserved.</p>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
