@@ -23,7 +23,9 @@ import {
     getDocs,
     getDoc,
     query,
-    where
+    where,
+    runTransaction,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const emailInput = document.getElementById("email");
@@ -1201,6 +1203,7 @@ function updateNav(user) {
     }
 
     if (!user) {
+        stopStoreAlerts();
         return;
     }
 
@@ -1256,6 +1259,7 @@ function setupAccountMenu() {
     }
 
     setupCartLink();
+    ensureOrderAlert();
 }
 
 function showAccountPhoto(photoUrl, letter) {
@@ -1433,10 +1437,13 @@ async function loadAccountProfile(user) {
             );
             await loadStoreOrders(user.uid);
             await loadAccountProducts(user.uid);
+            setupOrderAlertButton();
         } catch (error) {
             console.error(error);
         }
     }
+
+    watchStoreOrders(user);
 
     if (document.getElementById("checkout-address")) {
         renderCheckoutDetails();
@@ -2322,6 +2329,151 @@ async function loadCustomerOrders(user) {
     }
 }
 
+let stopWatchingOrders = null;
+let knownOrderIds = null;
+
+function ensureOrderAlert() {
+    if (document.getElementById("order-alert")) {
+        return;
+    }
+
+    const banner = document.createElement("div");
+    banner.id = "order-alert";
+    banner.className = "order-alert";
+    banner.hidden = true;
+    const nav = document.querySelector("nav");
+    if (nav) {
+        nav.insertAdjacentElement("afterend", banner);
+    }
+}
+
+function showOrderAlert(orders) {
+    ensureOrderAlert();
+    const banner = document.getElementById("order-alert");
+    const accountLink = document.querySelector("#account-link a");
+
+    if (accountLink) {
+        accountLink.textContent = orders.length ? "Account (" + orders.length + ")" : "Account";
+    }
+
+    if (!banner) {
+        return;
+    }
+
+    banner.replaceChildren();
+
+    if (!orders.length) {
+        banner.hidden = true;
+        return;
+    }
+
+    banner.hidden = false;
+    const text = document.createElement("p");
+    const first = orders[0];
+    text.textContent = orders.length === 1
+        ? "New order from " + (first.customerName || "a customer") + ". Deliver to " + (first.location || "their saved address") + "."
+        : orders.length + " new orders are waiting.";
+
+    const open = document.createElement("a");
+    open.href = "account.html";
+    open.textContent = "Open orders";
+
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.textContent = "Mark seen";
+    dismiss.addEventListener("click", () => markOrdersSeen(orders));
+
+    banner.append(text, open, dismiss);
+}
+
+async function markOrdersSeen(orders) {
+    try {
+        await Promise.all(orders.map((order) => {
+            return updateDoc(doc(db, "orders", order.id), { seen: true });
+        }));
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function notifyStore(order) {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+        return;
+    }
+
+    const note = new Notification("New Chaw order", {
+        body: (order.customerName || "A customer") + " ordered " + orderLines(order) + ". Deliver to " + (order.location || "their address") + "."
+    });
+    note.onclick = () => {
+        window.location.href = "account.html";
+    };
+}
+
+function stopStoreAlerts() {
+    if (stopWatchingOrders) {
+        stopWatchingOrders();
+        stopWatchingOrders = null;
+    }
+
+    knownOrderIds = null;
+    showOrderAlert([]);
+}
+
+function setupOrderAlertButton() {
+    const button = document.getElementById("allow-order-alerts");
+
+    if (!button || button.dataset.bound) {
+        return;
+    }
+
+    if (typeof Notification === "undefined" || Notification.permission !== "default") {
+        button.hidden = true;
+        return;
+    }
+
+    button.hidden = false;
+    button.dataset.bound = "1";
+    button.addEventListener("click", async () => {
+        const result = await Notification.requestPermission();
+        button.hidden = result !== "default";
+    });
+}
+
+function watchStoreOrders(user) {
+    stopStoreAlerts();
+
+    if (!user || accountProfile.role !== "business") {
+        return;
+    }
+
+    stopWatchingOrders = onSnapshot(query(
+        collection(db, "orders"),
+        where("ownerUid", "==", user.uid)
+    ), (snapshot) => {
+        const fresh = [];
+
+        snapshot.forEach((orderDocument) => {
+            const data = orderDocument.data();
+            if ((data.status || "new") === "new" && !data.seen) {
+                fresh.push({ id: orderDocument.id, ...data });
+            }
+        });
+
+        if (knownOrderIds) {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" && !knownOrderIds.has(change.doc.id)) {
+                    notifyStore(change.doc.data());
+                }
+            });
+        }
+
+        knownOrderIds = new Set(snapshot.docs.map((orderDocument) => orderDocument.id));
+        showOrderAlert(fresh);
+    }, (error) => {
+        console.error(error);
+    });
+}
+
 async function loadStoreOrders(uid) {
     const section = document.getElementById("account-orders");
     const list = document.getElementById("order-list");
@@ -2352,7 +2504,7 @@ async function loadStoreOrders(uid) {
 
         orders.forEach((order) => {
             const card = document.createElement("article");
-            card.className = "order-card";
+            card.className = "order-card" + ((order.status || "new") === "new" && !order.seen ? " new-order" : "");
             const title = document.createElement("h4");
             title.textContent = order.customerName || order.customerEmail || "Customer";
             const location = document.createElement("p");
@@ -2458,33 +2610,71 @@ async function placeOrder() {
     });
 
     try {
-        for (const [ownerUid, items] of groups) {
-            const total = items.reduce((sum, item) => {
-                return sum + Number(item.price) * Number(item.quantity);
-            }, 0);
+        await runTransaction(db, async (transaction) => {
+            const needed = new Map();
 
-            await addDoc(collection(db, "orders"), {
-                customerUid: user.uid,
-                customerName: customerName || user.email || "",
-                customerEmail: user.email || "",
-                location: location.trim(),
-                customerPhone: customerPhone,
-                paymentMethod: paymentMethod,
-                ownerUid: ownerUid,
-                storeName: items[0].storeName || "",
-                items: items.map((item) => {
-                    return {
-                        productId: item.id,
-                        name: item.name,
-                        price: Number(item.price),
-                        quantity: Number(item.quantity)
-                    };
-                }),
-                total: total,
-                status: "new",
-                createdAt: Date.now()
+            cart.forEach((item) => {
+                needed.set(item.id, (needed.get(item.id) || 0) + Number(item.quantity));
             });
-        }
+
+            const stockUpdates = [];
+
+            for (const [productId, quantity] of needed) {
+                const productRef = doc(db, "products", productId);
+                const productSnap = await transaction.get(productRef);
+                const productName = cart.find((item) => item.id === productId);
+                const name = productName ? productName.name : "A piece";
+
+                if (!productSnap.exists()) {
+                    throw new Error(name + " is no longer available.");
+                }
+
+                const stock = Number(productSnap.data().stock || 0);
+
+                if (stock < quantity) {
+                    throw new Error("Only " + stock + " left of " + name + ".");
+                }
+
+                stockUpdates.push({
+                    ref: productRef,
+                    stock: stock - quantity
+                });
+            }
+
+            stockUpdates.forEach((update) => {
+                transaction.update(update.ref, { stock: update.stock });
+            });
+
+            groups.forEach((items, ownerUid) => {
+                const total = items.reduce((sum, item) => {
+                    return sum + Number(item.price) * Number(item.quantity);
+                }, 0);
+                const orderRef = doc(collection(db, "orders"));
+
+                transaction.set(orderRef, {
+                    customerUid: user.uid,
+                    customerName: customerName || user.email || "",
+                    customerEmail: user.email || "",
+                    location: location.trim(),
+                    customerPhone: customerPhone,
+                    paymentMethod: paymentMethod,
+                    ownerUid: ownerUid,
+                    storeName: items[0].storeName || "",
+                    items: items.map((item) => {
+                        return {
+                            productId: item.id,
+                            name: item.name,
+                            price: Number(item.price),
+                            quantity: Number(item.quantity)
+                        };
+                    }),
+                    total: total,
+                    status: "new",
+                    seen: false,
+                    createdAt: Date.now()
+                });
+            });
+        });
 
         const payLinks = [];
 
@@ -2521,8 +2711,12 @@ async function placeOrder() {
 
         renderCartPage();
         await loadCustomerOrders(user);
+        await loadDiscover();
     } catch (error) {
-        message.textContent = "Could not place the order. Publish the new database rules, then try again.";
+        const denied = error.code === "permission-denied";
+        message.textContent = denied
+            ? "Publish the new database rules so the order can lower the stock, then try again."
+            : (error.message || "Could not place the order.");
         console.error(error);
     }
 }
