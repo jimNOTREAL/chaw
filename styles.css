@@ -337,6 +337,44 @@ nav ul a:hover {
     margin: 8px 0 14px;
 }
 
+.filter-section {
+    margin: 16px 0 8px;
+}
+
+.filter-section h3,
+.filter-group-label {
+    font-family: "Jost", sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+.filter-section h3 {
+    margin-bottom: 8px;
+}
+
+.filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+}
+
+.filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 16px;
+}
+
+#category-list select {
+    width: auto;
+    margin: 0 10px;
+    padding: 6px 8px;
+}
+
 .filter-choices label {
     display: flex;
     align-items: center;
@@ -504,6 +542,10 @@ nav ul a:hover {
 }
 
 .home-shop .filter-bar {
+    align-items: flex-end;
+}
+
+.home-shop .filter-group {
     justify-content: flex-end;
 }
 
@@ -962,9 +1004,9 @@ select:focus {
 
 .filter-bar {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px 18px;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
     margin: 10px 0 36px;
 }
 

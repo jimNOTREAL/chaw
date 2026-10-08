@@ -49,6 +49,8 @@ const salesOverall = document.getElementById("sales-overall");
 const salesList = document.getElementById("sales-list");
 const adminPanel = document.getElementById("admin-panel");
 const categoryWordInput = document.getElementById("category-word");
+const categorySectionSelect = document.getElementById("category-section");
+const categorySectionNameInput = document.getElementById("category-section-name");
 const addCategoryButton = document.getElementById("add-category-button");
 const categoryList = document.getElementById("category-list");
 const businessEmailInput = document.getElementById("business-email");
@@ -384,35 +386,209 @@ function filtersOnProduct(product) {
     return product.category ? [product.category] : [];
 }
 
+const builtinSections = ["size", "color", "type"];
+
+function guessSection(name) {
+    const word = String(name || "").trim().toLowerCase();
+    const sizes = ["xxs", "xs", "s", "sm", "m", "l", "xl", "xxl", "xxxl", "2xl", "3xl", "4xl", "5xl", "small", "medium", "large"];
+    const colors = [
+        "red", "blue", "green", "black", "white", "yellow", "pink", "brown", "grey", "gray",
+        "beige", "navy", "orange", "purple", "gold", "silver",
+        "أحمر", "أزرق", "اخضر", "أخضر", "أسود", "اسود", "أبيض", "ابيض", "أصفر", "اصفر",
+        "وردي", "بني", "رمادي", "بيج", "كحلي", "برتقالي", "بنفسجي", "ذهبي", "فضي",
+        "سور", "شین", "سەوز", "ڕەش", "سپی", "زەرد", "پەمەیی", "قاوەیی", "خۆڵەمێشی", "بێج"
+    ];
+
+    if (sizes.includes(word)) {
+        return "size";
+    }
+
+    if (colors.includes(word)) {
+        return "color";
+    }
+
+    return "other";
+}
+
+function sectionKeyOf(category) {
+    const stored = String(category && category.section || "").trim();
+
+    if (stored) {
+        const lower = stored.toLowerCase();
+
+        if (builtinSections.includes(lower) || lower === "other") {
+            return lower;
+        }
+
+        return stored;
+    }
+
+    return guessSection(category && category.name);
+}
+
+function sectionLabel(key) {
+    if (key === "size") {
+        return t("sectionSize");
+    }
+
+    if (key === "color") {
+        return t("sectionColor");
+    }
+
+    if (key === "type") {
+        return t("sectionType");
+    }
+
+    if (key === "other" || !key) {
+        return t("sectionOther");
+    }
+
+    return key;
+}
+
+function sectionForName(name) {
+    const found = availableFilters.find((category) => category.name === name);
+
+    if (found) {
+        return sectionKeyOf(found);
+    }
+
+    return guessSection(name);
+}
+
+function groupedBySection(categories) {
+    const groups = new Map();
+
+    categories.forEach((category) => {
+        const key = sectionKeyOf(category);
+
+        if (!groups.has(key)) {
+            groups.set(key, []);
+        }
+
+        groups.get(key).push(category);
+    });
+
+    const keys = [...groups.keys()].sort((first, second) => {
+        if (first === "other") {
+            return 1;
+        }
+
+        if (second === "other") {
+            return -1;
+        }
+
+        const firstIndex = builtinSections.indexOf(first);
+        const secondIndex = builtinSections.indexOf(second);
+
+        if (firstIndex !== -1 || secondIndex !== -1) {
+            if (firstIndex === -1) {
+                return 1;
+            }
+
+            if (secondIndex === -1) {
+                return -1;
+            }
+
+            return firstIndex - secondIndex;
+        }
+
+        return String(first).localeCompare(String(second));
+    });
+
+    return keys.map((key) => {
+        return { key: key, items: groups.get(key) };
+    });
+}
+
+function knownSectionKeys(categories) {
+    const keys = builtinSections.slice();
+
+    categories.forEach((category) => {
+        const key = sectionKeyOf(category);
+
+        if (key !== "other" && !keys.includes(key)) {
+            keys.push(key);
+        }
+    });
+
+    return keys;
+}
+
+function fillSectionSelect(select, categories, selected) {
+    if (!select) {
+        return;
+    }
+
+    const current = selected || select.value;
+    select.innerHTML = "";
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = t("chooseSection");
+    select.appendChild(placeholder);
+
+    knownSectionKeys(categories).forEach((key) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = sectionLabel(key);
+        select.appendChild(option);
+    });
+
+    const custom = document.createElement("option");
+    custom.value = "__new";
+    custom.textContent = t("newSection");
+    select.appendChild(custom);
+    select.value = [...select.options].some((option) => option.value === current) ? current : "";
+}
+
 function fillFilterChoices(container, categories, selectedNames) {
     if (!container) {
         return;
     }
 
     const selected = new Set(selectedNames || []);
-    const names = categories.map((category) => category.name);
+    const choices = categories.map((category) => {
+        return {
+            name: category.name,
+            section: category.section || ""
+        };
+    });
+    const names = choices.map((category) => category.name);
 
     selected.forEach((name) => {
         if (name && !names.includes(name)) {
-            names.push(name);
+            choices.push({ name: name, section: "" });
         }
     });
 
     container.innerHTML = "";
 
-    if (names.length === 0) {
+    if (choices.length === 0) {
         container.innerHTML = "<p>" + t("noFilterWordsYet") + "</p>";
         return;
     }
 
-    names.forEach((name) => {
-        const label = document.createElement("label");
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.value = name;
-        input.checked = selected.has(name);
-        label.append(input, document.createTextNode(" " + name));
-        container.appendChild(label);
+    groupedBySection(choices).forEach((group) => {
+        const block = document.createElement("div");
+        block.className = "filter-section";
+        const heading = document.createElement("h3");
+        heading.textContent = sectionLabel(group.key);
+        const options = document.createElement("div");
+        options.className = "filter-options";
+
+        group.items.forEach((category) => {
+            const label = document.createElement("label");
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.value = category.name;
+            input.checked = selected.has(category.name);
+            label.append(input, document.createTextNode(category.name));
+            options.appendChild(label);
+        });
+
+        block.append(heading, options);
+        container.appendChild(block);
     });
 }
 
@@ -752,11 +928,18 @@ async function loadCategories() {
     snapshot.forEach((categoryDocument) => {
         categories.push({
             id: categoryDocument.id,
-            name: categoryDocument.data().name
+            name: categoryDocument.data().name,
+            section: categoryDocument.data().section || ""
         });
     });
 
-    categories.sort((first, second) => first.name.localeCompare(second.name));
+    categories.sort((first, second) => {
+        const sectionOrder = sectionKeyOf(first).localeCompare(sectionKeyOf(second));
+        if (sectionOrder !== 0) {
+            return sectionOrder;
+        }
+        return first.name.localeCompare(second.name);
+    });
     return categories;
 }
 
@@ -786,32 +969,68 @@ async function loadAdminPanel() {
     categoryList.innerHTML = "";
     businessList.innerHTML = "";
     fillNamedSelect(businessCategorySelect, categories, businessCategorySelect ? businessCategorySelect.value : "");
+    fillSectionSelect(categorySectionSelect, categories, categorySectionSelect ? categorySectionSelect.value : "");
 
     if (categories.length === 0) {
         categoryList.innerHTML = "<p>" + t("noFilterWords") + "</p>";
     }
 
-    categories.forEach((category) => {
-        const row = document.createElement("p");
-        const label = document.createElement("span");
-        const removeButton = document.createElement("button");
+    groupedBySection(categories).forEach((group) => {
+        const block = document.createElement("div");
+        block.className = "filter-section";
+        const heading = document.createElement("h3");
+        heading.textContent = sectionLabel(group.key);
 
-        label.textContent = category.name;
-        removeButton.type = "button";
-        removeButton.className = "row-button";
-        removeButton.textContent = t("remove");
-        removeButton.addEventListener("click", async () => {
-            try {
-                await deleteDoc(doc(db, "categories", category.id));
-                await loadAdminPanel();
-                await loadDiscover();
-            } catch (error) {
-                adminMessage.textContent = error.message;
-            }
+        group.items.forEach((category) => {
+            const row = document.createElement("p");
+            const label = document.createElement("span");
+            const sectionSelect = document.createElement("select");
+            const removeButton = document.createElement("button");
+
+            label.textContent = category.name;
+            knownSectionKeys(categories).concat("other").forEach((key) => {
+                if ([...sectionSelect.options].some((option) => option.value === key)) {
+                    return;
+                }
+                const option = document.createElement("option");
+                option.value = key;
+                option.textContent = sectionLabel(key);
+                sectionSelect.appendChild(option);
+            });
+            sectionSelect.value = sectionKeyOf(category);
+            sectionSelect.addEventListener("change", async () => {
+                try {
+                    await updateDoc(doc(db, "categories", category.id), {
+                        section: sectionSelect.value
+                    });
+                    await loadAdminPanel();
+                    await loadDiscover();
+                } catch (error) {
+                    adminMessage.textContent = error.code === "permission-denied"
+                        ? t("sectionSaveDenied")
+                        : error.message;
+                    console.error(error);
+                }
+            });
+            removeButton.type = "button";
+            removeButton.className = "row-button";
+            removeButton.textContent = t("remove");
+            removeButton.addEventListener("click", async () => {
+                try {
+                    await deleteDoc(doc(db, "categories", category.id));
+                    await loadAdminPanel();
+                    await loadDiscover();
+                } catch (error) {
+                    adminMessage.textContent = error.message;
+                }
+            });
+
+            row.append(label, sectionSelect, removeButton);
+            block.appendChild(row);
         });
 
-        row.append(label, removeButton);
-        categoryList.appendChild(row);
+        block.prepend(heading);
+        categoryList.appendChild(block);
     });
 
     if (businesses.length === 0) {
@@ -1039,9 +1258,26 @@ async function prepareDashboard(user) {
     }
 }
 
+if (categorySectionSelect && categorySectionNameInput && !categorySectionSelect.dataset.bound) {
+    categorySectionSelect.dataset.bound = "1";
+    categorySectionSelect.addEventListener("change", () => {
+        categorySectionNameInput.hidden = categorySectionSelect.value !== "__new";
+    });
+}
+
 if (addCategoryButton) {
     addCategoryButton.addEventListener("click", async () => {
         const name = categoryWordInput.value.trim();
+        let section = categorySectionSelect ? categorySectionSelect.value : "";
+
+        if (section === "__new") {
+            section = categorySectionNameInput ? categorySectionNameInput.value.trim() : "";
+        }
+
+        if (!section) {
+            adminMessage.textContent = t("chooseSectionFirst");
+            return;
+        }
 
         if (!name) {
             adminMessage.textContent = t("typeFilterFirst");
@@ -1059,8 +1295,11 @@ if (addCategoryButton) {
                 return;
             }
 
-            await addDoc(collection(db, "categories"), { name: name });
+            await addDoc(collection(db, "categories"), { name: name, section: section });
             categoryWordInput.value = "";
+            if (categorySectionNameInput) {
+                categorySectionNameInput.value = "";
+            }
             adminMessage.textContent = t("filterAdded");
             await loadAdminPanel();
             await loadDiscover();
@@ -1810,16 +2049,41 @@ function renderDiscover() {
 
     filterBar.innerHTML = "";
 
-    ["All", ...names].forEach((name) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = name === "All" ? t("all") : name;
-        button.className = name === activeFilter ? "active" : "";
-        button.addEventListener("click", () => {
-            activeFilter = name;
-            renderDiscover();
+    const allButton = document.createElement("button");
+    allButton.type = "button";
+    allButton.textContent = t("all");
+    allButton.className = activeFilter === "All" ? "active" : "";
+    allButton.addEventListener("click", () => {
+        activeFilter = "All";
+        renderDiscover();
+    });
+    filterBar.appendChild(allButton);
+
+    const tagged = names.map((name) => {
+        return { name: name, section: sectionForName(name) };
+    });
+
+    groupedBySection(tagged).forEach((group) => {
+        const block = document.createElement("div");
+        block.className = "filter-group";
+        const heading = document.createElement("span");
+        heading.className = "filter-group-label";
+        heading.textContent = sectionLabel(group.key);
+
+        group.items.forEach((category) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = category.name;
+            button.className = category.name === activeFilter ? "active" : "";
+            button.addEventListener("click", () => {
+                activeFilter = category.name;
+                renderDiscover();
+            });
+            block.appendChild(button);
         });
-        filterBar.appendChild(button);
+
+        block.prepend(heading);
+        filterBar.appendChild(block);
     });
 
     const searchText = discoverSearch
@@ -1911,6 +2175,7 @@ async function loadDiscover() {
     }
 
     try {
+        availableFilters = await loadCategories();
         const snapshot = await getDocs(collection(db, "products"));
         discoverProducts = [];
 
@@ -2804,6 +3069,16 @@ onLanguageChange(() => {
     renderDiscover();
     renderCartPage();
     refreshAccountLabels();
+    fillFilterChoices(
+        document.getElementById("account-filters"),
+        availableFilters,
+        checkedFilters(document.getElementById("account-filters"))
+    );
+    fillFilterChoices(
+        productFiltersBox,
+        availableFilters,
+        checkedFilters(productFiltersBox)
+    );
 
     const user = auth.currentUser;
 

@@ -59,7 +59,9 @@
 
                 <div class="admin-block">
                     <h3 data-i18n="filterWords">Filter words</h3>
-                    <p data-i18n="filterWordsHelp">Customers use these words to filter Discover.</p>
+                    <p data-i18n="filterWordsHelp">Put each word in a section, such as Size or Color. Stores pick tags from those sections.</p>
+                    <select id="category-section"></select>
+                    <input id="category-section-name" type="text" data-i18n-placeholder="sectionName" placeholder="Section name" hidden>
                     <input id="category-word" type="text" data-i18n-placeholder="filterWord" placeholder="Filter word">
                     <button id="add-category-button" type="button" data-i18n="addFilterWord">Add filter word</button>
                     <div id="category-list"></div>
