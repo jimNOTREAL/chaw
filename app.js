@@ -1589,15 +1589,17 @@ function renderDiscover() {
     }
 
     visibleProducts.forEach((product) => {
-        const card = document.createElement("a");
+        const card = document.createElement("article");
         card.className = "product-card";
-        card.href = "product.html?id=" + encodeURIComponent(product.id);
+
+        const link = document.createElement("a");
+        link.href = "product.html?id=" + encodeURIComponent(product.id);
 
         if (product.imageUrl) {
             const image = document.createElement("img");
             image.src = product.imageUrl;
             image.alt = product.name || "Product photo";
-            card.appendChild(image);
+            link.appendChild(image);
         }
 
         const title = document.createElement("h2");
@@ -1615,7 +1617,19 @@ function renderDiscover() {
         const description = document.createElement("p");
         description.textContent = product.description || "";
 
-        card.append(title, store, price, description);
+        link.append(title, store, price, description);
+
+        const addButton = document.createElement("button");
+        addButton.type = "button";
+        addButton.className = "cart-button";
+        addButton.textContent = "Put in the cart";
+        addButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            addButton.textContent = addProductToCart(product, product.id);
+        });
+
+        card.append(link, addButton);
         discoverList.appendChild(card);
     });
 }
@@ -1697,7 +1711,7 @@ function productActions(product, productId) {
     if (productId) {
         const addButton = document.createElement("button");
         addButton.type = "button";
-        addButton.textContent = "Add to cart";
+        addButton.textContent = "Put in the cart";
         addButton.addEventListener("click", () => {
             addButton.textContent = addProductToCart(product, productId);
         });
