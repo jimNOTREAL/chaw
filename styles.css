@@ -305,16 +305,18 @@ nav ul a:hover {
 }
 
 .hero {
-    min-height: 84vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 80px 20px 60px;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(280px, 0.85fr) minmax(340px, 1.15fr);
+    align-items: start;
+    text-align: left;
+    gap: 36px;
+    padding: 28px 5% 24px;
 }
 
 .hero-content {
-    max-width: 920px;
+    max-width: none;
+    padding-top: 72px;
 }
 
 .hero-content::before {
@@ -330,10 +332,10 @@ nav ul a:hover {
 .hero h1 {
     font-family: "Cormorant Garamond", serif;
     font-weight: 500;
-    font-size: clamp(64px, 10vw, 118px);
-    line-height: 0.88;
+    font-size: clamp(48px, 5vw, 78px);
+    line-height: 0.9;
     letter-spacing: -0.03em;
-    margin-bottom: 28px;
+    margin-bottom: 22px;
 }
 
 .hero h1 span {
@@ -342,8 +344,8 @@ nav ul a:hover {
 }
 
 .hero p {
-    max-width: 520px;
-    margin: 0 auto 36px;
+    max-width: 460px;
+    margin: 0 0 36px;
     font-size: 17px;
     font-weight: 300;
     line-height: 1.8;
@@ -370,17 +372,94 @@ nav ul a:hover {
 }
 
 .home-shop {
-    width: min(1100px, 100%);
-    margin: 0 auto;
-    padding: 72px 24px 40px;
+    width: 100%;
+    margin: -18px 0 0;
+    padding: 0;
 }
 
 .home-shop h2 {
     font-family: "Cormorant Garamond", serif;
     font-weight: 500;
-    font-size: clamp(42px, 6vw, 64px);
-    text-align: center;
-    margin-bottom: 18px;
+    font-size: clamp(36px, 4vw, 52px);
+    text-align: right;
+    margin-bottom: 12px;
+}
+
+.home-shop .filter-bar {
+    justify-content: flex-end;
+}
+
+.home-shop .discover-search {
+    margin-left: auto;
+}
+
+.home-shop .discover-grid {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 16px;
+    width: 100%;
+    overflow-x: auto;
+    padding: 8px 0 16px;
+}
+
+.home-shop .product-card {
+    flex: 0 0 320px;
+    width: 320px;
+    max-width: 320px;
+    flex-direction: row;
+    align-items: stretch;
+    position: relative;
+    padding-bottom: 0;
+    overflow: visible;
+    margin-top: 16px;
+}
+
+.home-shop .product-card > a {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr);
+    align-items: start;
+    width: 100%;
+    min-width: 0;
+    min-height: 168px;
+    padding-bottom: 48px;
+}
+
+.home-shop .product-card img {
+    grid-column: 1;
+    grid-row: 1 / span 4;
+    width: 118px;
+    height: 168px;
+    min-height: 168px;
+    margin: 0;
+    object-fit: cover;
+}
+
+.home-shop .product-card h2,
+.home-shop .product-card p {
+    grid-column: 2;
+    min-width: 0;
+}
+
+.home-shop .product-card h2 {
+    margin-top: 10px;
+    font-size: 22px;
+}
+
+.home-shop .product-card .product-description,
+.home-shop .product-card > a > p:last-of-type {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.home-shop .product-card .cart-button {
+    position: absolute;
+    left: 130px;
+    bottom: 14px;
+    margin: 0;
 }
 
 .features {
@@ -451,6 +530,10 @@ body > main {
     flex-direction: column;
     align-items: stretch;
     gap: 28px;
+}
+
+body > main:has(.hero) {
+    padding-top: 8px;
 }
 
 .hero,
@@ -904,8 +987,33 @@ footer {
         grid-template-columns: 1fr;
     }
 
+    .hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding: 24px 20px 10px;
+    }
+
+    .hero-content {
+        padding-top: 12px;
+    }
+
+    .hero p {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .home-shop {
+        margin-top: 8px;
+    }
+
+    .home-shop h2,
+    .home-shop .filter-bar {
+        text-align: center;
+        justify-content: center;
+    }
+
     .hero h1 {
-        font-size: 58px;
+        font-size: 52px;
     }
 
     .auth-box {
