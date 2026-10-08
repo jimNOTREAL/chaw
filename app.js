@@ -28,7 +28,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js";
+import { t, onLanguageChange } from "./lang.js?v=20261008b";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -433,6 +433,7 @@ function sectionKeyOf(category) {
 const tagGlossary = [
     { en: "Pants", ar: "بنطلون", ckb: "پانتۆڵ" },
     { en: "Jacket", ar: "جاكيت", ckb: "چاکەت" },
+    { en: "Jack", ar: "جاكيت", ckb: "چاکەت" },
     { en: "Shirt", ar: "قميص", ckb: "قەمیس" },
     { en: "Overshirt", ar: "قمصلة", ckb: "قەمسەڵە" },
     { en: "Blouse", ar: "بلوزة", ckb: "بلووز" },
@@ -475,7 +476,14 @@ const tagGlossary = [
     { en: "Silver", ar: "فضي", ckb: "زیو" },
     { en: "Small", ar: "صغير", ckb: "بچووک" },
     { en: "Medium", ar: "وسط", ckb: "ناوەند" },
-    { en: "Large", ar: "كبير", ckb: "گەورە" }
+    { en: "Large", ar: "كبير", ckb: "گەورە" },
+    { en: "Spring", ar: "الربيع", ckb: "بەهار" },
+    { en: "Summer", ar: "الصيف", ckb: "هاوین" },
+    { en: "Winter", ar: "الشتاء", ckb: "زستان" },
+    { en: "Autumn", ar: "الخريف", ckb: "پاییز" },
+    { en: "Very", ar: "جداً", ckb: "زۆر" },
+    { en: "Cozy", ar: "مريح", ckb: "ئاسوودە" },
+    { en: "New", ar: "جديد", ckb: "نوێ" }
 ];
 
 function uiLang() {
@@ -493,26 +501,97 @@ function glossaryHit(name) {
     });
 }
 
+function sameLabel(left, right) {
+    return String(left || "").trim().toLowerCase() === String(right || "").trim().toLowerCase();
+}
+
+function translatePhrase(text) {
+    const lang = uiLang();
+    let result = String(text || "");
+    const forms = [];
+
+    tagGlossary.forEach((entry) => {
+        [entry.en, entry.ar, entry.ckb].concat(entry.also || []).forEach((label) => {
+            if (label) {
+                forms.push({ label: label, value: entry[lang] });
+            }
+        });
+    });
+
+    forms.sort((left, right) => right.label.length - left.label.length);
+    const slots = [];
+
+    forms.forEach((form) => {
+        const pattern = new RegExp(
+            "(^|[^\\p{L}\\p{N}])(" + form.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?=$|[^\\p{L}\\p{N}])",
+            "giu"
+        );
+        result = result.replace(pattern, (match, prefix) => {
+            const token = "\u0000" + slots.length + "\u0000";
+            slots.push(form.value);
+            return prefix + token;
+        });
+    });
+
+    return result.replace(/\u0000(\d+)\u0000/g, (match, index) => slots[Number(index)]).trim();
+}
+
+function customLabel(found, lang) {
+    if (!found) {
+        return "";
+    }
+
+    const value = lang === "ar" ? found.nameAr : lang === "ckb" ? found.nameCkb : found.nameEn;
+
+    if (!value) {
+        return "";
+    }
+
+    const hit = glossaryHit(found.name) || glossaryHit(value);
+
+    if (!hit) {
+        return value;
+    }
+
+    const other = lang === "ar"
+        ? [hit.en, hit.ckb]
+        : lang === "ckb"
+            ? [hit.en, hit.ar]
+            : [hit.ar, hit.ckb];
+
+    if (other.some((label) => sameLabel(label, value))) {
+        return "";
+    }
+
+    return value;
+}
+
 function tagLabel(name) {
     const lang = uiLang();
     const found = availableFilters.find((category) => category.name === name);
+    const custom = customLabel(found, lang);
 
-    if (found) {
-        if (lang === "ar" && found.nameAr) {
-            return found.nameAr;
-        }
-
-        if (lang === "ckb" && found.nameCkb) {
-            return found.nameCkb;
-        }
-
-        if (lang === "en" && found.nameEn) {
-            return found.nameEn;
-        }
+    if (custom) {
+        return custom;
     }
 
     const hit = glossaryHit(name);
-    return hit ? hit[lang] : name;
+    return hit ? hit[lang] : translatePhrase(name);
+}
+
+function pieceText(record, field) {
+    const lang = uiLang();
+    const specific = lang === "ar"
+        ? record[field + "Ar"]
+        : lang === "ckb"
+            ? record[field + "Ckb"]
+            : record[field + "En"];
+
+    if (specific && String(specific).trim()) {
+        return String(specific).trim();
+    }
+
+    return translatePhrase(record[field] || "");
 }
 
 function sectionLabel(key) {
@@ -535,18 +614,22 @@ function sectionLabel(key) {
     const lang = uiLang();
     const sample = availableFilters.find((category) => sectionKeyOf(category) === key);
 
-    if (sample) {
-        if (lang === "ar" && sample.sectionAr) {
-            return sample.sectionAr;
-        }
+    const stored = sample
+        ? (lang === "ar" ? sample.sectionAr : lang === "ckb" ? sample.sectionCkb : "")
+        : "";
+    const hit = glossaryHit(key);
 
-        if (lang === "ckb" && sample.sectionCkb) {
-            return sample.sectionCkb;
+    if (stored && hit) {
+        const other = lang === "ar" ? [hit.en, hit.ckb] : [hit.en, hit.ar];
+
+        if (!other.some((label) => sameLabel(label, stored))) {
+            return stored;
         }
+    } else if (stored) {
+        return stored;
     }
 
-    const hit = glossaryHit(key);
-    return hit ? hit[lang] : key;
+    return hit ? hit[lang] : translatePhrase(key);
 }
 
 function sectionForName(name) {
@@ -840,16 +923,16 @@ async function loadMyProducts() {
             if (product.imageUrl) {
                 const productImage = document.createElement("img");
                 productImage.src = product.imageUrl;
-                productImage.alt = product.name || t("productPhoto");
+                productImage.alt = pieceText(product, "name") || t("productPhoto");
                 productItem.prepend(productImage);
             }
 
-            productItem.querySelector("h3").textContent = product.name;
+            productItem.querySelector("h3").textContent = pieceText(product, "name") || t("product");
             productItem.querySelector(".line-price").textContent = money(product.price);
             productItem.querySelector(".line-stock").textContent =
                 t("stockLabel", { stock: product.stock });
             productItem.querySelector(".line-description").textContent =
-                product.description;
+                pieceText(product, "description");
 
             productItem
                 .querySelector(".edit-product-button")
@@ -1232,7 +1315,7 @@ async function loadAdminPanel() {
             const hideButton = document.createElement("button");
 
             label.textContent =
-                (product.name || t("product")) +
+                (pieceText(product, "name") || t("product")) +
                 " — " +
                 (product.storeName || t("store")) +
                 (product.hidden ? t("hiddenTag") : "");
@@ -1997,15 +2080,24 @@ async function saveAccountProfile() {
     }
 }
 
+function fieldValue(id) {
+    const input = document.getElementById(id);
+    return input ? input.value.trim() : "";
+}
+
 async function publishFromAccount() {
     const user = auth.currentUser;
     const message = document.getElementById("account-publish-message");
     const publishButton = document.getElementById("account-publish-button");
     const filters = checkedFilters(document.getElementById("account-filters"));
     const name = document.getElementById("account-product-name").value.trim();
+    const nameAr = fieldValue("account-product-name-ar");
+    const nameCkb = fieldValue("account-product-name-ckb");
     const price = Number(document.getElementById("account-product-price").value);
     const stock = Number(document.getElementById("account-product-stock").value);
     const description = document.getElementById("account-product-description").value.trim();
+    const descriptionAr = fieldValue("account-product-description-ar");
+    const descriptionCkb = fieldValue("account-product-description-ckb");
     const fileInput = document.getElementById("account-product-image");
     const editingId = publishButton ? publishButton.dataset.editingId : "";
 
@@ -2037,9 +2129,13 @@ async function publishFromAccount() {
         const imageUrl = await uploadProductImage(user, fileInput.files[0]);
         const fields = {
             name: name,
+            nameAr: nameAr,
+            nameCkb: nameCkb,
             price: price,
             stock: stock,
             description: description,
+            descriptionAr: descriptionAr,
+            descriptionCkb: descriptionCkb,
             filters: filters,
             category: filters[0],
             storeName: accountProfile.storeName,
@@ -2065,7 +2161,7 @@ async function publishFromAccount() {
                 ownerUid: user.uid,
                 hidden: false
             });
-            message.textContent = t("publishedIn", { filters: filters.join(", ") });
+            message.textContent = t("publishedIn", { filters: filters.map((filter) => tagLabel(filter)).join(", ") });
         }
 
         clearAccountPieceForm();
@@ -2097,6 +2193,12 @@ function clearAccountPieceForm() {
     if (descriptionInput) {
         descriptionInput.value = "";
     }
+    ["account-product-name-ar", "account-product-name-ckb", "account-product-description-ar", "account-product-description-ckb"].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = "";
+        }
+    });
     if (fileInput) {
         fileInput.value = "";
     }
@@ -2145,12 +2247,12 @@ async function loadAccountProducts(uid) {
             if (product.imageUrl) {
                 const image = document.createElement("img");
                 image.src = product.imageUrl;
-                image.alt = product.name || t("piecePhoto");
+                image.alt = pieceText(product, "name") || t("piecePhoto");
                 card.appendChild(image);
             }
 
             const title = document.createElement("h3");
-            title.textContent = product.name || t("piece");
+            title.textContent = pieceText(product, "name") || t("piece");
             const price = document.createElement("p");
             price.textContent = money(product.price);
             const stock = document.createElement("p");
@@ -2159,7 +2261,7 @@ async function loadAccountProducts(uid) {
             tags.className = "piece-tags";
             tags.textContent = filtersOnProduct(product).map((name) => tagLabel(name)).join(" · ");
             const description = document.createElement("p");
-            description.textContent = product.description || "";
+            description.textContent = pieceText(product, "description");
 
             const actions = document.createElement("div");
             actions.className = "row-actions";
@@ -2169,9 +2271,13 @@ async function loadAccountProducts(uid) {
             editButton.textContent = t("edit");
             editButton.addEventListener("click", () => {
                 document.getElementById("account-product-name").value = product.name || "";
+                document.getElementById("account-product-name-ar").value = product.nameAr || "";
+                document.getElementById("account-product-name-ckb").value = product.nameCkb || "";
                 document.getElementById("account-product-price").value = product.price;
                 document.getElementById("account-product-stock").value = product.stock;
                 document.getElementById("account-product-description").value = product.description || "";
+                document.getElementById("account-product-description-ar").value = product.descriptionAr || "";
+                document.getElementById("account-product-description-ckb").value = product.descriptionCkb || "";
                 fillFilterChoices(
                     document.getElementById("account-filters"),
                     availableFilters,
@@ -2302,6 +2408,13 @@ function renderDiscover() {
         visibleProducts = visibleProducts.filter((product) => {
             const haystack = [
                 product.name,
+                product.nameAr,
+                product.nameCkb,
+                product.description,
+                product.descriptionAr,
+                product.descriptionCkb,
+                pieceText(product, "name"),
+                pieceText(product, "description"),
                 product.storeName,
                 product.area,
                 product.category,
@@ -2333,12 +2446,12 @@ function renderDiscover() {
         if (product.imageUrl) {
             const image = document.createElement("img");
             image.src = product.imageUrl;
-            image.alt = product.name || t("productPhoto");
+            image.alt = pieceText(product, "name") || t("productPhoto");
             link.appendChild(image);
         }
 
         const title = document.createElement("h2");
-        title.textContent = product.name || t("product");
+        title.textContent = pieceText(product, "name") || t("product");
 
         const store = document.createElement("p");
         store.className = "store-name";
@@ -2350,7 +2463,7 @@ function renderDiscover() {
         price.textContent = money(product.price);
 
         const description = document.createElement("p");
-        description.textContent = product.description || "";
+        description.textContent = pieceText(product, "description");
 
         link.append(title, store, price, description);
 
@@ -2401,7 +2514,7 @@ async function loadDiscover() {
 function productActions(product, productId) {
     const actions = document.createElement("div");
     actions.className = "product-actions";
-    const productName = product.name || "a product";
+    const productName = pieceText(product, "name") || t("aPiece");
 
     if (product.phone) {
         const call = document.createElement("a");
@@ -2499,7 +2612,7 @@ async function loadProductPage() {
             return;
         }
 
-        document.title = (product.name || t("product")) + " — Chaw";
+        document.title = (pieceText(product, "name") || t("product")) + " — Chaw";
         productView.innerHTML = "";
 
         const copy = document.createElement("div");
@@ -2522,7 +2635,7 @@ async function loadProductPage() {
         });
 
         const title = document.createElement("h1");
-        title.textContent = product.name || t("product");
+        title.textContent = pieceText(product, "name") || t("product");
 
         const store = document.createElement("p");
         store.className = "store-name";
@@ -2539,14 +2652,14 @@ async function loadProductPage() {
 
         const description = document.createElement("p");
         description.className = "product-description";
-        description.textContent = product.description || "";
+        description.textContent = pieceText(product, "description");
 
         copy.append(category, title, store, price, stock, description, productActions(product, productId));
 
         if (product.imageUrl) {
             const image = document.createElement("img");
             image.src = product.imageUrl;
-            image.alt = product.name || t("productPhoto");
+            image.alt = pieceText(product, "name") || t("productPhoto");
             productView.append(image, copy);
         } else {
             productView.appendChild(copy);
@@ -2630,6 +2743,12 @@ function addProductToCart(product, productId) {
         cart.push({
             id: productId,
             name: product.name || t("piece"),
+            nameAr: product.nameAr || "",
+            nameCkb: product.nameCkb || "",
+            nameEn: product.nameEn || "",
+            description: product.description || "",
+            descriptionAr: product.descriptionAr || "",
+            descriptionCkb: product.descriptionCkb || "",
             price: Number(product.price || 0),
             quantity: 1,
             storeName: product.storeName || "",
@@ -2687,7 +2806,7 @@ function renderCartPage() {
         card.className = "cart-item";
 
         const title = document.createElement("h3");
-        title.textContent = item.name;
+        title.textContent = pieceText(item, "name") || item.name;
 
         const store = document.createElement("p");
         store.textContent = item.storeName || "";
@@ -2780,7 +2899,7 @@ function statusLabel(status) {
 
 function orderLines(order) {
     return (order.items || []).map((item) => {
-        return item.quantity + " × " + item.name + " — " + money(item.price);
+        return item.quantity + " × " + (pieceText(item, "name") || item.name) + " — " + money(item.price);
     }).join(", ");
 }
 
@@ -3139,7 +3258,7 @@ async function placeOrder() {
                 const productRef = doc(db, "products", productId);
                 const productSnap = await transaction.get(productRef);
                 const productName = cart.find((item) => item.id === productId);
-                const name = productName ? productName.name : t("aPiece");
+                const name = productName ? (pieceText(productName, "name") || productName.name) : t("aPiece");
 
                 if (!productSnap.exists()) {
                     throw new Error(t("noLongerAvailable", { name: name }));
@@ -3180,6 +3299,9 @@ async function placeOrder() {
                         return {
                             productId: item.id,
                             name: item.name,
+                            nameAr: item.nameAr || "",
+                            nameCkb: item.nameCkb || "",
+                            nameEn: item.nameEn || "",
                             price: Number(item.price),
                             quantity: Number(item.quantity)
                         };
@@ -3281,6 +3403,12 @@ function refreshAccountLabels() {
 }
 
 onLanguageChange(() => {
+    ["account-product-list", "order-list", "my-orders", "product-view", "product-list"].forEach((id) => {
+        const list = document.getElementById(id);
+        if (list) {
+            list.replaceChildren();
+        }
+    });
     renderCartCount();
     showOrderAlert(latestAlertOrders);
     renderDiscover();
