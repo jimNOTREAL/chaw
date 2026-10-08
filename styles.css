@@ -320,6 +320,20 @@ nav ul a:hover {
     transform: translateY(-2px);
 }
 
+.home-shop {
+    width: min(1100px, 100%);
+    margin: 0 auto;
+    padding: 72px 24px 40px;
+}
+
+.home-shop h2 {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: clamp(42px, 6vw, 64px);
+    text-align: center;
+    margin-bottom: 18px;
+}
+
 .features {
     padding: 30px 8% 100px;
 }

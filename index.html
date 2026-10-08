@@ -22,7 +22,7 @@
         <ul>
             <li><a href="index.html">Home</a></li>
             <li><a href="discover.html">Discover</a></li>
-            <li><a href="dashboard.html">Dashboard</a></li>
+            <li id="dashboard-link" hidden><a href="dashboard.html">Dashboard</a></li>
         </ul>
 
         <a href="login.html" class="nav-button" id="join-link">Sign in</a>
@@ -45,10 +45,17 @@
                     Everything you need, closer than you think.
                 </p>
 
-                <a href="discover.html" class="hero-button">
+                <a href="#shop" class="hero-button">
                     Explore Chaw
                 </a>
             </div>
+        </section>
+
+        <section class="home-shop" id="shop">
+            <h2>The collection</h2>
+            <input id="discover-search" class="discover-search" type="search" placeholder="Search products or stores">
+            <div id="filter-bar" class="filter-bar"></div>
+            <div id="discover-list" class="discover-grid"></div>
         </section>
 
         <section class="features" id="discover">

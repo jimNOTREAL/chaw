@@ -130,7 +130,7 @@ if (signupButton) {
                 role: "customer"
             });
 
-            window.location.href = "dashboard.html";
+            window.location.href = "index.html";
         } catch (error) {
             isSigningUp = false;
             authMessage.textContent = error.message;
@@ -146,7 +146,7 @@ if (loginButton) {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = "dashboard.html";
+            window.location.href = "index.html";
         } catch (error) {
             authMessage.textContent = error.message;
             console.error(error);
@@ -869,6 +869,11 @@ async function prepareDashboard(user) {
             accountNote.textContent = "";
         }
 
+        if (!isAdmin(user)) {
+            window.location.href = "index.html";
+            return;
+        }
+
         if (isAdmin(user)) {
             await setDoc(doc(db, "users", user.uid), {
                 email: user.email,
@@ -886,10 +891,6 @@ async function prepareDashboard(user) {
         const profile = profileSnap.exists() ? profileSnap.data() : {};
 
         if (profile.role !== "business") {
-            if (accountNote && !isAdmin(user)) {
-                accountNote.textContent =
-                    "This account cannot publish yet. The admin has to make it a business.";
-            }
             return;
         }
 
@@ -1121,12 +1122,18 @@ function updateNav(user) {
     const accountButton = document.getElementById("account-button");
     const accountPanel = document.getElementById("account-panel");
 
+    const dashboardLink = document.getElementById("dashboard-link");
+
     if (joinLink) {
         joinLink.hidden = Boolean(user);
     }
 
     if (accountButton) {
         accountButton.hidden = !user;
+    }
+
+    if (dashboardLink) {
+        dashboardLink.hidden = true;
     }
 
     if (!user) {
@@ -1283,6 +1290,11 @@ async function loadAccountProfile(user) {
 
     if (panel) {
         panel.classList.toggle("store-account", isStore);
+    }
+
+    const dashboardLink = document.getElementById("dashboard-link");
+    if (dashboardLink) {
+        dashboardLink.hidden = !isAdmin(user);
     }
 
     if (kicker) {
@@ -1744,7 +1756,7 @@ async function startAuth() {
 
         if (user) {
             if (onLoginPage() && !isSigningUp) {
-                window.location.href = "dashboard.html";
+                window.location.href = "index.html";
                 return;
             }
 
