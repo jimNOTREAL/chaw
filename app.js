@@ -786,15 +786,15 @@ function sameLabel(left, right) {
     return String(left || "").trim().toLowerCase() === String(right || "").trim().toLowerCase();
 }
 
-function translatePhrase(text) {
-    const lang = uiLang();
+function phraseIn(text, lang) {
+    const target = lang === "ar" || lang === "ckb" ? lang : "en";
     let result = String(text || "");
     const forms = [];
 
     tagGlossary.forEach((entry) => {
         [entry.en, entry.ar, entry.ckb].concat(entry.also || []).forEach((label) => {
             if (label) {
-                forms.push({ label: label, value: entry[lang] });
+                forms.push({ label: label, value: entry[target] });
             }
         });
     });
@@ -815,6 +815,21 @@ function translatePhrase(text) {
     });
 
     return result.replace(/\u0000(\d+)\u0000/g, (match, index) => slots[Number(index)]).trim();
+}
+
+function translatePhrase(text) {
+    return phraseIn(text, uiLang());
+}
+
+function languageFields(field, text) {
+    const source = String(text || "").trim();
+
+    return {
+        [field]: source,
+        [field + "En"]: phraseIn(source, "en"),
+        [field + "Ar"]: phraseIn(source, "ar"),
+        [field + "Ckb"]: phraseIn(source, "ckb")
+    };
 }
 
 function customLabel(found, lang) {
@@ -1097,10 +1112,10 @@ if (addProductButton) {
 
             if (editingId) {
                 const updates = {
-                    name: productName,
+                    ...languageFields("name", productName),
+                    ...languageFields("description", productDescription),
                     price: productPrice,
                     stock: productStock,
-                    description: productDescription,
                     filters: filters,
                     category: filters[0] || ""
                 };
@@ -1128,10 +1143,10 @@ if (addProductButton) {
                 }
 
                 await addDoc(collection(db, "products"), {
-                    name: productName,
+                    ...languageFields("name", productName),
+                    ...languageFields("description", productDescription),
                     price: productPrice,
                     stock: productStock,
-                    description: productDescription,
                     imageUrl: imageUrl,
                     filters: filters,
                     category: filters[0],
@@ -2523,24 +2538,15 @@ async function saveAccountProfile() {
     }
 }
 
-function fieldValue(id) {
-    const input = document.getElementById(id);
-    return input ? input.value.trim() : "";
-}
-
 async function publishFromAccount() {
     const user = auth.currentUser;
     const message = document.getElementById("account-publish-message");
     const publishButton = document.getElementById("account-publish-button");
     const filters = checkedFilters(document.getElementById("account-filters"));
     const name = document.getElementById("account-product-name").value.trim();
-    const nameAr = fieldValue("account-product-name-ar");
-    const nameCkb = fieldValue("account-product-name-ckb");
     const price = Number(document.getElementById("account-product-price").value);
     const stock = Number(document.getElementById("account-product-stock").value);
     const description = document.getElementById("account-product-description").value.trim();
-    const descriptionAr = fieldValue("account-product-description-ar");
-    const descriptionCkb = fieldValue("account-product-description-ckb");
     const fileInput = document.getElementById("account-product-image");
     const editingId = publishButton ? publishButton.dataset.editingId : "";
 
@@ -2571,14 +2577,10 @@ async function publishFromAccount() {
     try {
         const imageUrl = await uploadProductImage(user, fileInput.files[0]);
         const fields = {
-            name: name,
-            nameAr: nameAr,
-            nameCkb: nameCkb,
+            ...languageFields("name", name),
+            ...languageFields("description", description),
             price: price,
             stock: stock,
-            description: description,
-            descriptionAr: descriptionAr,
-            descriptionCkb: descriptionCkb,
             filters: filters,
             category: filters[0],
             storeName: accountProfile.storeName,
@@ -2714,13 +2716,9 @@ async function loadAccountProducts(uid) {
             editButton.textContent = t("edit");
             editButton.addEventListener("click", () => {
                 document.getElementById("account-product-name").value = product.name || "";
-                document.getElementById("account-product-name-ar").value = product.nameAr || "";
-                document.getElementById("account-product-name-ckb").value = product.nameCkb || "";
                 document.getElementById("account-product-price").value = product.price;
                 document.getElementById("account-product-stock").value = product.stock;
                 document.getElementById("account-product-description").value = product.description || "";
-                document.getElementById("account-product-description-ar").value = product.descriptionAr || "";
-                document.getElementById("account-product-description-ckb").value = product.descriptionCkb || "";
                 fillFilterChoices(
                     document.getElementById("account-filters"),
                     availableFilters,
@@ -2851,9 +2849,11 @@ function renderDiscover() {
         visibleProducts = visibleProducts.filter((product) => {
             const haystack = [
                 product.name,
+                product.nameEn,
                 product.nameAr,
                 product.nameCkb,
                 product.description,
+                product.descriptionEn,
                 product.descriptionAr,
                 product.descriptionCkb,
                 pieceText(product, "name"),
@@ -3251,6 +3251,7 @@ function addProductToCart(product, productId, picked) {
             nameCkb: product.nameCkb || "",
             nameEn: product.nameEn || "",
             description: product.description || "",
+            descriptionEn: product.descriptionEn || "",
             descriptionAr: product.descriptionAr || "",
             descriptionCkb: product.descriptionCkb || "",
             price: Number(product.price || 0),
