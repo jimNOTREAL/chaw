@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008q";
+import { t, onLanguageChange } from "./lang.js?v=20261008t";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -552,7 +552,7 @@ function storeDetailsFromForm() {
         category: storeCategorySelect ? storeCategorySelect.value : "",
         area: storeAreaInput ? storeAreaInput.value.trim() : "",
         phone: storePhoneInput ? storePhoneInput.value.trim() : "",
-        whatsapp: storeWhatsappInput ? storeWhatsappInput.value.trim() : "",
+        whatsapp: "",
         acceptsCard: Boolean(acceptCardInput && acceptCardInput.checked),
         cardPaymentUrl: cardPaymentUrlInput ? cardPaymentUrlInput.value.trim() : ""
     };
@@ -562,7 +562,7 @@ function contactFields(store) {
     return {
         storeName: store.storeName || "",
         phone: store.phone || "",
-        whatsapp: store.whatsapp || "",
+        whatsapp: "",
         area: store.area || "",
         acceptsCard: Boolean(store.acceptsCard),
         cardPaymentUrl: store.cardPaymentUrl || ""
@@ -2451,7 +2451,6 @@ async function saveAccountProfile() {
     const areaInput = document.getElementById("account-area");
     const deliveryInput = document.getElementById("delivery-location");
     const phoneInput = document.getElementById("account-phone");
-    const whatsappInput = document.getElementById("account-whatsapp");
     const driverWhatsappInput = document.getElementById("account-driver-whatsapp");
     const acceptCardBox = document.getElementById("account-accept-card");
     const cardUrlInput = document.getElementById("account-card-url");
@@ -2484,7 +2483,7 @@ async function saveAccountProfile() {
         if (isStore) {
             updates.storeName = displayName;
             updates.area = areaInput ? areaInput.value.trim() : "";
-            updates.whatsapp = whatsappInput ? whatsappInput.value.trim() : "";
+            updates.whatsapp = "";
             updates.driverWhatsapp = driverWhatsappInput ? driverWhatsappInput.value.trim() : "";
             updates.acceptsCard = Boolean(acceptCardBox && acceptCardBox.checked);
             const cardUrl = cardUrlInput ? cardUrlInput.value.trim() : "";
@@ -2990,7 +2989,6 @@ async function loadDiscover() {
 function productActions(product, productId, groups) {
     const actions = document.createElement("div");
     actions.className = "product-actions";
-    const productName = pieceText(product, "name") || t("aPiece");
     const choices = groups || optionGroups(product);
     const picked = {
         color: choices.color.length === 1 ? choices.color[0] : "",
@@ -3004,38 +3002,12 @@ function productActions(product, productId, groups) {
         actions.appendChild(call);
     }
 
-    const whatsappDigits = (product.whatsapp || "").replace(/\D/g, "");
-
-    if (whatsappDigits) {
-        const message = encodeURIComponent(
-            t("whatsappHello", {
-                product: productName,
-                store: product.storeName || t("store")
-            })
-        );
-        const whatsapp = document.createElement("a");
-        whatsapp.className = "whatsapp-button";
-        whatsapp.href = "https://wa.me/" + whatsappDigits + "?text=" + message;
-        whatsapp.target = "_blank";
-        whatsapp.rel = "noopener";
-        whatsapp.textContent = t("whatsapp");
-        actions.appendChild(whatsapp);
-    }
-
     if (product.acceptsCard) {
         const payUrl = safeHttpUrl(product.cardPaymentUrl || "");
 
         if (payUrl) {
             const pay = document.createElement("a");
             pay.href = payUrl;
-            pay.target = "_blank";
-            pay.rel = "noopener";
-            pay.textContent = t("payByCard");
-            actions.appendChild(pay);
-        } else if (whatsappDigits) {
-            const message = encodeURIComponent(t("whatsappCard", { product: productName }));
-            const pay = document.createElement("a");
-            pay.href = "https://wa.me/" + whatsappDigits + "?text=" + message;
             pay.target = "_blank";
             pay.rel = "noopener";
             pay.textContent = t("payByCard");
@@ -3533,14 +3505,40 @@ function showOrderAlert(orders) {
     }
 
     banner.hidden = false;
-    const text = document.createElement("p");
-    const first = orders[0];
-    text.textContent = orders.length === 1
-        ? t("newOrderFrom", {
-            name: first.customerName || t("aCustomer"),
-            location: first.location || t("theirSavedAddress")
-        })
-        : t("newOrdersWaiting", { count: orders.length });
+
+    if (orders.length > 1) {
+        const count = document.createElement("p");
+        count.textContent = t("newOrdersWaiting", { count: orders.length });
+        banner.appendChild(count);
+    }
+
+    orders.forEach((order) => {
+        const text = document.createElement("p");
+        text.textContent = t("newOrderFrom", {
+            name: order.customerName || t("aCustomer"),
+            location: order.location || t("theirSavedAddress")
+        });
+        banner.appendChild(text);
+
+        if (order.location || hasDeliveryPin(order)) {
+            const maps = document.createElement("a");
+            maps.href = mapsSearchUrl(order.location, order.deliveryLat, order.deliveryLng);
+            maps.target = "_blank";
+            maps.rel = "noopener";
+            maps.textContent = t("openInMaps");
+            banner.appendChild(maps);
+        }
+
+        const digits = String(accountProfile.driverWhatsapp || "").replace(/\D/g, "");
+        if (digits) {
+            const send = document.createElement("a");
+            send.href = "https://wa.me/" + digits + "?text=" + encodeURIComponent(driverOrderMessage(order));
+            send.target = "_blank";
+            send.rel = "noopener";
+            send.textContent = t("sendToDriver");
+            banner.appendChild(send);
+        }
+    });
 
     const open = document.createElement("a");
     open.href = "account.html";
@@ -3551,7 +3549,7 @@ function showOrderAlert(orders) {
     dismiss.textContent = t("markSeen");
     dismiss.addEventListener("click", () => markOrdersSeen(orders));
 
-    banner.append(text, open, dismiss);
+    banner.append(open, dismiss);
 }
 
 async function markOrdersSeen(orders) {
@@ -3569,12 +3567,15 @@ function notifyStore(order) {
         return;
     }
 
+    const mapUrl = (order.location || hasDeliveryPin(order))
+        ? mapsSearchUrl(order.location, order.deliveryLat, order.deliveryLng)
+        : "";
     const note = new Notification(t("newChawOrder"), {
         body: t("orderedDeliver", {
             name: order.customerName || t("aCustomerCap"),
             items: orderLines(order),
             location: order.location || t("theirAddress")
-        })
+        }) + (mapUrl ? "\n" + mapUrl : "")
     });
     note.onclick = () => {
         window.location.href = "account.html";
