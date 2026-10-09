@@ -26,7 +26,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261008i">
+    <link rel="stylesheet" href="styles.css?v=20261008l">
 </head>
 <body>
 
@@ -53,7 +53,7 @@
         <section class="auth-section">
             <div class="auth-box">
                 <h2 id="auth-heading" data-i18n="signInHeading">Sign in</h2>
-                <p id="auth-lead" data-i18n="signInLead">Use your Google account, or sign in with email.</p>
+                <p id="auth-lead" data-i18n="signInLead">Use Google or Facebook, or sign in with email.</p>
 
                 <button type="button" id="google-signin" class="google-signin">
                     <svg class="google-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
@@ -63,6 +63,12 @@
                         <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
                     </svg>
                     <span data-i18n="continueGoogle">Sign in with Google</span>
+                </button>
+                <button type="button" id="facebook-signin" class="facebook-signin">
+                    <svg class="facebook-mark" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                        <path fill="#fff" d="M24 12.073C24 5.406 18.627 0 12 0S0 5.406 0 12.073C0 18.099 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.025 1.792-4.697 4.533-4.697 1.313 0 2.686.235 2.686.235v2.97h-1.513c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.099 24 12.073z"/>
+                    </svg>
+                    <span data-i18n="continueFacebook">Sign in with Facebook</span>
                 </button>
                 <p class="auth-or" data-i18n="or">or</p>
 
@@ -97,6 +103,6 @@
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261008k"></script>
+    <script type="module" src="app.js?v=20261008l"></script>
 </body>
 </html>

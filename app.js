@@ -8,6 +8,7 @@ import {
     signInWithRedirect,
     getRedirectResult,
     GoogleAuthProvider,
+    FacebookAuthProvider,
     sendPasswordResetEmail,
     onAuthStateChanged,
     setPersistence,
@@ -31,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008j";
+import { t, onLanguageChange } from "./lang.js?v=20261008l";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -149,8 +150,9 @@ function requireBuyer() {
 let isSigningUp = false;
 let authMode = "login";
 
-function authErrorText(error) {
+function authErrorText(error, provider) {
     const code = error && error.code;
+    const facebook = provider === "facebook";
 
     if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-login-credentials") {
         return t("wrongEmailOrPassword");
@@ -177,23 +179,23 @@ function authErrorText(error) {
     }
 
     if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        return t("googleClosed");
+        return t(facebook ? "facebookClosed" : "googleClosed");
     }
 
     if (code === "auth/popup-blocked") {
-        return t("googlePopupBlocked");
+        return t(facebook ? "facebookPopupBlocked" : "googlePopupBlocked");
     }
 
     if (code === "auth/account-exists-with-different-credential") {
-        return t("googleWrongMethod");
+        return t(facebook ? "facebookWrongMethod" : "googleWrongMethod");
     }
 
     if (code === "auth/unauthorized-domain") {
-        return t("googleUnauthorized");
+        return t(facebook ? "facebookUnauthorized" : "googleUnauthorized");
     }
 
     if (code === "auth/operation-not-allowed") {
-        return t("googleOff");
+        return t(facebook ? "facebookOff" : "googleOff");
     }
 
     if (code === "auth/network-request-failed") {
@@ -291,8 +293,15 @@ function googleProvider() {
     return provider;
 }
 
-function googleButtonLabel(text) {
-    const label = googleButton && googleButton.querySelector("span");
+function facebookProvider() {
+    const provider = new FacebookAuthProvider();
+    provider.addScope("email");
+    provider.addScope("public_profile");
+    return provider;
+}
+
+function buttonLabel(button, text) {
+    const label = button && button.querySelector("span");
     if (label) {
         label.textContent = text;
     }
@@ -332,38 +341,50 @@ async function saveGoogleProfile(user) {
     }
 }
 
+async function signInWithProvider(provider, button, openingKey, labelKey) {
+    const kind = provider.providerId === "facebook.com" ? "facebook" : "google";
+    button.disabled = true;
+    buttonLabel(button, t(openingKey));
+
+    try {
+        isSigningUp = true;
+        const result = await signInWithPopup(auth, provider);
+        await saveGoogleProfile(result.user);
+        window.location.href = nextPage();
+    } catch (error) {
+        if (error.code === "auth/popup-blocked") {
+            try {
+                await signInWithRedirect(auth, provider);
+                return;
+            } catch (redirectError) {
+                error = redirectError;
+            }
+        }
+
+        isSigningUp = false;
+        button.disabled = false;
+        buttonLabel(button, t(labelKey));
+        if (authMessage && error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
+            authMessage.textContent = authErrorText(error, kind);
+        } else if (authMessage) {
+            authMessage.textContent = "";
+        }
+        console.error(error);
+    }
+}
+
 const googleButton = document.getElementById("google-signin");
+const facebookButton = document.getElementById("facebook-signin");
 
 if (googleButton) {
-    googleButton.addEventListener("click", async () => {
-        googleButton.disabled = true;
-        googleButtonLabel(t("openingGoogle"));
+    googleButton.addEventListener("click", () => {
+        signInWithProvider(googleProvider(), googleButton, "openingGoogle", "continueGoogle");
+    });
+}
 
-        try {
-            isSigningUp = true;
-            const result = await signInWithPopup(auth, googleProvider());
-            await saveGoogleProfile(result.user);
-            window.location.href = nextPage();
-        } catch (error) {
-            if (error.code === "auth/popup-blocked") {
-                try {
-                    await signInWithRedirect(auth, googleProvider());
-                    return;
-                } catch (redirectError) {
-                    error = redirectError;
-                }
-            }
-
-            isSigningUp = false;
-            googleButton.disabled = false;
-            googleButtonLabel(t("continueGoogle"));
-            if (authMessage && error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
-                authMessage.textContent = authErrorText(error);
-            } else if (authMessage) {
-                authMessage.textContent = "";
-            }
-            console.error(error);
-        }
+if (facebookButton) {
+    facebookButton.addEventListener("click", () => {
+        signInWithProvider(facebookProvider(), facebookButton, "openingFacebook", "continueFacebook");
     });
 }
 if (loginButton) {

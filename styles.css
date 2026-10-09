@@ -1052,6 +1052,43 @@ select:focus {
     cursor: wait;
 }
 
+.facebook-signin,
+.auth-box .facebook-signin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 4px;
+    background: #1877F2;
+    color: #fff;
+    font-family: "Jost", sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+}
+
+.facebook-mark {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+
+.auth-box .facebook-signin:hover {
+    background: #166fe5;
+    color: #fff;
+}
+
+.auth-box .facebook-signin:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
 #auth-message,
 #product-message,
 #admin-message,
@@ -1551,6 +1588,7 @@ footer {
 [dir="rtl"] .auth-box button,
 [dir="rtl"] .auth-box .auth-link,
 [dir="rtl"] .google-signin,
+[dir="rtl"] .facebook-signin,
 [dir="rtl"] .auth-or,
 [dir="rtl"] #account-product-list .row-actions button {
     letter-spacing: 0;
