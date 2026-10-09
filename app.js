@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008y";
+import { t, onLanguageChange } from "./lang.js?v=20261009a";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -42,91 +42,6 @@ const authMessage = document.getElementById("auth-message");
 
 let isSigningUp = false;
 let authMode = "login";
-let authPanelName = "signin";
-
-function showAuthPanel(panel) {
-    authPanelName = panel === "login" ? "login" : "signin";
-    const join = document.getElementById("join-link");
-    const emailLink = document.getElementById("email-login-link");
-
-    if (join) {
-        join.classList.toggle("active", authPanelName === "signin");
-    }
-
-    if (emailLink) {
-        emailLink.classList.toggle("active", authPanelName === "login");
-    }
-
-    if (document.getElementById("auth-heading")) {
-        showAuthMode(authMode);
-    }
-}
-
-function openAuthPanel(panel) {
-    const hash = panel === "login" ? "#email-login" : "#sign-in";
-
-    if (window.location.hash === hash) {
-        showAuthPanel(panel);
-        return;
-    }
-
-    window.location.hash = hash;
-}
-
-function setupNavLogin() {
-    const join = document.getElementById("join-link");
-
-    if (!join || join.closest(".nav-signin")) {
-        return;
-    }
-
-    const slot = document.createElement("div");
-    slot.className = "nav-signin";
-    const link = document.createElement("a");
-    link.id = "email-login-link";
-    link.className = "nav-login";
-    link.dataset.i18n = "login";
-    link.href = onLoginPage() ? "#email-login" : "login.html#email-login";
-    link.textContent = t("login");
-
-    if (onLoginPage()) {
-        join.href = "#sign-in";
-    }
-
-    join.replaceWith(slot);
-    slot.append(join, link);
-
-    if (!onLoginPage()) {
-        return;
-    }
-
-    join.addEventListener("click", (event) => {
-        event.preventDefault();
-        if (authMode === "signup") {
-            authMode = "login";
-        }
-        openAuthPanel("signin");
-    });
-
-    link.addEventListener("click", (event) => {
-        event.preventDefault();
-        openAuthPanel("login");
-        if (emailInput) {
-            window.setTimeout(() => emailInput.focus(), 0);
-        }
-    });
-
-    window.addEventListener("hashchange", () => {
-        showAuthPanel(window.location.hash === "#email-login" ? "login" : "signin");
-        if (window.location.hash === "#email-login" && emailInput) {
-            emailInput.focus();
-        }
-    });
-
-    showAuthPanel(window.location.hash === "#email-login" ? "login" : "signin");
-}
-
-setupNavLogin();
 
 const productNameInput = document.getElementById("product-name");
 const productPriceInput = document.getElementById("product-price");
@@ -299,28 +214,23 @@ function showAuthMode(mode) {
     const forgotButton = document.getElementById("forgot-password");
     const switchButton = document.getElementById("auth-switch");
 
-    const loggingIn = authPanelName === "login" || creating;
-    const emailBlock = document.getElementById("email-login");
     const providers = document.getElementById("provider-signin");
-
-    if (emailBlock) {
-        emailBlock.hidden = !loggingIn;
-    }
+    const orLine = document.getElementById("auth-or");
 
     if (providers) {
-        providers.hidden = loggingIn;
+        providers.hidden = creating;
+    }
+
+    if (orLine) {
+        orLine.hidden = creating;
     }
 
     if (heading) {
-        heading.textContent = creating
-            ? t("createHeading")
-            : (loggingIn ? t("login") : t("signInHeading"));
+        heading.textContent = creating ? t("createHeading") : t("signInHeading");
     }
 
     if (lead) {
-        lead.textContent = creating
-            ? t("createLead")
-            : (loggingIn ? t("signInLead") : t("providerLead"));
+        lead.textContent = creating ? t("createLead") : t("signInLead");
     }
 
     if (signupButton) {
@@ -330,7 +240,7 @@ function showAuthMode(mode) {
 
     if (loginButton) {
         loginButton.hidden = creating;
-        loginButton.textContent = t("login");
+        loginButton.textContent = t("signIn");
     }
 
     if (forgotButton) {
@@ -344,17 +254,6 @@ function showAuthMode(mode) {
 
     if (passwordInput) {
         passwordInput.autocomplete = creating ? "new-password" : "current-password";
-    }
-
-    const join = document.getElementById("join-link");
-    const emailLink = document.getElementById("email-login-link");
-
-    if (join) {
-        join.classList.toggle("active", !loggingIn);
-    }
-
-    if (emailLink) {
-        emailLink.classList.toggle("active", loggingIn);
     }
 }
 
@@ -532,10 +431,6 @@ if (emailForm) {
             console.error(error);
         }
     });
-
-    if (window.location.hash === "#email-login" && emailInput) {
-        emailInput.focus();
-    }
 }
 
 const forgotButton = document.getElementById("forgot-password");
@@ -563,9 +458,6 @@ const authSwitch = document.getElementById("auth-switch");
 
 if (authSwitch) {
     authSwitch.addEventListener("click", () => {
-        if (authMode !== "signup") {
-            authPanelName = "login";
-        }
         showAuthMode(authMode === "signup" ? "login" : "signup");
         if (authMessage) {
             authMessage.textContent = "";
@@ -2147,11 +2039,6 @@ function updateNav(user) {
 
     if (joinLink) {
         joinLink.hidden = Boolean(user);
-    }
-
-    const emailLoginLink = document.getElementById("email-login-link");
-    if (emailLoginLink) {
-        emailLoginLink.hidden = Boolean(user);
     }
 
     if (accountButton) {
