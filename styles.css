@@ -465,6 +465,18 @@ nav ul a:hover {
     padding: 6px 8px;
 }
 
+#category-section,
+#category-list select,
+#category-section option,
+#category-list select option {
+    background-color: #161311;
+    color: #ffffff;
+    color-scheme: dark;
+    font-size: 15px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
 .filter-choices label {
     display: flex;
     align-items: center;
