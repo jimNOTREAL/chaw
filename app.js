@@ -32,7 +32,9 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261009a";
+import { t, onLanguageChange } from "./lang.js?v=20261009b";
+
+const DELIVERY_FEE_IQD = 3000;
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -1379,6 +1381,60 @@ function formatAmount(amount) {
 function money(amount) {
     const number = Number(amount);
     return (Number.isFinite(number) ? formatAmount(number) : "0") + " IQD";
+}
+
+function deliveryStoreCount(cart) {
+    return new Set(cart.map((item) => item.ownerUid).filter(Boolean)).size;
+}
+
+function cartClothesTotal(cart) {
+    return cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+}
+
+function cartDeliveryTotal(cart) {
+    return deliveryStoreCount(cart) * DELIVERY_FEE_IQD;
+}
+
+function savedDeliveryFee(order) {
+    if (!order || !Object.prototype.hasOwnProperty.call(order, "deliveryFee")) {
+        return null;
+    }
+
+    const fee = Number(order.deliveryFee);
+    return Number.isFinite(fee) ? fee : null;
+}
+
+function selectedPaymentMethod() {
+    const selected = document.querySelector("input[name='payment']:checked");
+    return selected && selected.value === "card" ? "card" : "delivery";
+}
+
+function appendMoneySplit(parent, clothesAmount, deliveryAmount, paymentMethod) {
+    const card = paymentMethod === "card";
+    const clothes = document.createElement("p");
+    clothes.textContent = card
+        ? t("clothesCardLine", { amount: money(clothesAmount) })
+        : t("clothesLine", { amount: money(clothesAmount) });
+    const delivery = document.createElement("p");
+    delivery.textContent = t("deliveryLine", { amount: money(deliveryAmount) });
+    const door = document.createElement("p");
+    door.textContent = t("payDriverDoor", {
+        amount: money(card ? deliveryAmount : Number(clothesAmount) + Number(deliveryAmount))
+    });
+    parent.append(clothes, delivery, door);
+}
+
+function appendOrderMoney(parent, order) {
+    const fee = savedDeliveryFee(order);
+
+    if (fee == null) {
+        const clothes = document.createElement("p");
+        clothes.textContent = t("clothesLine", { amount: money(order.total) });
+        parent.appendChild(clothes);
+        return;
+    }
+
+    appendMoneySplit(parent, order.total, fee, order.paymentMethod);
 }
 
 async function loadSales() {
@@ -3391,6 +3447,7 @@ function renderCheckoutDetails() {
 
     const cart = readCart();
     box.hidden = cart.length === 0;
+    renderCartFees(cart);
 
     if (!address) {
         return;
@@ -3408,6 +3465,22 @@ function renderCheckoutDetails() {
         : !String(accountProfile.phone || "").trim()
             ? t("deliverTo", { location: accountProfile.deliveryLocation }) + " " + t("addPhoneBefore") + pinNote
             : t("deliverTo", { location: accountProfile.deliveryLocation }) + pinNote;
+}
+
+function renderCartFees(cart) {
+    const host = document.getElementById("cart-fees");
+
+    if (!host) {
+        return;
+    }
+
+    host.replaceChildren();
+
+    if (!cart.length) {
+        return;
+    }
+
+    appendMoneySplit(host, cartClothesTotal(cart), cartDeliveryTotal(cart), selectedPaymentMethod());
 }
 
 function paymentLabel(method) {
@@ -3471,9 +3544,11 @@ async function loadCustomerOrders(user) {
             items.textContent = orderLines(order);
             const payment = document.createElement("p");
             payment.textContent = paymentLabel(order.paymentMethod);
+            const moneyLines = document.createElement("div");
+            appendOrderMoney(moneyLines, order);
             const status = document.createElement("p");
             status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
-            card.append(title, items, payment, status);
+            card.append(title, items, payment, moneyLines, status);
             list.appendChild(card);
         });
     } catch (error) {
@@ -3680,13 +3755,23 @@ function driverOrderMessage(order) {
         ? t("pinLine", { url: mapsPinUrl(order.deliveryLat, order.deliveryLng) }) + "\n"
         : "";
 
+    const fee = savedDeliveryFee(order);
+    const fees = fee == null
+        ? ""
+        : t("driverFees", {
+            clothes: money(order.total),
+            delivery: money(fee),
+            cash: money(order.paymentMethod === "card" ? fee : Number(order.total) + fee)
+        });
+
     return t("driverOrder", {
         name: order.customerName || order.customerEmail || t("customer"),
         phone: order.customerPhone || t("noPhone"),
         location: order.location || "",
         pin: pin,
         items: orderLines(order),
-        payment: paymentLabel(order.paymentMethod)
+        payment: paymentLabel(order.paymentMethod),
+        fees: fees
     });
 }
 
@@ -3777,6 +3862,8 @@ async function loadStoreOrders(uid) {
             }
             const payment = document.createElement("p");
             payment.textContent = paymentLabel(order.paymentMethod);
+            const moneyLines = document.createElement("div");
+            appendOrderMoney(moneyLines, order);
             const items = document.createElement("p");
             items.textContent = orderLines(order);
             const status = document.createElement("p");
@@ -3785,7 +3872,7 @@ async function loadStoreOrders(uid) {
             if (order.customerPhone) {
                 card.appendChild(phone);
             }
-            card.append(payment, items, status);
+            card.append(payment, moneyLines, items, status);
             appendOrderActions(card, order);
 
             if (order.status !== "delivered") {
@@ -3949,6 +4036,7 @@ async function placeOrder() {
                         };
                     }),
                     total: total,
+                    deliveryFee: DELIVERY_FEE_IQD,
                     status: "new",
                     seen: false,
                     createdAt: Date.now()
@@ -4156,6 +4244,10 @@ const checkoutButton = document.getElementById("checkout-button");
 if (checkoutButton) {
     checkoutButton.addEventListener("click", placeOrder);
 }
+
+document.querySelectorAll("input[name='payment']").forEach((input) => {
+    input.addEventListener("change", () => renderCheckoutDetails());
+});
 
 renderCartPage();
 startAuth();

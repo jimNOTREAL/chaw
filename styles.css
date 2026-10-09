@@ -1550,6 +1550,16 @@ footer {
     color: var(--ink);
 }
 
+#cart-fees p {
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+#cart-fees p:last-child {
+    color: var(--ink);
+}
+
 #checkout-button {
     margin-top: 8px;
 }
