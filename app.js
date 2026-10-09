@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008n";
+import { t, onLanguageChange } from "./lang.js?v=20261008q";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -91,6 +91,7 @@ let currentBusiness = null;
 let availableFilters = [];
 let discoverProducts = [];
 let activeFilter = "All";
+let focusCategoryId = "";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAuVRtGXnEnExvF9-XP6rkxyiRkeJwXg2I",
@@ -782,6 +783,26 @@ function glossaryHit(name) {
     });
 }
 
+function sameFilterWord(left, right) {
+    if (!String(left || "").trim() || !String(right || "").trim()) {
+        return false;
+    }
+
+    if (sameLabel(left, right)) {
+        return true;
+    }
+
+    const first = glossaryHit(left);
+    const second = glossaryHit(right);
+    return Boolean(first && second && first.en === second.en);
+}
+
+function matchesCategory(category, typed) {
+    return [category.name, category.nameAr, category.nameCkb, category.nameEn].some((value) => {
+        return value && sameFilterWord(value, typed);
+    });
+}
+
 function sameLabel(left, right) {
     return String(left || "").trim().toLowerCase() === String(right || "").trim().toLowerCase();
 }
@@ -860,6 +881,17 @@ function customLabel(found, lang) {
     }
 
     return value;
+}
+
+function categoryLabel(category) {
+    const custom = customLabel(category, uiLang());
+
+    if (custom) {
+        return custom;
+    }
+
+    const hit = glossaryHit(category && category.name);
+    return hit ? hit[uiLang()] : translatePhrase(category && category.name);
 }
 
 function tagLabel(name) {
@@ -1474,33 +1506,8 @@ async function loadAdminPanel() {
             const sectionSelect = document.createElement("select");
             const removeButton = document.createElement("button");
 
-            label.textContent = category.name;
-            const suggested = glossaryHit(category.name);
-            const arabicInput = document.createElement("input");
-            const kurdishInput = document.createElement("input");
-            arabicInput.type = "text";
-            kurdishInput.type = "text";
-            arabicInput.className = "tag-lang-input";
-            kurdishInput.className = "tag-lang-input";
-            arabicInput.placeholder = t("wordArabic");
-            kurdishInput.placeholder = t("wordKurdish");
-            arabicInput.value = category.nameAr || (suggested ? suggested.ar : "");
-            kurdishInput.value = category.nameCkb || (suggested ? suggested.ckb : "");
-            const saveTranslations = async () => {
-                try {
-                    await updateDoc(doc(db, "categories", category.id), {
-                        nameAr: arabicInput.value.trim(),
-                        nameCkb: kurdishInput.value.trim()
-                    });
-                } catch (error) {
-                    adminMessage.textContent = error.code === "permission-denied"
-                        ? t("saveNeedsRules")
-                        : error.message;
-                    console.error(error);
-                }
-            };
-            arabicInput.addEventListener("change", saveTranslations);
-            kurdishInput.addEventListener("change", saveTranslations);
+            row.dataset.categoryId = category.id;
+            label.textContent = categoryLabel(category);
             knownSectionKeys(categories).concat("other").forEach((key) => {
                 if ([...sectionSelect.options].some((option) => option.value === key)) {
                     return;
@@ -1538,13 +1545,22 @@ async function loadAdminPanel() {
                 }
             });
 
-            row.append(label, arabicInput, kurdishInput, sectionSelect, removeButton);
+            row.append(label, sectionSelect, removeButton);
             block.appendChild(row);
         });
 
         block.prepend(heading);
         categoryList.appendChild(block);
     });
+
+    if (focusCategoryId) {
+        const row = categoryList.querySelector('[data-category-id="' + focusCategoryId + '"]');
+        focusCategoryId = "";
+        if (row) {
+            row.style.background = "rgba(176, 137, 104, 0.28)";
+            row.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+    }
 
     if (businesses.length === 0) {
         businessList.innerHTML = "<p>" + t("noBusinessAccounts") + "</p>";
@@ -1774,13 +1790,12 @@ async function prepareDashboard(user) {
 if (categorySectionSelect && categorySectionNameInput && !categorySectionSelect.dataset.bound) {
     categorySectionSelect.dataset.bound = "1";
     categorySectionSelect.addEventListener("change", () => {
-        const showCustomSection = categorySectionSelect.value !== "__new";
-        categorySectionNameInput.hidden = showCustomSection;
+        categorySectionNameInput.hidden = categorySectionSelect.value !== "__new";
         if (categorySectionArInput) {
-            categorySectionArInput.hidden = showCustomSection;
+            categorySectionArInput.hidden = true;
         }
         if (categorySectionCkbInput) {
-            categorySectionCkbInput.hidden = showCustomSection;
+            categorySectionCkbInput.hidden = true;
         }
     });
 }
@@ -1825,25 +1840,36 @@ if (addCategoryButton) {
 
         try {
             const categories = await loadCategories();
-            const alreadyExists = categories.some((category) => {
-                return category.name.toLowerCase() === name.toLowerCase();
-            });
+            const existing = categories.find((category) => matchesCategory(category, name));
 
-            if (alreadyExists) {
-                adminMessage.textContent = t("filterExists");
+            if (existing) {
+                if (sectionKeyOf(existing) !== section) {
+                    await updateDoc(doc(db, "categories", existing.id), { section: section });
+                }
+
+                focusCategoryId = existing.id;
+                adminMessage.textContent = t("filterAlreadyInSection", {
+                    word: categoryLabel(existing),
+                    section: sectionLabel(section)
+                });
+                categoryWordInput.value = "";
+                await loadAdminPanel();
+                await loadDiscover();
                 return;
             }
 
+            const words = languageFields("name", name);
             const record = {
-                name: name,
-                nameAr: categoryWordArInput ? categoryWordArInput.value.trim() : "",
-                nameCkb: categoryWordCkbInput ? categoryWordCkbInput.value.trim() : "",
+                name: words.name,
+                nameEn: words.nameEn,
+                nameAr: words.nameAr,
+                nameCkb: words.nameCkb,
                 section: section
             };
 
             if (categorySectionSelect && categorySectionSelect.value === "__new") {
-                record.sectionAr = categorySectionArInput ? categorySectionArInput.value.trim() : "";
-                record.sectionCkb = categorySectionCkbInput ? categorySectionCkbInput.value.trim() : "";
+                record.sectionAr = phraseIn(section, "ar");
+                record.sectionCkb = phraseIn(section, "ckb");
             }
 
             await addDoc(collection(db, "categories"), record);
