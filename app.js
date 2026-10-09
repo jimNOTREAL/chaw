@@ -31,7 +31,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008g";
+import { t, onLanguageChange } from "./lang.js?v=20261008j";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -597,6 +597,57 @@ function filtersOnProduct(product) {
     }
 
     return product.category ? [product.category] : [];
+}
+
+function isAllColorsTag(name) {
+    const word = String(name || "").trim().toLowerCase();
+    return word === "all colors" || word === "all color" || word === "all colours";
+}
+
+function optionGroups(product) {
+    const groups = { color: [], size: [] };
+
+    filtersOnProduct(product).forEach((name) => {
+        if (isAllColorsTag(name)) {
+            return;
+        }
+
+        const key = sectionForName(name);
+
+        if ((key === "color" || key === "size") && !groups[key].includes(name)) {
+            groups[key].push(name);
+        }
+    });
+
+    return groups;
+}
+
+function needsAChoice(product) {
+    const groups = optionGroups(product);
+    return groups.color.length > 1 || groups.size.length > 1;
+}
+
+function choiceGap(groups, picked) {
+    const needColor = groups.color.length > 1 && !(picked && picked.color);
+    const needSize = groups.size.length > 1 && !(picked && picked.size);
+
+    if (needColor && needSize) {
+        return t("chooseColorAndSize");
+    }
+
+    if (needColor) {
+        return t("chooseColorFirst");
+    }
+
+    if (needSize) {
+        return t("chooseSizeFirst");
+    }
+
+    return "";
+}
+
+function itemChoiceText(item) {
+    return [item && item.color, item && item.size].filter(Boolean).map((name) => tagLabel(name)).join(" · ");
 }
 
 const builtinSections = ["size", "color", "type"];
@@ -2691,10 +2742,17 @@ function renderDiscover() {
         const addButton = document.createElement("button");
         addButton.type = "button";
         addButton.className = "cart-button";
-        addButton.textContent = auth.currentUser ? t("putInCart") : t("signInToBuy");
+        addButton.textContent = needsAChoice(product)
+            ? t("chooseOptions")
+            : (auth.currentUser ? t("putInCart") : t("signInToBuy"));
         addButton.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
+
+            if (needsAChoice(product)) {
+                window.location.href = "product.html?id=" + encodeURIComponent(product.id);
+                return;
+            }
 
             if (!requireBuyer()) {
                 return;
@@ -2732,10 +2790,15 @@ async function loadDiscover() {
     }
 }
 
-function productActions(product, productId) {
+function productActions(product, productId, groups) {
     const actions = document.createElement("div");
     actions.className = "product-actions";
     const productName = pieceText(product, "name") || t("aPiece");
+    const choices = groups || optionGroups(product);
+    const picked = {
+        color: choices.color.length === 1 ? choices.color[0] : "",
+        size: choices.size.length === 1 ? choices.size[0] : ""
+    };
 
     if (product.phone) {
         const call = document.createElement("a");
@@ -2788,15 +2851,57 @@ function productActions(product, productId) {
     }
 
     if (productId) {
+        const note = document.createElement("p");
+        note.className = "choice-note";
+        ["color", "size"].forEach((key) => {
+            if (!choices[key].length) {
+                return;
+            }
+
+            const block = document.createElement("div");
+            block.className = "option-group";
+            const label = document.createElement("p");
+            label.className = "option-label";
+            label.textContent = key === "color" ? t("sectionColor") : t("sectionSize");
+            const row = document.createElement("div");
+            row.className = "option-choices";
+
+            choices[key].forEach((name) => {
+                const chip = document.createElement("button");
+                chip.type = "button";
+                chip.className = "option-chip" + (picked[key] === name ? " active" : "");
+                chip.textContent = tagLabel(name);
+                chip.addEventListener("click", () => {
+                    picked[key] = name;
+                    row.querySelectorAll("button").forEach((button) => {
+                        button.classList.toggle("active", button === chip);
+                    });
+                    note.textContent = "";
+                });
+                row.appendChild(chip);
+            });
+
+            block.append(label, row);
+            actions.appendChild(block);
+        });
+        actions.appendChild(note);
+
         const addButton = document.createElement("button");
         addButton.type = "button";
         addButton.textContent = auth.currentUser ? t("putInCart") : t("signInToBuy");
         addButton.addEventListener("click", () => {
+            const missing = choiceGap(choices, picked);
+
+            if (missing) {
+                note.textContent = missing;
+                return;
+            }
+
             if (!requireBuyer()) {
                 return;
             }
 
-            addButton.textContent = addProductToCart(product, productId);
+            addButton.textContent = addProductToCart(product, productId, picked);
         });
         actions.appendChild(addButton);
     }
@@ -2842,12 +2947,15 @@ async function loadProductPage() {
         const category = document.createElement("p");
         category.className = "product-kicker";
         const productTags = filtersOnProduct(product);
+        const groups = optionGroups(product);
+        const chosenNames = new Set(groups.color.concat(groups.size));
+        const visibleTags = productTags.filter((name) => !chosenNames.has(name) && !isAllColorsTag(name));
 
         if (!productTags.length) {
             category.textContent = "Chaw";
         }
 
-        productTags.forEach((name) => {
+        visibleTags.forEach((name) => {
             const tagLink = document.createElement("a");
             tagLink.className = "tag-link";
             tagLink.href = "discover.html?tag=" + encodeURIComponent(name);
@@ -2875,7 +2983,7 @@ async function loadProductPage() {
         description.className = "product-description";
         description.textContent = pieceText(product, "description");
 
-        copy.append(category, title, store, price, stock, description, productActions(product, productId));
+        copy.append(category, title, store, price, stock, description, productActions(product, productId, groups));
 
         if (product.imageUrl) {
             const image = document.createElement("img");
@@ -2939,7 +3047,7 @@ function setupCartLink() {
     renderCartCount();
 }
 
-function addProductToCart(product, productId) {
+function addProductToCart(product, productId, picked) {
     if (!requireBuyer()) {
         return t("signInToBuyPeriod");
     }
@@ -2950,8 +3058,12 @@ function addProductToCart(product, productId) {
         return t("outOfStock");
     }
 
+    const color = picked && picked.color ? picked.color : "";
+    const size = picked && picked.size ? picked.size : "";
     const cart = readCart();
-    const existing = cart.find((item) => item.id === productId);
+    const existing = cart.find((item) => {
+        return item.id === productId && (item.color || "") === color && (item.size || "") === size;
+    });
     const nextQuantity = (existing ? Number(existing.quantity) : 0) + 1;
 
     if (nextQuantity > stock) {
@@ -2976,7 +3088,9 @@ function addProductToCart(product, productId) {
             ownerUid: product.ownerUid || "",
             imageUrl: product.imageUrl || "",
             acceptsCard: Boolean(product.acceptsCard),
-            cardPaymentUrl: product.cardPaymentUrl || ""
+            cardPaymentUrl: product.cardPaymentUrl || "",
+            color: color,
+            size: size
         });
     }
 
@@ -3027,7 +3141,7 @@ function renderCartPage() {
         card.className = "cart-item";
 
         const title = document.createElement("h3");
-        title.textContent = pieceText(item, "name") || item.name;
+        title.textContent = [pieceText(item, "name") || item.name, itemChoiceText(item)].filter(Boolean).join(" · ");
 
         const store = document.createElement("p");
         store.textContent = item.storeName || "";
@@ -3122,7 +3236,7 @@ function statusLabel(status) {
 
 function orderLines(order) {
     return (order.items || []).map((item) => {
-        return item.quantity + " × " + (pieceText(item, "name") || item.name) + " — " + money(item.price);
+        return item.quantity + " × " + [pieceText(item, "name") || item.name, itemChoiceText(item)].filter(Boolean).join(" · ") + " — " + money(item.price);
     }).join(", ");
 }
 
@@ -3591,6 +3705,8 @@ async function placeOrder() {
                             nameAr: item.nameAr || "",
                             nameCkb: item.nameCkb || "",
                             nameEn: item.nameEn || "",
+                            color: item.color || "",
+                            size: item.size || "",
                             price: Number(item.price),
                             quantity: Number(item.quantity)
                         };
@@ -3742,7 +3858,10 @@ onLanguageChange(() => {
 async function startAuth() {
     try {
         await setPersistence(auth, browserLocalPersistence);
-        const redirectResult = await getRedirectResult(auth);
+        const redirectResult = await Promise.race([
+            getRedirectResult(auth),
+            new Promise((resolve) => setTimeout(() => resolve(null), 2500))
+        ]);
 
         if (redirectResult && redirectResult.user) {
             isSigningUp = true;
