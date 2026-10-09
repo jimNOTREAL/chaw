@@ -6,6 +6,7 @@ import {
     signInWithEmailAndPassword,
     signInWithPopup,
     signInWithRedirect,
+    signInAnonymously,
     getRedirectResult,
     GoogleAuthProvider,
     FacebookAuthProvider,
@@ -32,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261009j";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009k";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -158,6 +159,152 @@ function requireBuyer() {
 
     window.location.href = "login.html?next=" + encodeURIComponent(buyerNext());
     return false;
+}
+
+const GUEST_KEY = "chaw-guest";
+let guestDeliveryPin = null;
+let guestRenewing = false;
+
+function joinedAsGuest() {
+    return localStorage.getItem(GUEST_KEY) === "1";
+}
+
+function anonymousOff(error) {
+    const code = error && error.code;
+    return code === "auth/operation-not-allowed" || code === "auth/admin-restricted-operation";
+}
+
+function hideEntryGate() {
+    document.documentElement.classList.remove("entry-pending");
+    const gate = document.getElementById("entry-gate");
+    if (gate) {
+        gate.remove();
+    }
+}
+
+function showEntryGate() {
+    if (onLoginPage()) {
+        hideEntryGate();
+        return;
+    }
+
+    document.documentElement.classList.add("entry-pending");
+
+    if (document.getElementById("entry-gate")) {
+        applyLanguage();
+        return;
+    }
+
+    const gate = document.createElement("div");
+    gate.id = "entry-gate";
+    gate.className = "entry-gate";
+
+    const card = document.createElement("div");
+    card.className = "entry-card";
+
+    const switcher = document.createElement("div");
+    switcher.className = "lang-switch";
+    switcher.setAttribute("role", "group");
+
+    [
+        ["en", "English"],
+        ["ar", "العربية"],
+        ["ckb", "کوردی"]
+    ].forEach(([code, label]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.lang = code;
+        button.textContent = label;
+        button.addEventListener("click", () => setLanguage(code, true));
+        switcher.appendChild(button);
+    });
+
+    const title = document.createElement("h1");
+    title.dataset.i18n = "entryTitle";
+
+    const lead = document.createElement("p");
+    lead.dataset.i18n = "entryLead";
+
+    const signIn = document.createElement("button");
+    signIn.type = "button";
+    signIn.className = "entry-choice";
+    signIn.dataset.i18n = "signIn";
+    signIn.addEventListener("click", () => {
+        window.location.href = "login.html?next=" + encodeURIComponent(buyerNext());
+    });
+
+    const guest = document.createElement("button");
+    guest.type = "button";
+    guest.className = "entry-choice entry-guest";
+    guest.dataset.i18n = "joinAsGuest";
+    guest.addEventListener("click", () => joinAsGuest(guest));
+
+    const actions = document.createElement("div");
+    actions.className = "entry-actions";
+    actions.append(signIn, guest);
+
+    const message = document.createElement("p");
+    message.id = "entry-message";
+    message.className = "entry-message";
+
+    card.append(switcher, title, lead, actions, message);
+    gate.appendChild(card);
+    document.body.appendChild(gate);
+    applyLanguage();
+}
+
+async function joinAsGuest(button) {
+    const message = document.getElementById("entry-message");
+    button.disabled = true;
+
+    try {
+        await authReady;
+        await signInAnonymously(auth);
+        localStorage.setItem(GUEST_KEY, "1");
+        hideEntryGate();
+    } catch (error) {
+        button.disabled = false;
+        console.error(error);
+        if (message) {
+            if (anonymousOff(error)) {
+                message.dataset.i18n = "anonymousOff";
+                message.textContent = t("anonymousOff");
+            } else {
+                delete message.dataset.i18n;
+                message.textContent = authErrorText(error);
+            }
+        }
+    }
+}
+
+function syncEntryGate(user) {
+    if (onLoginPage() || (user && !user.isAnonymous) || (user && user.isAnonymous) || joinedAsGuest()) {
+        hideEntryGate();
+
+        if (!user && joinedAsGuest() && !guestRenewing) {
+            guestRenewing = true;
+            signInAnonymously(auth).catch((error) => {
+                guestRenewing = false;
+                localStorage.removeItem(GUEST_KEY);
+                console.error(error);
+                showEntryGate();
+                const message = document.getElementById("entry-message");
+                if (message) {
+                    if (anonymousOff(error)) {
+                        message.dataset.i18n = "anonymousOff";
+                        message.textContent = t("anonymousOff");
+                    } else {
+                        delete message.dataset.i18n;
+                        message.textContent = authErrorText(error);
+                    }
+                }
+            });
+        }
+
+        return;
+    }
+
+    showEntryGate();
 }
 
 function authErrorText(error, provider) {
@@ -2191,17 +2338,25 @@ function updateNav(user) {
     const accountButton = document.getElementById("account-button");
     const dashboardLink = document.getElementById("dashboard-link");
 
+    const realAccount = Boolean(user && !user.isAnonymous);
+
     if (joinLink) {
-        joinLink.hidden = Boolean(user);
+        joinLink.hidden = realAccount;
+        if (!realAccount) {
+            const next = buyerNext();
+            joinLink.href = next && !onLoginPage()
+                ? "login.html?next=" + encodeURIComponent(next)
+                : "login.html";
+        }
     }
 
     if (accountButton) {
-        accountButton.hidden = !user;
+        accountButton.hidden = !realAccount;
     }
 
     const accountLink = document.getElementById("account-link");
     if (accountLink) {
-        accountLink.hidden = !user;
+        accountLink.hidden = !realAccount;
     }
 
     if (dashboardLink) {
@@ -2318,6 +2473,10 @@ async function loadAccountProfile(user) {
         profile = profileSnap.exists() ? profileSnap.data() : {};
     } catch (error) {
         console.error(error);
+    }
+
+    if (user.isAnonymous) {
+        profile.role = "customer";
     }
 
     const isStore = profile.role === "business";
@@ -2490,7 +2649,7 @@ function hideLocationAsk() {
 
 function suggestLocation() {
     const user = auth.currentUser;
-    const isCustomer = user && accountProfile.role !== "business";
+    const isCustomer = user && !user.isAnonymous && accountProfile.role !== "business";
     const pinned = hasDeliveryPin(accountProfile);
     const later = localStorage.getItem("chaw-loc-later") === "1";
     let banner = document.getElementById("location-ask");
@@ -3762,8 +3921,25 @@ function renderCheckoutDetails() {
         return;
     }
 
+    const guestBox = document.getElementById("guest-checkout");
+    const editLink = document.getElementById("checkout-edit");
+    const guest = auth.currentUser && auth.currentUser.isAnonymous;
+
+    if (guestBox) {
+        guestBox.hidden = !guest || cart.length === 0;
+    }
+
+    if (editLink) {
+        editLink.hidden = guest;
+    }
+
     if (!auth.currentUser) {
         address.textContent = t("signInToBuyLocation");
+        return;
+    }
+
+    if (guest) {
+        address.textContent = "";
         return;
     }
 
@@ -4225,6 +4401,11 @@ async function placeOrder() {
     const user = auth.currentUser;
 
     if (!user) {
+        if (joinedAsGuest()) {
+            message.textContent = t("anonymousOff");
+            return;
+        }
+
         window.location.href = "login.html?next=" + encodeURIComponent("cart.html");
         return;
     }
@@ -4235,31 +4416,50 @@ async function placeOrder() {
     let deliveryLat = null;
     let deliveryLng = null;
 
-    try {
-        const profileSnap = await getDoc(doc(db, "users", user.uid));
+    if (user.isAnonymous) {
+        customerName = cleanTyped(document.getElementById("guest-name") && document.getElementById("guest-name").value);
+        customerPhone = cleanTyped(document.getElementById("guest-phone") && document.getElementById("guest-phone").value);
+        location = cleanTyped(document.getElementById("guest-address") && document.getElementById("guest-address").value);
 
-        if (profileSnap.exists()) {
-            const profile = profileSnap.data();
-            location = profile.deliveryLocation || "";
-            customerName = profile.displayName || "";
-            customerPhone = profile.phone || "";
-            if (hasDeliveryPin(profile)) {
-                deliveryLat = Number(profile.deliveryLat);
-                deliveryLng = Number(profile.deliveryLng);
-            }
+        if (guestDeliveryPin && hasDeliveryPin({
+            deliveryLat: guestDeliveryPin.lat,
+            deliveryLng: guestDeliveryPin.lng
+        })) {
+            deliveryLat = guestDeliveryPin.lat;
+            deliveryLng = guestDeliveryPin.lng;
         }
-    } catch (error) {
-        console.error(error);
-    }
 
-    if (!location.trim()) {
-        message.textContent = t("saveLocationFirst");
-        return;
-    }
+        if (!customerName || !customerPhone || !location) {
+            message.textContent = t("guestDetailsFirst");
+            return;
+        }
+    } else {
+        try {
+            const profileSnap = await getDoc(doc(db, "users", user.uid));
 
-    if (!customerPhone.trim()) {
-        message.textContent = t("savePhoneFirst");
-        return;
+            if (profileSnap.exists()) {
+                const profile = profileSnap.data();
+                location = profile.deliveryLocation || "";
+                customerName = profile.displayName || "";
+                customerPhone = profile.phone || "";
+                if (hasDeliveryPin(profile)) {
+                    deliveryLat = Number(profile.deliveryLat);
+                    deliveryLng = Number(profile.deliveryLng);
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+
+        if (!location.trim()) {
+            message.textContent = t("saveLocationFirst");
+            return;
+        }
+
+        if (!customerPhone.trim()) {
+            message.textContent = t("savePhoneFirst");
+            return;
+        }
     }
 
     const selectedPayment = document.querySelector("input[name='payment']:checked");
@@ -4519,9 +4719,15 @@ async function startAuth() {
     }
 
     onAuthStateChanged(auth, (user) => {
+        syncEntryGate(user);
         updateNav(user);
 
-        if (user) {
+        if (user && user.isAnonymous && (onDashboardPage() || document.getElementById("account-page"))) {
+            window.location.href = "index.html";
+            return;
+        }
+
+        if (user && !user.isAnonymous) {
             if (onLoginPage() && !isSigningUp) {
                 window.location.href = nextPage();
                 return;
@@ -4530,7 +4736,7 @@ async function startAuth() {
             loadMyProducts();
             loadSales();
             prepareDashboard(user);
-        } else {
+        } else if (!user) {
             if (onDashboardPage() || document.getElementById("account-page")) {
                 const next = document.getElementById("account-page") ? "account.html" : "";
                 window.location.href = next
@@ -4552,6 +4758,57 @@ async function startAuth() {
 const checkoutButton = document.getElementById("checkout-button");
 if (checkoutButton) {
     checkoutButton.addEventListener("click", placeOrder);
+}
+
+const guestLocationButton = document.getElementById("guest-location");
+if (guestLocationButton) {
+    guestLocationButton.addEventListener("click", () => {
+        const note = document.getElementById("guest-pin-note");
+        const address = document.getElementById("guest-address");
+
+        if (!navigator.geolocation) {
+            if (note) {
+                note.dataset.i18n = "locationUnsupported";
+                note.textContent = t("locationUnsupported");
+            }
+            return;
+        }
+
+        const label = guestLocationButton.textContent;
+        guestLocationButton.disabled = true;
+        guestLocationButton.textContent = t("findingLocation");
+
+        navigator.geolocation.getCurrentPosition((position) => {
+            guestDeliveryPin = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+
+            if (address && !cleanTyped(address.value)) {
+                address.value = guestDeliveryPin.lat.toFixed(5) + ", " + guestDeliveryPin.lng.toFixed(5);
+            }
+
+            if (note) {
+                note.dataset.i18n = "guestPinSaved";
+                note.textContent = t("guestPinSaved");
+            }
+
+            guestLocationButton.disabled = false;
+            guestLocationButton.textContent = label;
+        }, (error) => {
+            guestLocationButton.disabled = false;
+            guestLocationButton.textContent = t("useMyLocation");
+            const key = error && error.code === 1 ? "locationDenied" : "locationFailed";
+            if (note) {
+                note.dataset.i18n = key;
+                note.textContent = t(key);
+            }
+        }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+    });
+}
+
+if (!onLoginPage() && !joinedAsGuest()) {
+    showEntryGate();
 }
 
 document.querySelectorAll("input[name='payment']").forEach((input) => {
