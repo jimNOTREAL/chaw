@@ -1079,12 +1079,62 @@ select:focus {
     color: var(--ink);
 }
 
+.auth-modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 4px 0 8px;
+    border: 1px solid var(--line);
+}
+
+.auth-box .auth-mode {
+    margin: 0;
+    padding: 12px 8px;
+    background: transparent;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    font-size: 11px;
+}
+
+.auth-box .auth-mode.is-active,
+.auth-box .auth-mode.is-active:hover {
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.auth-box .auth-mode:hover {
+    background: transparent;
+    color: var(--ink);
+}
+
+#email-login-form label {
+    display: block;
+    margin-top: 16px;
+    margin-bottom: 0;
+    text-align: start;
+    font-family: "Jost", sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
 .auth-or {
-    margin: 16px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 22px 0 4px;
     color: var(--muted);
     font-size: 13px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+}
+
+.auth-or::before,
+.auth-or::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
 }
 
 .auth-box .google-signin {
@@ -1657,6 +1707,7 @@ footer {
 [dir="rtl"] .payment-choice legend,
 [dir="rtl"] .order-card button,
 [dir="rtl"] .order-card .order-actions a,
+[dir="rtl"] #email-login-form label,
 [dir="rtl"] .auth-box button,
 [dir="rtl"] .auth-box .auth-link,
 [dir="rtl"] .location-ask button,

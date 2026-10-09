@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261009b";
+import { t, onLanguageChange } from "./lang.js?v=20261009c";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -214,18 +214,8 @@ function showAuthMode(mode) {
     const heading = document.getElementById("auth-heading");
     const lead = document.getElementById("auth-lead");
     const forgotButton = document.getElementById("forgot-password");
-    const switchButton = document.getElementById("auth-switch");
-
-    const providers = document.getElementById("provider-signin");
-    const orLine = document.getElementById("auth-or");
-
-    if (providers) {
-        providers.hidden = creating;
-    }
-
-    if (orLine) {
-        orLine.hidden = creating;
-    }
+    const signTab = document.getElementById("mode-signin");
+    const createTab = document.getElementById("mode-signup");
 
     if (heading) {
         heading.textContent = creating ? t("createHeading") : t("signInHeading");
@@ -233,6 +223,18 @@ function showAuthMode(mode) {
 
     if (lead) {
         lead.textContent = creating ? t("createLead") : t("signInLead");
+    }
+
+    if (signTab) {
+        signTab.classList.toggle("is-active", !creating);
+        signTab.textContent = t("signIn");
+        signTab.setAttribute("aria-pressed", String(!creating));
+    }
+
+    if (createTab) {
+        createTab.classList.toggle("is-active", creating);
+        createTab.textContent = t("createAccount");
+        createTab.setAttribute("aria-pressed", String(creating));
     }
 
     if (signupButton) {
@@ -248,10 +250,6 @@ function showAuthMode(mode) {
     if (forgotButton) {
         forgotButton.hidden = creating;
         forgotButton.textContent = t("forgotPassword");
-    }
-
-    if (switchButton) {
-        switchButton.textContent = creating ? t("haveAccount") : t("needAccount");
     }
 
     if (passwordInput) {
@@ -456,15 +454,19 @@ if (forgotButton) {
     });
 }
 
-const authSwitch = document.getElementById("auth-switch");
+function chooseAuthMode(mode) {
+    showAuthMode(mode);
+    if (authMessage) {
+        authMessage.textContent = "";
+    }
+}
 
-if (authSwitch) {
-    authSwitch.addEventListener("click", () => {
-        showAuthMode(authMode === "signup" ? "login" : "signup");
-        if (authMessage) {
-            authMessage.textContent = "";
-        }
-    });
+const signTab = document.getElementById("mode-signin");
+const createTab = document.getElementById("mode-signup");
+
+if (signTab && createTab) {
+    signTab.addEventListener("click", () => chooseAuthMode("login"));
+    createTab.addEventListener("click", () => chooseAuthMode("signup"));
     showAuthMode("login");
 }
 
