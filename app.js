@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008t";
+import { t, onLanguageChange } from "./lang.js?v=20261008u";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
