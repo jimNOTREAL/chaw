@@ -1369,6 +1369,7 @@ footer {
 
 @media (max-width: 800px) {
     nav {
+        position: static;
         flex-wrap: wrap;
         gap: 16px;
         padding: 16px 20px;
@@ -1442,9 +1443,15 @@ footer {
         grid-template-columns: 1fr;
     }
 
+    #account-page .account-panel,
+    #account-page .account-panel.store-account,
     #account-page.store-layout .account-panel {
         position: static;
+        top: auto;
+        right: auto;
+        width: 100%;
         max-height: none;
+        overflow: visible;
     }
 
     .hero h1 {
