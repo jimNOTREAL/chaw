@@ -33,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009k";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009l";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -163,6 +163,8 @@ function requireBuyer() {
 
 const GUEST_KEY = "chaw-guest";
 let guestDeliveryPin = null;
+let guestLocationAsked = false;
+let guestLocationBusy = false;
 let guestRenewing = false;
 
 function joinedAsGuest() {
@@ -3940,6 +3942,9 @@ function renderCheckoutDetails() {
 
     if (guest) {
         address.textContent = "";
+        if (!guestLocationAsked) {
+            requestGuestLocation();
+        }
         return;
     }
 
@@ -4429,8 +4434,12 @@ async function placeOrder() {
             deliveryLng = guestDeliveryPin.lng;
         }
 
-        if (!customerName || !customerPhone || !location) {
-            message.textContent = t("guestDetailsFirst");
+        const pinReady = deliveryLat != null && deliveryLng != null;
+
+        if (!customerName || !customerPhone || !location || !pinReady) {
+            message.textContent = customerName && customerPhone && location
+                ? t("guestTurnLocationOn")
+                : t("guestDetailsFirst");
             return;
         }
     } else {
@@ -4760,50 +4769,77 @@ if (checkoutButton) {
     checkoutButton.addEventListener("click", placeOrder);
 }
 
+function setGuestPinNote(key) {
+    const note = document.getElementById("guest-pin-note");
+    if (!note) {
+        return;
+    }
+
+    note.dataset.i18n = key;
+    note.textContent = t(key);
+}
+
+function requestGuestLocation() {
+    const address = document.getElementById("guest-address");
+    const button = document.getElementById("guest-location");
+
+    guestLocationAsked = true;
+
+    if (guestLocationBusy) {
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        setGuestPinNote("guestTurnLocationOn");
+        return;
+    }
+
+    guestLocationBusy = true;
+    setGuestPinNote("guestTurnLocationOn");
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = t("findingLocation");
+    }
+
+    navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        if (hasDeliveryPin({ deliveryLat: lat, deliveryLng: lng })) {
+            guestDeliveryPin = { lat: lat, lng: lng };
+
+            if (address && !cleanTyped(address.value)) {
+                address.value = lat.toFixed(5) + ", " + lng.toFixed(5);
+            }
+
+            setGuestPinNote("guestPinSaved");
+        } else {
+            guestDeliveryPin = null;
+            setGuestPinNote("guestTurnLocationOn");
+        }
+
+        guestLocationBusy = false;
+        if (button) {
+            button.disabled = false;
+            button.textContent = t("useMyLocation");
+        }
+    }, () => {
+        guestDeliveryPin = null;
+        guestLocationBusy = false;
+        setGuestPinNote("guestTurnLocationOn");
+        if (button) {
+            button.disabled = false;
+            button.textContent = t("useMyLocation");
+        }
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+}
+
 const guestLocationButton = document.getElementById("guest-location");
 if (guestLocationButton) {
     guestLocationButton.addEventListener("click", () => {
-        const note = document.getElementById("guest-pin-note");
-        const address = document.getElementById("guest-address");
-
-        if (!navigator.geolocation) {
-            if (note) {
-                note.dataset.i18n = "locationUnsupported";
-                note.textContent = t("locationUnsupported");
-            }
-            return;
-        }
-
-        const label = guestLocationButton.textContent;
-        guestLocationButton.disabled = true;
-        guestLocationButton.textContent = t("findingLocation");
-
-        navigator.geolocation.getCurrentPosition((position) => {
-            guestDeliveryPin = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            };
-
-            if (address && !cleanTyped(address.value)) {
-                address.value = guestDeliveryPin.lat.toFixed(5) + ", " + guestDeliveryPin.lng.toFixed(5);
-            }
-
-            if (note) {
-                note.dataset.i18n = "guestPinSaved";
-                note.textContent = t("guestPinSaved");
-            }
-
-            guestLocationButton.disabled = false;
-            guestLocationButton.textContent = label;
-        }, (error) => {
-            guestLocationButton.disabled = false;
-            guestLocationButton.textContent = t("useMyLocation");
-            const key = error && error.code === 1 ? "locationDenied" : "locationFailed";
-            if (note) {
-                note.dataset.i18n = key;
-                note.textContent = t(key);
-            }
-        }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+        guestLocationAsked = false;
+        requestGuestLocation();
     });
 }
 
