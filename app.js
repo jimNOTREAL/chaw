@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008l";
+import { t, onLanguageChange } from "./lang.js?v=20261008n";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -1995,6 +1995,7 @@ function updateNav(user) {
 
     if (!user) {
         stopStoreAlerts();
+        hideLocationAsk();
         return;
     }
 
@@ -2114,6 +2115,8 @@ async function loadAccountProfile(user) {
         storeName: storeName,
         area: profile.area || "",
         deliveryLocation: profile.deliveryLocation || "",
+        deliveryLat: Number(profile.deliveryLat),
+        deliveryLng: Number(profile.deliveryLng),
         category: profile.category || "",
         phone: profile.phone || "",
         whatsapp: profile.whatsapp || "",
@@ -2246,10 +2249,157 @@ async function loadAccountProfile(user) {
     }
 
     watchStoreOrders(user);
+    suggestLocation();
 
     if (document.getElementById("checkout-address")) {
         renderCheckoutDetails();
     }
+}
+
+function hasDeliveryPin(source) {
+    const lat = Number(source && source.deliveryLat);
+    const lng = Number(source && source.deliveryLng);
+    return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+}
+
+function mapsPinUrl(lat, lng) {
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(lat + "," + lng);
+}
+
+function hideLocationAsk() {
+    const banner = document.getElementById("location-ask");
+    if (banner) {
+        banner.hidden = true;
+    }
+}
+
+function suggestLocation() {
+    const user = auth.currentUser;
+    const isCustomer = user && accountProfile.role !== "business";
+    const pinned = hasDeliveryPin(accountProfile);
+    const later = localStorage.getItem("chaw-loc-later") === "1";
+    let banner = document.getElementById("location-ask");
+
+    if (isCustomer && !pinned && !later && !onLoginPage()) {
+        if (!banner) {
+            banner = document.createElement("div");
+            banner.id = "location-ask";
+            banner.className = "location-ask";
+            const nav = document.querySelector("nav");
+            if (nav) {
+                nav.insertAdjacentElement("afterend", banner);
+            } else {
+                document.body.prepend(banner);
+            }
+        }
+
+        banner.hidden = false;
+        banner.replaceChildren();
+        const text = document.createElement("p");
+        text.textContent = t("shareLocationText");
+        const share = document.createElement("button");
+        share.type = "button";
+        share.textContent = t("useMyLocation");
+        share.addEventListener("click", () => shareMyLocation(share));
+        const laterButton = document.createElement("button");
+        laterButton.type = "button";
+        laterButton.textContent = t("notNow");
+        laterButton.addEventListener("click", () => {
+            localStorage.setItem("chaw-loc-later", "1");
+            hideLocationAsk();
+        });
+        banner.append(text, share, laterButton);
+    } else {
+        hideLocationAsk();
+    }
+
+    const hint = document.getElementById("delivery-hint");
+    if (hint && isCustomer && !document.getElementById("share-location")) {
+        const share = document.createElement("button");
+        share.type = "button";
+        share.id = "share-location";
+        share.addEventListener("click", () => shareMyLocation(share));
+        const note = document.createElement("p");
+        note.id = "location-pin-note";
+        note.className = "field-hint";
+        hint.insertAdjacentElement("afterend", note);
+        hint.insertAdjacentElement("afterend", share);
+    }
+
+    const shareButton = document.getElementById("share-location");
+    const note = document.getElementById("location-pin-note");
+    if (shareButton) {
+        shareButton.hidden = !isCustomer;
+        shareButton.textContent = t("useMyLocation");
+    }
+    if (note) {
+        note.textContent = isCustomer && pinned ? t("locationSaved") : "";
+    }
+}
+
+function shareMyLocation(button) {
+    const user = auth.currentUser;
+    if (!user) {
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        const note = document.getElementById("location-pin-note");
+        if (note) {
+            note.textContent = t("locationUnsupported");
+        }
+        return;
+    }
+
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = t("findingLocation");
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        try {
+            await setDoc(doc(db, "users", user.uid), {
+                deliveryLat: lat,
+                deliveryLng: lng
+            }, { merge: true });
+            accountProfile.deliveryLat = lat;
+            accountProfile.deliveryLng = lng;
+            localStorage.removeItem("chaw-loc-later");
+            suggestLocation();
+            renderCheckoutDetails();
+        } catch (error) {
+            console.error(error);
+            const message = t("locationFailed");
+            const note = document.getElementById("location-pin-note");
+            if (note) {
+                note.textContent = message;
+            }
+            const bannerText = document.querySelector("#location-ask p");
+            if (bannerText) {
+                bannerText.textContent = message;
+            }
+        }
+
+        button.disabled = false;
+        button.textContent = label;
+    }, (error) => {
+        button.disabled = false;
+        button.textContent = t("useMyLocation");
+        const note = document.getElementById("location-pin-note");
+        const message = error && error.code === 1 ? t("locationDenied") : t("locationFailed");
+        if (note) {
+            note.textContent = message;
+        }
+        const banner = document.getElementById("location-ask");
+        if (banner) {
+            const text = banner.querySelector("p");
+            if (text) {
+                text.textContent = message;
+            }
+        }
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
 }
 
 async function saveAccountProfile() {
@@ -3232,11 +3382,13 @@ function renderCheckoutDetails() {
         return;
     }
 
+    const pinNote = hasDeliveryPin(accountProfile) ? " " + t("exactPinSaved") : "";
+
     address.textContent = !accountProfile.deliveryLocation
         ? t("addLocationBefore")
         : !String(accountProfile.phone || "").trim()
-            ? t("deliverTo", { location: accountProfile.deliveryLocation }) + " " + t("addPhoneBefore")
-            : t("deliverTo", { location: accountProfile.deliveryLocation });
+            ? t("deliverTo", { location: accountProfile.deliveryLocation }) + " " + t("addPhoneBefore") + pinNote
+            : t("deliverTo", { location: accountProfile.deliveryLocation }) + pinNote;
 }
 
 function paymentLabel(method) {
@@ -3467,15 +3619,24 @@ function watchStoreOrders(user) {
     });
 }
 
-function mapsSearchUrl(location) {
+function mapsSearchUrl(location, lat, lng) {
+    if (hasDeliveryPin({ deliveryLat: lat, deliveryLng: lng })) {
+        return mapsPinUrl(lat, lng);
+    }
+
     return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location || "");
 }
 
 function driverOrderMessage(order) {
+    const pin = hasDeliveryPin(order)
+        ? t("pinLine", { url: mapsPinUrl(order.deliveryLat, order.deliveryLng) }) + "\n"
+        : "";
+
     return t("driverOrder", {
         name: order.customerName || order.customerEmail || t("customer"),
         phone: order.customerPhone || t("noPhone"),
         location: order.location || "",
+        pin: pin,
         items: orderLines(order),
         payment: paymentLabel(order.paymentMethod)
     });
@@ -3485,9 +3646,9 @@ function appendOrderActions(card, order) {
     const actions = document.createElement("div");
     actions.className = "order-actions";
 
-    if (order.location) {
+    if (order.location || hasDeliveryPin(order)) {
         const maps = document.createElement("a");
-        maps.href = mapsSearchUrl(order.location);
+        maps.href = mapsSearchUrl(order.location, order.deliveryLat, order.deliveryLng);
         maps.target = "_blank";
         maps.rel = "noopener";
         maps.textContent = t("openInMaps");
@@ -3627,14 +3788,21 @@ async function placeOrder() {
     let location = "";
     let customerName = "";
     let customerPhone = "";
+    let deliveryLat = null;
+    let deliveryLng = null;
 
     try {
         const profileSnap = await getDoc(doc(db, "users", user.uid));
 
         if (profileSnap.exists()) {
-            location = profileSnap.data().deliveryLocation || "";
-            customerName = profileSnap.data().displayName || "";
-            customerPhone = profileSnap.data().phone || "";
+            const profile = profileSnap.data();
+            location = profile.deliveryLocation || "";
+            customerName = profile.displayName || "";
+            customerPhone = profile.phone || "";
+            if (hasDeliveryPin(profile)) {
+                deliveryLat = Number(profile.deliveryLat);
+                deliveryLng = Number(profile.deliveryLng);
+            }
         }
     } catch (error) {
         console.error(error);
@@ -3710,7 +3878,7 @@ async function placeOrder() {
                 }, 0);
                 const orderRef = doc(collection(db, "orders"));
 
-                transaction.set(orderRef, {
+                const orderFields = {
                     customerUid: user.uid,
                     customerName: customerName || user.email || "",
                     customerEmail: user.email || "",
@@ -3736,7 +3904,14 @@ async function placeOrder() {
                     status: "new",
                     seen: false,
                     createdAt: Date.now()
-                });
+                };
+
+                if (deliveryLat != null && deliveryLng != null) {
+                    orderFields.deliveryLat = deliveryLat;
+                    orderFields.deliveryLng = deliveryLng;
+                }
+
+                transaction.set(orderRef, orderFields);
             });
         });
 
@@ -3837,6 +4012,7 @@ onLanguageChange(() => {
     });
     renderCartCount();
     showOrderAlert(latestAlertOrders);
+    suggestLocation();
     renderDiscover();
     renderCartPage();
     refreshAccountLabels();
