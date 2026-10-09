@@ -204,10 +204,10 @@ nav ul a:hover {
 }
 
 #account-page.store-layout .account-panel {
-    position: sticky;
-    top: 92px;
-    max-height: calc(100vh - 110px);
-    overflow: auto;
+    position: static;
+    top: auto;
+    max-height: none;
+    overflow: visible;
 }
 
 .account-catalog h2 {
