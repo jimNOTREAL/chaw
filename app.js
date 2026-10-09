@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261009i";
+import { t, onLanguageChange } from "./lang.js?v=20261009j";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -2973,8 +2973,187 @@ async function loadAccountProducts(uid) {
 
 setupAccountMenu();
 
+function foldSearch(text) {
+    return String(text || "")
+        .toLowerCase()
+        .replace(/[\u064B-\u0652\u0670\u0640]/g, "")
+        .replace(/[أإآ]/g, "ا")
+        .replace(/ة/g, "ه")
+        .replace(/ى/g, "ي")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function editDistance(left, right) {
+    const a = String(left);
+    const b = String(right);
+
+    if (Math.abs(a.length - b.length) > 2) {
+        return 3;
+    }
+
+    const rows = [];
+
+    for (let i = 0; i <= a.length; i++) {
+        rows[i] = [i];
+    }
+
+    for (let j = 0; j <= b.length; j++) {
+        rows[0][j] = j;
+    }
+
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            rows[i][j] = Math.min(
+                rows[i - 1][j] + 1,
+                rows[i][j - 1] + 1,
+                rows[i - 1][j - 1] + cost
+            );
+        }
+    }
+
+    return rows[a.length][b.length];
+}
+
+function relatedWords(word) {
+    const folded = foldSearch(word);
+    const forms = new Set([folded]);
+
+    if (folded.length < 3) {
+        return [...forms];
+    }
+
+    tagGlossary.forEach((entry) => {
+        const labels = [entry.en, entry.ar, entry.ckb].concat(entry.also || [])
+            .filter(Boolean)
+            .map((label) => foldSearch(label));
+        const close = labels.some((label) => {
+            return label === folded || label.startsWith(folded) || folded.startsWith(label);
+        });
+
+        if (close) {
+            labels.forEach((label) => forms.add(label));
+        }
+    });
+
+    return [...forms];
+}
+
+function wordCloseness(form, token) {
+    if (!form || !token) {
+        return 0;
+    }
+
+    if (form === token) {
+        return 100;
+    }
+
+    if (form.length < 2 || token.length < 2) {
+        return 0;
+    }
+
+    const shorter = Math.min(form.length, token.length);
+    const longer = Math.max(form.length, token.length);
+
+    if ((token.startsWith(form) || form.startsWith(token)) && shorter >= 3 && shorter / longer >= 0.5) {
+        return 80;
+    }
+
+    if ((token.includes(form) || form.includes(token)) && shorter >= 3) {
+        return 65;
+    }
+
+    if (shorter < 4) {
+        return 0;
+    }
+
+    const distance = editDistance(form, token);
+    const limit = longer >= 6 ? 2 : 1;
+
+    if (distance > limit) {
+        return 0;
+    }
+
+    return distance === 1 ? 55 : 40;
+}
+
+function searchTokens(product) {
+    const parts = [
+        product.name,
+        product.nameEn,
+        product.nameAr,
+        product.nameCkb,
+        product.description,
+        product.descriptionEn,
+        product.descriptionAr,
+        product.descriptionCkb,
+        pieceText(product, "name"),
+        pieceText(product, "description"),
+        product.storeName,
+        product.area,
+        product.category,
+        ...filtersOnProduct(product)
+    ];
+
+    filtersOnProduct(product).forEach((name) => {
+        parts.push(tagLabel(name));
+        const hit = glossaryHit(name);
+
+        if (hit) {
+            parts.push(hit.en, hit.ar, hit.ckb);
+        }
+    });
+
+    return foldSearch(parts.filter(Boolean).join(" "))
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean);
+}
+
+function searchHit(product, query) {
+    const words = foldSearch(query).split(/\s+/).filter(Boolean);
+
+    if (!words.length) {
+        return { rank: 0, exact: true };
+    }
+
+    const tokens = searchTokens(product);
+    let rank = 0;
+    let exactWords = 0;
+
+    words.forEach((word) => {
+        let best = 0;
+        let exact = false;
+
+        relatedWords(word).forEach((form) => {
+            tokens.forEach((token) => {
+                const score = wordCloseness(form, token);
+
+                if (score > best) {
+                    best = score;
+                }
+
+                if (score >= 80) {
+                    exact = true;
+                }
+            });
+        });
+
+        if (exact) {
+            exactWords += 1;
+        }
+
+        rank += best;
+    });
+
+    return {
+        rank: rank,
+        exact: exactWords === words.length && rank > 0
+    };
+}
+
 function renderDiscover() {
-    if (!discoverList || !filterBar) {
+    if (!discoverList) {
         return;
     }
 
@@ -3003,6 +3182,7 @@ function renderDiscover() {
         renderDiscover.tagApplied = true;
     }
 
+    if (filterBar) {
     filterBar.innerHTML = "";
 
     const browse = document.createElement("p");
@@ -3056,37 +3236,40 @@ function renderDiscover() {
         block.prepend(heading);
         filterBar.appendChild(block);
     });
+    } else {
+        activeFilter = "All";
+    }
 
     const searchText = discoverSearch
-        ? discoverSearch.value.trim().toLowerCase()
+        ? discoverSearch.value.trim()
         : "";
 
-    let visibleProducts = activeFilter === "All"
+    let pool = activeFilter === "All"
         ? publicProducts
         : publicProducts.filter((product) => filtersOnProduct(product).includes(activeFilter));
 
+    let closest = false;
+
     if (searchText) {
-        visibleProducts = visibleProducts.filter((product) => {
-            const haystack = [
-                product.name,
-                product.nameEn,
-                product.nameAr,
-                product.nameCkb,
-                product.description,
-                product.descriptionEn,
-                product.descriptionAr,
-                product.descriptionCkb,
-                pieceText(product, "name"),
-                pieceText(product, "description"),
-                product.storeName,
-                product.area,
-                product.category,
-                ...filtersOnProduct(product),
-                ...filtersOnProduct(product).map((name) => tagLabel(name))
-            ].join(" ").toLowerCase();
-            return haystack.includes(searchText);
+        const ranked = pool.map((product) => {
+            return { product: product, hit: searchHit(product, searchText) };
         });
+        const exact = ranked.filter((item) => item.hit.exact);
+
+        if (exact.length) {
+            pool = exact
+                .sort((left, right) => right.hit.rank - left.hit.rank)
+                .map((item) => item.product);
+        } else {
+            pool = ranked
+                .filter((item) => item.hit.rank >= 40)
+                .sort((left, right) => right.hit.rank - left.hit.rank)
+                .map((item) => item.product);
+            closest = pool.length > 0;
+        }
     }
+
+    const visibleProducts = pool;
 
     discoverList.innerHTML = "";
 
@@ -3097,6 +3280,13 @@ function renderDiscover() {
             : t("nothingInCategory");
         discoverList.appendChild(empty);
         return;
+    }
+
+    if (closest) {
+        const note = document.createElement("p");
+        note.className = "search-note";
+        note.textContent = t("closestMatches");
+        discoverList.appendChild(note);
     }
 
     visibleProducts.forEach((product) => {

@@ -867,17 +867,24 @@ main h1 {
 }
 
 .discover-search {
-    width: min(440px, 100%);
+    width: min(520px, 100%);
     display: block;
-    margin: 0 auto 8px;
-    padding: 14px 2px;
-    border: none;
-    border-bottom: 1px solid #d8cec2;
-    background: transparent;
+    margin: 0 auto 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    background: #fff;
     font-family: "Jost", sans-serif;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ink);
+    text-align: start;
+}
+
+.search-note {
+    grid-column: 1 / -1;
+    margin: 0;
     text-align: center;
+    color: var(--muted);
+    font-size: 14px;
 }
 
 .product-actions {
