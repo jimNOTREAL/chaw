@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261009f";
+import { t, onLanguageChange } from "./lang.js?v=20261009i";
 
 const DELIVERY_FEE_IQD = 3000;
 
