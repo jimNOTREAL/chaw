@@ -32,13 +32,46 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008x";
+import { t, onLanguageChange } from "./lang.js?v=20261008y";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const signupButton = document.getElementById("signup-button");
 const loginButton = document.getElementById("login-button");
 const authMessage = document.getElementById("auth-message");
+
+let isSigningUp = false;
+let authMode = "login";
+let authPanelName = "signin";
+
+function showAuthPanel(panel) {
+    authPanelName = panel === "login" ? "login" : "signin";
+    const join = document.getElementById("join-link");
+    const emailLink = document.getElementById("email-login-link");
+
+    if (join) {
+        join.classList.toggle("active", authPanelName === "signin");
+    }
+
+    if (emailLink) {
+        emailLink.classList.toggle("active", authPanelName === "login");
+    }
+
+    if (document.getElementById("auth-heading")) {
+        showAuthMode(authMode);
+    }
+}
+
+function openAuthPanel(panel) {
+    const hash = panel === "login" ? "#email-login" : "#sign-in";
+
+    if (window.location.hash === hash) {
+        showAuthPanel(panel);
+        return;
+    }
+
+    window.location.hash = hash;
+}
 
 function setupNavLogin() {
     const join = document.getElementById("join-link");
@@ -55,13 +88,42 @@ function setupNavLogin() {
     link.dataset.i18n = "login";
     link.href = onLoginPage() ? "#email-login" : "login.html#email-login";
     link.textContent = t("login");
+
+    if (onLoginPage()) {
+        join.href = "#sign-in";
+    }
+
     join.replaceWith(slot);
     slot.append(join, link);
-    link.addEventListener("click", () => {
+
+    if (!onLoginPage()) {
+        return;
+    }
+
+    join.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (authMode === "signup") {
+            authMode = "login";
+        }
+        openAuthPanel("signin");
+    });
+
+    link.addEventListener("click", (event) => {
+        event.preventDefault();
+        openAuthPanel("login");
         if (emailInput) {
             window.setTimeout(() => emailInput.focus(), 0);
         }
     });
+
+    window.addEventListener("hashchange", () => {
+        showAuthPanel(window.location.hash === "#email-login" ? "login" : "signin");
+        if (window.location.hash === "#email-login" && emailInput) {
+            emailInput.focus();
+        }
+    });
+
+    showAuthPanel(window.location.hash === "#email-login" ? "login" : "signin");
 }
 
 setupNavLogin();
@@ -174,9 +236,6 @@ function requireBuyer() {
     return false;
 }
 
-let isSigningUp = false;
-let authMode = "login";
-
 function authErrorText(error, provider) {
     const code = error && error.code;
     const facebook = provider === "facebook";
@@ -240,12 +299,28 @@ function showAuthMode(mode) {
     const forgotButton = document.getElementById("forgot-password");
     const switchButton = document.getElementById("auth-switch");
 
+    const loggingIn = authPanelName === "login" || creating;
+    const emailBlock = document.getElementById("email-login");
+    const providers = document.getElementById("provider-signin");
+
+    if (emailBlock) {
+        emailBlock.hidden = !loggingIn;
+    }
+
+    if (providers) {
+        providers.hidden = loggingIn;
+    }
+
     if (heading) {
-        heading.textContent = creating ? t("createHeading") : t("signInHeading");
+        heading.textContent = creating
+            ? t("createHeading")
+            : (loggingIn ? t("login") : t("signInHeading"));
     }
 
     if (lead) {
-        lead.textContent = creating ? t("createLead") : t("signInLead");
+        lead.textContent = creating
+            ? t("createLead")
+            : (loggingIn ? t("signInLead") : t("providerLead"));
     }
 
     if (signupButton) {
@@ -269,6 +344,17 @@ function showAuthMode(mode) {
 
     if (passwordInput) {
         passwordInput.autocomplete = creating ? "new-password" : "current-password";
+    }
+
+    const join = document.getElementById("join-link");
+    const emailLink = document.getElementById("email-login-link");
+
+    if (join) {
+        join.classList.toggle("active", !loggingIn);
+    }
+
+    if (emailLink) {
+        emailLink.classList.toggle("active", loggingIn);
     }
 }
 
@@ -477,6 +563,9 @@ const authSwitch = document.getElementById("auth-switch");
 
 if (authSwitch) {
     authSwitch.addEventListener("click", () => {
+        if (authMode !== "signup") {
+            authPanelName = "login";
+        }
         showAuthMode(authMode === "signup" ? "login" : "signup");
         if (authMessage) {
             authMessage.textContent = "";
