@@ -32,13 +32,39 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261008v";
+import { t, onLanguageChange } from "./lang.js?v=20261008x";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const signupButton = document.getElementById("signup-button");
 const loginButton = document.getElementById("login-button");
 const authMessage = document.getElementById("auth-message");
+
+function setupNavLogin() {
+    const join = document.getElementById("join-link");
+
+    if (!join || join.closest(".nav-signin")) {
+        return;
+    }
+
+    const slot = document.createElement("div");
+    slot.className = "nav-signin";
+    const link = document.createElement("a");
+    link.id = "email-login-link";
+    link.className = "nav-login";
+    link.dataset.i18n = "login";
+    link.href = onLoginPage() ? "#email-login" : "login.html#email-login";
+    link.textContent = t("login");
+    join.replaceWith(slot);
+    slot.append(join, link);
+    link.addEventListener("click", () => {
+        if (emailInput) {
+            window.setTimeout(() => emailInput.focus(), 0);
+        }
+    });
+}
+
+setupNavLogin();
 
 const productNameInput = document.getElementById("product-name");
 const productPriceInput = document.getElementById("product-price");
@@ -388,8 +414,17 @@ if (facebookButton) {
         signInWithProvider(facebookProvider(), facebookButton, "openingFacebook", "continueFacebook");
     });
 }
-if (loginButton) {
-    loginButton.addEventListener("click", async () => {
+const emailForm = document.getElementById("email-login-form");
+
+if (emailForm) {
+    emailForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (authMode === "signup") {
+            signupButton.click();
+            return;
+        }
+
         const email = emailInput.value.trim();
         const password = passwordInput.value;
 
@@ -411,6 +446,10 @@ if (loginButton) {
             console.error(error);
         }
     });
+
+    if (window.location.hash === "#email-login" && emailInput) {
+        emailInput.focus();
+    }
 }
 
 const forgotButton = document.getElementById("forgot-password");
@@ -2019,6 +2058,11 @@ function updateNav(user) {
 
     if (joinLink) {
         joinLink.hidden = Boolean(user);
+    }
+
+    const emailLoginLink = document.getElementById("email-login-link");
+    if (emailLoginLink) {
+        emailLoginLink.hidden = Boolean(user);
     }
 
     if (accountButton) {
