@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261009e";
+import { t, onLanguageChange } from "./lang.js?v=20261009f";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -719,7 +719,7 @@ function itemChoiceText(item) {
     return [item && item.color, item && item.size].filter(Boolean).map((name) => tagLabel(name)).join(" · ");
 }
 
-const builtinSections = ["size", "color", "type"];
+const builtinSections = ["size", "color", "type", "department", "brand"];
 
 function guessSection(name) {
     const word = String(name || "").trim().toLowerCase();
@@ -785,6 +785,9 @@ const tagGlossary = [
     { en: "Grey", ar: "رمادي", ckb: "خۆڵەمێشی", also: ["gray"] },
     { en: "Dark blue", ar: "أزرق غامق", ckb: "شینی تۆخ", also: ["dark blue"] },
     { en: "All colors", ar: "كل الألوان", ckb: "هەموو ڕەنگەکان", also: ["all color", "all colors"] },
+    { en: "All sizes", ar: "كل المقاسات", ckb: "هەموو قەبارەکان", also: ["all sizes"] },
+    { en: "Brand", ar: "الماركة", ckb: "مارکە" },
+    { en: "Second-hand", ar: "بالة", ckb: "لەنگە", also: ["second-handed clothes", "second hand"] },
     { en: "Department", ar: "القسم", ckb: "بەش" },
     { en: "Cargo pants", ar: "بنطلون كارجو", ckb: "پانتۆڵی کارگۆ" },
     { en: "Coat", ar: "معطف", ckb: "پالتۆ" },
@@ -1089,7 +1092,36 @@ function groupedBySection(categories) {
     });
 
     return keys.map((key) => {
-        return { key: key, items: groups.get(key) };
+        return { key: key, items: sortedTags(key, groups.get(key)) };
+    });
+}
+
+function tagOrder(key, name) {
+    const word = String(name || "").trim().toLowerCase();
+    const lists = {
+        size: ["xxs", "xs", "s", "sm", "m", "l", "xl", "xxl", "2xl", "3xl", "4xl", "5xl", "all sizes"],
+        color: ["red", "orange", "yellow", "green", "light blue", "blue", "dark blue", "navy", "purple", "pink", "brown", "beige", "grey", "gray", "black", "white", "gold", "silver"],
+        department: ["women", "men", "children"]
+    };
+    const list = lists[key];
+
+    if (!list) {
+        return 500;
+    }
+
+    const index = list.indexOf(word);
+    return index === -1 ? 400 : index;
+}
+
+function sortedTags(key, items) {
+    return items.slice().sort((left, right) => {
+        const order = tagOrder(key, left.name) - tagOrder(key, right.name);
+
+        if (order !== 0) {
+            return order;
+        }
+
+        return tagLabel(left.name).localeCompare(tagLabel(right.name), undefined, { sensitivity: "base" });
     });
 }
 
@@ -1140,11 +1172,21 @@ function fillFilterChoices(container, categories, selectedNames) {
     }
 
     const selected = new Set(selectedNames || []);
-    const choices = categories.map((category) => {
-        return {
+    const choices = [];
+
+    categories.forEach((category) => {
+        if (isAllColorsTag(category.name)) {
+            return;
+        }
+
+        if (choices.some((item) => sameFilterWord(item.name, category.name))) {
+            return;
+        }
+
+        choices.push({
             name: category.name,
             section: category.section || ""
-        };
+        });
     });
     const names = choices.map((category) => category.name);
 
@@ -2937,11 +2979,22 @@ function renderDiscover() {
     }
 
     const publicProducts = discoverProducts.filter((product) => !product.hidden);
-    const names = [...new Set(
-        publicProducts
-            .flatMap((product) => filtersOnProduct(product))
-            .filter(Boolean)
-    )];
+    const names = [];
+
+    publicProducts
+        .flatMap((product) => filtersOnProduct(product))
+        .filter(Boolean)
+        .forEach((name) => {
+            if (isAllColorsTag(name)) {
+                return;
+            }
+
+            if (names.some((existing) => sameFilterWord(existing, name))) {
+                return;
+            }
+
+            names.push(name);
+        });
 
     const requestedTag = new URLSearchParams(window.location.search).get("tag");
 
