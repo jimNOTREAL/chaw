@@ -32,7 +32,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange } from "./lang.js?v=20261009c";
+import { t, onLanguageChange } from "./lang.js?v=20261009e";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -44,6 +44,13 @@ const authMessage = document.getElementById("auth-message");
 
 let isSigningUp = false;
 let authMode = "login";
+let authReady = Promise.resolve();
+
+function cleanTyped(value) {
+    return String(value || "")
+        .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+        .trim();
+}
 
 const productNameInput = document.getElementById("product-name");
 const productPriceInput = document.getElementById("product-price");
@@ -194,7 +201,15 @@ function authErrorText(error, provider) {
     }
 
     if (code === "auth/unauthorized-domain") {
-        return t(facebook ? "facebookUnauthorized" : "googleUnauthorized");
+        if (facebook) {
+            return t("facebookUnauthorized");
+        }
+
+        if (provider === "google") {
+            return t("googleUnauthorized");
+        }
+
+        return t("signInUnauthorized");
     }
 
     if (code === "auth/operation-not-allowed") {
@@ -259,8 +274,8 @@ function showAuthMode(mode) {
 
 if (signupButton) {
     signupButton.addEventListener("click", async () => {
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
+        const email = cleanTyped(emailInput.value).toLowerCase();
+        const password = cleanTyped(passwordInput.value);
 
         if (!email) {
             authMessage.textContent = t("enterEmailFirst");
@@ -273,6 +288,7 @@ if (signupButton) {
         }
 
         try {
+            await authReady;
             isSigningUp = true;
 
             const userCredential = await createUserWithEmailAndPassword(
@@ -410,8 +426,8 @@ if (emailForm) {
             return;
         }
 
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
+        const email = cleanTyped(emailInput.value).toLowerCase();
+        const password = cleanTyped(passwordInput.value);
 
         if (!email) {
             authMessage.textContent = t("enterEmailFirst");
@@ -424,6 +440,7 @@ if (emailForm) {
         }
 
         try {
+            await authReady;
             await signInWithEmailAndPassword(auth, email, password);
             window.location.href = nextPage();
         } catch (error) {
@@ -437,7 +454,7 @@ const forgotButton = document.getElementById("forgot-password");
 
 if (forgotButton) {
     forgotButton.addEventListener("click", async () => {
-        const email = emailInput.value.trim();
+        const email = cleanTyped(emailInput.value).toLowerCase();
 
         if (!email) {
             authMessage.textContent = t("enterEmailFirst");
@@ -646,6 +663,12 @@ function filtersOnProduct(product) {
 }
 
 function isAllColorsTag(name) {
+    const hit = glossaryHit(name);
+
+    if (hit && hit.en === "All colors") {
+        return true;
+    }
+
     const word = String(name || "").trim().toLowerCase();
     return word === "all colors" || word === "all color" || word === "all colours";
 }
@@ -737,7 +760,13 @@ function sectionKeyOf(category) {
 }
 
 const tagGlossary = [
-    { en: "Pants", ar: "بنطلون", ckb: "پانتۆڵ" },
+    { en: "Pants", ar: "بنطلون", ckb: "پانتۆڵ", also: ["بنطول"] },
+    { en: "Women's pants", ar: "بنطلون نسائي", ckb: "پانتۆڵی ئافرەتان", also: ["بنطول نسائي"] },
+    { en: "Women's coat", ar: "معطف نسائي", ckb: "پالتۆی ئافرەتان", also: ["معطفا نسائي", "معطفا"] },
+    { en: "Silk", ar: "حرير", ckb: "حەریر" },
+    { en: "Soft", ar: "ناعم", ckb: "نەرم" },
+    { en: "Wool", ar: "صوف", ckb: "خوری" },
+    { en: "Rain", ar: "مطري", ckb: "باراناوی" },
     { en: "Jacket", ar: "جاكيت", ckb: "چاکەت" },
     { en: "Jack", ar: "جاكيت", ckb: "چاکەت" },
     { en: "Shirt", ar: "قميص", ckb: "قەمیس" },
@@ -931,6 +960,27 @@ function tagLabel(name) {
     return hit ? hit[lang] : translatePhrase(name);
 }
 
+function letterCounts(text) {
+    return {
+        arabic: (String(text).match(/[\u0600-\u06FF]/g) || []).length,
+        latin: (String(text).match(/[A-Za-z]/g) || []).length
+    };
+}
+
+function readableInLang(text, lang) {
+    const counts = letterCounts(text);
+
+    if (counts.arabic === 0 && counts.latin === 0) {
+        return true;
+    }
+
+    if (lang === "en") {
+        return counts.arabic === 0;
+    }
+
+    return counts.arabic > 0;
+}
+
 function pieceText(record, field) {
     const lang = uiLang();
     const specific = lang === "ar"
@@ -938,12 +988,16 @@ function pieceText(record, field) {
         : lang === "ckb"
             ? record[field + "Ckb"]
             : record[field + "En"];
+    const source = String(record[field] || "").trim();
+    const chosen = specific && String(specific).trim() ? String(specific).trim() : source;
+    let text = translatePhrase(chosen || source);
 
-    if (specific && String(specific).trim()) {
-        return String(specific).trim();
+    if (text && !readableInLang(text, lang)) {
+        const translated = translatePhrase(source);
+        text = readableInLang(translated, lang) ? translated : "";
     }
 
-    return translatePhrase(record[field] || "");
+    return text;
 }
 
 function sectionLabel(key) {
@@ -2918,13 +2972,23 @@ function renderDiscover() {
     });
 
     groupedBySection(tagged).forEach((group) => {
+        if (!builtinSections.includes(group.key)) {
+            return;
+        }
+
+        const items = group.items.filter((category) => !isAllColorsTag(category.name));
+
+        if (!items.length) {
+            return;
+        }
+
         const block = document.createElement("div");
         block.className = "filter-group";
         const heading = document.createElement("span");
         heading.className = "filter-group-label";
         heading.textContent = sectionLabel(group.key);
 
-        group.items.forEach((category) => {
+        items.forEach((category) => {
             const button = document.createElement("button");
             button.type = "button";
             button.textContent = tagLabel(category.name);
@@ -4252,4 +4316,4 @@ document.querySelectorAll("input[name='payment']").forEach((input) => {
 });
 
 renderCartPage();
-startAuth();
+authReady = startAuth();

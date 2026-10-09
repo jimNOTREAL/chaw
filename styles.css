@@ -574,27 +574,14 @@ nav ul a:hover {
 
 .hero {
     min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(280px, 0.85fr) minmax(340px, 1.15fr);
-    align-items: start;
+    display: block;
     text-align: left;
-    gap: 36px;
-    padding: 28px 5% 24px;
+    padding: 36px 5% 8px;
 }
 
 .hero-content {
-    max-width: none;
-    padding-top: 72px;
-}
-
-.hero-content::before {
-    content: "The collection";
-    display: block;
-    margin-bottom: 22px;
-    font-size: 12px;
-    letter-spacing: 0.42em;
-    text-transform: uppercase;
-    color: var(--wine);
+    max-width: 680px;
+    padding-top: 28px;
 }
 
 .hero h1 {
@@ -641,40 +628,42 @@ nav ul a:hover {
 
 .home-shop {
     width: 100%;
-    margin: -18px 0 0;
-    padding: 0;
+    margin: 28px 0 0;
+    padding: 0 5% 24px;
 }
 
 .home-shop h2 {
     font-family: "Cormorant Garamond", serif;
     font-weight: 500;
     font-size: clamp(36px, 4vw, 52px);
-    text-align: right;
+    text-align: start;
     margin-bottom: 12px;
 }
 
 .home-shop .filter-bar {
-    align-items: flex-end;
+    align-items: flex-start;
 }
 
 .home-shop .filter-group {
-    justify-content: flex-end;
+    justify-content: flex-start;
 }
 
 .home-shop .discover-search {
-    margin-left: auto;
+    margin-left: 0;
+    max-width: 480px;
 }
 
 .home-shop .discover-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
     width: 100%;
     overflow: visible;
     padding: 8px 0 16px;
 }
 
-.home-shop .product-card {
+.home-shop .product-card,
+.home-shop .product-card:nth-child(5n + 1) {
     width: auto;
     max-width: none;
     min-width: 0;
@@ -683,11 +672,7 @@ nav ul a:hover {
     position: relative;
     padding-bottom: 16px;
     overflow: hidden;
-    grid-column: span 2;
-}
-
-.home-shop .product-card:nth-child(5n + 1) {
-    grid-column: span 4;
+    grid-column: auto;
 }
 
 .home-shop .product-card > a {
@@ -717,36 +702,13 @@ nav ul a:hover {
     font-size: 26px;
 }
 
-.home-shop .product-card:nth-child(5n + 1) > a {
-    display: grid;
-    grid-template-columns: minmax(140px, 46%) minmax(0, 1fr);
-    min-height: 240px;
-    padding-bottom: 52px;
-}
-
-.home-shop .product-card:nth-child(5n + 1) img {
-    width: 100%;
-    height: 100%;
-    min-height: 240px;
-    grid-column: 1;
-    grid-row: 1 / span 4;
-}
-
-.home-shop .product-card:nth-child(5n + 1) h2,
-.home-shop .product-card:nth-child(5n + 1) p {
-    grid-column: 2;
-}
-
-.home-shop .product-card .cart-button {
-    position: static;
-    margin: 10px 16px 0;
-}
-
+.home-shop .product-card .cart-button,
 .home-shop .product-card:nth-child(5n + 1) .cart-button {
-    position: absolute;
-    left: 48%;
-    bottom: 16px;
-    margin: 0;
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 10px 16px 0;
 }
 
 .features {
@@ -1439,6 +1401,12 @@ footer {
     line-height: 1.8;
 }
 
+@media (max-width: 1100px) {
+    .home-shop .discover-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 800px) {
     nav {
         position: static;
@@ -1475,6 +1443,7 @@ footer {
 
     .home-shop {
         margin-top: 8px;
+        padding: 0 20px 16px;
     }
 
     .home-shop h2,
