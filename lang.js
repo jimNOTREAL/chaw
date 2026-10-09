@@ -1105,11 +1105,8 @@ function setupSwitcher() {
     });
 
     const join = document.getElementById("join-link");
-    const slot = join && join.closest(".nav-signin");
 
-    if (slot) {
-        nav.insertBefore(group, slot);
-    } else if (join) {
+    if (join) {
         nav.insertBefore(group, join);
     } else {
         nav.appendChild(group);
