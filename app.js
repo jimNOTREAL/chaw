@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010j";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010l";
 
 
 const emailInput = document.getElementById("email");
@@ -3372,24 +3372,52 @@ function shareMyLocation(button) {
 
 function paintShopDoorNote() {
     const note = document.getElementById("shop-pin-note");
-
-    if (!note) {
-        return;
-    }
-
     const isStore = accountProfile.role === "business";
-    note.hidden = !isStore;
+    const pinned = Boolean(isStore && shopPinFrom(accountProfile));
 
-    if (!isStore) {
+    if (note) {
+        note.hidden = !isStore;
+
+        if (isStore) {
+            if (note.dataset.rough === "1" && pinned) {
+                note.textContent = t("locationRough");
+            } else {
+                note.textContent = pinned ? t("shopDoorSaved") : t("shopDoorNeeded");
+            }
+        }
+    }
+
+    let banner = document.getElementById("shop-door-ask");
+
+    if (!isStore || pinned || onLoginPage()) {
+        if (banner) {
+            banner.hidden = true;
+        }
         return;
     }
 
-    if (note.dataset.rough === "1") {
-        note.textContent = t("locationRough");
-        return;
+    if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "shop-door-ask";
+        banner.className = "location-ask";
+        const nav = document.querySelector("nav");
+
+        if (nav) {
+            nav.insertAdjacentElement("afterend", banner);
+        } else {
+            document.body.prepend(banner);
+        }
     }
 
-    note.textContent = shopPinFrom(accountProfile) ? t("shopDoorSaved") : "";
+    banner.hidden = false;
+    banner.replaceChildren();
+    const text = document.createElement("p");
+    text.textContent = t("shopDoorNeeded");
+    const share = document.createElement("button");
+    share.type = "button";
+    share.textContent = t("setShopLocation");
+    share.addEventListener("click", () => setShopLocation(share));
+    banner.append(text, share);
 }
 
 function setShopLocation(button) {
