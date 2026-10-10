@@ -171,7 +171,7 @@ service cloud.firestore {
       allow update: if (
           signedIn()
           && resource.data.customerUid == request.auth.uid
-          && resource.data.status == "new"
+          && resource.data.status in ["new", "on the way"]
           && request.resource.data.status == "cancelled"
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
         ) || (

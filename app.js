@@ -4323,6 +4323,11 @@ function paymentLabel(method) {
     return method === "card" ? t("payByCard") : t("payOnDelivery");
 }
 
+function customerCanCancel(status) {
+    const name = String(status || "new").trim().toLowerCase();
+    return name === "new" || name === "on the way";
+}
+
 function statusLabel(status) {
     if (status === "on the way") {
         return t("onTheWay");
@@ -4477,7 +4482,7 @@ async function loadCustomerOrders(user) {
             }
             card.appendChild(title);
 
-            if (statusName === "new") {
+            if (customerCanCancel(statusName)) {
                 const cancel = document.createElement("button");
                 cancel.type = "button";
                 cancel.className = "cancel-order";
@@ -4505,7 +4510,7 @@ async function loadCustomerOrders(user) {
 }
 
 async function cancelCustomerOrder(order, user, button, statusLine) {
-    if (!user || String(order.status || "new").trim().toLowerCase() !== "new") {
+    if (!user || !customerCanCancel(order.status)) {
         return;
     }
 
@@ -4522,7 +4527,7 @@ async function cancelCustomerOrder(order, user, button, statusLine) {
 
         const current = orderSnap.data();
 
-        if (current.customerUid !== user.uid || String(current.status || "new").trim().toLowerCase() !== "new") {
+        if (current.customerUid !== user.uid || !customerCanCancel(current.status)) {
             throw new Error(t("couldNotCancel"));
         }
 
