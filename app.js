@@ -167,18 +167,29 @@ let guestDeliveryPin = null;
 let guestLocationAsked = false;
 let guestLocationBusy = false;
 let guestRenewing = false;
+let authSettled = false;
 
 function joinedAsGuest() {
     return localStorage.getItem(GUEST_KEY) === "1";
 }
 
+function hasSavedEntry() {
+    return localStorage.getItem(ACCOUNT_KEY) === "1" || joinedAsGuest();
+}
+
 function rememberAccount(user) {
+    if (!authSettled && !user) {
+        return;
+    }
+
     if (user && !user.isAnonymous) {
         localStorage.setItem(ACCOUNT_KEY, "1");
+        document.documentElement.classList.add("known-account");
         return;
     }
 
     localStorage.removeItem(ACCOUNT_KEY);
+    document.documentElement.classList.remove("known-account");
 }
 
 function anonymousOff(error) {
@@ -290,6 +301,11 @@ async function joinAsGuest(button) {
 }
 
 function syncEntryGate(user) {
+    if (!authSettled && !user && hasSavedEntry()) {
+        hideEntryGate();
+        return;
+    }
+
     if (onLoginPage() || (user && !user.isAnonymous) || (user && user.isAnonymous) || joinedAsGuest()) {
         hideEntryGate();
 
@@ -5319,23 +5335,12 @@ onLanguageChange(() => {
 async function startAuth() {
     try {
         await setPersistence(auth, browserLocalPersistence);
-        const redirectResult = await Promise.race([
-            getRedirectResult(auth),
-            new Promise((resolve) => setTimeout(() => resolve(null), 2500))
-        ]);
-
-        if (redirectResult && redirectResult.user) {
-            isSigningUp = true;
-            await saveGoogleProfile(redirectResult.user);
-            isSigningUp = false;
-        }
+        await auth.authStateReady();
     } catch (error) {
-        isSigningUp = false;
         console.error(error);
-        if (authMessage) {
-            authMessage.textContent = authErrorText(error);
-        }
     }
+
+    authSettled = true;
 
     onAuthStateChanged(auth, (user) => {
         rememberAccount(user);
@@ -5375,6 +5380,22 @@ async function startAuth() {
             loadCustomerOrders(user);
         }
     });
+
+    try {
+        const redirectResult = await getRedirectResult(auth);
+
+        if (redirectResult && redirectResult.user) {
+            isSigningUp = true;
+            await saveGoogleProfile(redirectResult.user);
+            isSigningUp = false;
+        }
+    } catch (error) {
+        isSigningUp = false;
+        console.error(error);
+        if (authMessage) {
+            authMessage.textContent = authErrorText(error);
+        }
+    }
 }
 
 const checkoutButton = document.getElementById("checkout-button");
@@ -5451,7 +5472,7 @@ if (guestLocationButton) {
     });
 }
 
-if (!onLoginPage() && !joinedAsGuest()) {
+if (!onLoginPage() && !hasSavedEntry()) {
     showEntryGate();
 }
 

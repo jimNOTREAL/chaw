@@ -1510,6 +1510,10 @@ html.entry-pending body > :not(#entry-gate) {
     visibility: hidden;
 }
 
+html.known-account #join-link {
+    visibility: hidden;
+}
+
 .entry-gate {
     position: fixed;
     inset: 0;
