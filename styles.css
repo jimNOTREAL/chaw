@@ -210,6 +210,106 @@ nav ul a:hover {
     overflow: visible;
 }
 
+.account-card {
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid var(--line);
+    padding: 22px 22px 8px;
+    margin-bottom: 18px;
+}
+
+.account-identity {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin-bottom: 8px;
+}
+
+.section-head h2 {
+    margin-bottom: 0;
+}
+
+.add-product-button {
+    display: inline-block;
+    padding: 12px 18px;
+    background: var(--ink);
+    color: var(--ivory);
+    text-decoration: none;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+}
+
+.add-product-page {
+    width: min(720px, calc(100% - 40px));
+    margin: 28px auto 80px;
+}
+
+.add-product-page h1 {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: clamp(40px, 5vw, 64px);
+    text-align: left;
+    margin-bottom: 8px;
+}
+
+.add-product-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.add-product-actions #account-cancel-edit {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+}
+
+[dir="rtl"] .add-product-page h1 {
+    text-align: right;
+}
+
+.piece-photo-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 8px 0 14px;
+}
+
+.piece-photo {
+    width: 120px;
+}
+
+.piece-photo img {
+    width: 120px;
+    height: 120px;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.piece-photo button {
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
+.photo-count {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: -6px;
+}
+
 .account-catalog h2 {
     font-family: "Cormorant Garamond", serif;
     font-weight: 500;
@@ -496,7 +596,8 @@ nav ul a:hover {
 }
 
 .account-panel .filter-choices input,
-.auth-box .filter-choices input {
+.auth-box .filter-choices input,
+.add-product-page .filter-choices input {
     width: auto;
     margin: 0;
     padding: 0;
@@ -535,7 +636,10 @@ nav ul a:hover {
     margin: 8px 0 12px;
 }
 
-.account-panel input {
+.account-panel input,
+.add-product-page input[type="text"],
+.add-product-page input[type="number"],
+.add-product-page input[type="file"] {
     width: 100%;
     margin-bottom: 8px;
     padding: 12px 2px;
@@ -547,7 +651,8 @@ nav ul a:hover {
     color: var(--ink);
 }
 
-.account-panel button {
+.account-panel button,
+.add-product-actions button {
     width: 100%;
     margin-top: 12px;
     padding: 12px;
@@ -562,6 +667,12 @@ nav ul a:hover {
 }
 
 .account-panel #logout-button {
+    margin-top: 0;
+}
+
+.add-product-actions button {
+    width: auto;
+    flex: 1;
     margin-top: 0;
 }
 
@@ -1552,11 +1663,41 @@ footer {
     align-items: center;
 }
 
-.product-page img {
+.product-page > img,
+.product-gallery > img {
     width: 100%;
     aspect-ratio: 1 / 1;
     height: auto;
     max-height: 560px;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.product-thumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.product-thumbs button {
+    width: 72px;
+    height: 72px;
+    padding: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+}
+
+.product-thumbs button.active {
+    border-color: var(--ink);
+}
+
+.product-thumbs img {
+    width: 72px;
+    height: 72px;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
     object-position: center;
     display: block;
@@ -1699,7 +1840,8 @@ footer {
         gap: 20px;
     }
 
-    .product-page img {
+    .product-page > img,
+    .product-gallery > img {
         aspect-ratio: 1 / 1;
         height: auto;
         max-height: none;

@@ -19,7 +19,7 @@
             }
             document.documentElement.lang = lang;
             document.documentElement.dir = (lang === "ar" || lang === "ckb") ? "rtl" : "ltr";
-            if (localStorage.getItem("chaw-guest") !== "1") {
+            if (localStorage.getItem("chaw-guest") !== "1" && localStorage.getItem("chaw-account") !== "1") {
                 document.documentElement.classList.add("entry-pending");
             }
         })();
@@ -29,7 +29,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261009s">
+    <link rel="stylesheet" href="styles.css?v=20261009t">
 </head>
 <body>
     <nav>
@@ -55,17 +55,21 @@
         <nav id="store-jump" class="page-jump" hidden>
             <a href="#account-products" data-i18n="jumpPieces">Pieces</a>
             <a href="#account-orders" data-i18n="jumpOrders">Orders</a>
-            <a href="#account-publish" data-i18n="jumpAdd">Add a piece</a>
             <a href="#account-details" data-i18n="jumpDetails">Details</a>
+            <a href="add-product.html" data-i18n="addProductButton">Add product</a>
         </nav>
-        <section id="account-products" class="account-catalog" hidden>
-            <h2 data-i18n="editYourPieces">Edit your pieces</h2>
-            <p data-i18n="editPiecesHelp">Press Edit on a piece. Change it on the right, then press Save changes.</p>
+        <section id="account-products" class="account-catalog account-card" hidden>
+            <div class="section-head">
+                <h2 data-i18n="editYourPieces">Edit your pieces</h2>
+                <a class="add-product-button" href="add-product.html" data-i18n="addProductButton">Add product</a>
+            </div>
+            <p data-i18n="editPiecesHelp">Press Edit to change a piece. Press Add product to add a new one.</p>
             <button type="button" id="allow-order-alerts" hidden data-i18n="allowOrderAlerts">Allow order alerts</button>
             <div id="account-product-list"></div>
         </section>
 
         <div id="account-panel" class="account-panel account-page">
+            <div class="account-card account-identity">
             <div class="account-photo-wrap">
                 <img id="account-photo" alt="" hidden>
                 <span id="account-initial"></span>
@@ -73,8 +77,11 @@
             </div>
             <p id="account-store-kicker" hidden data-i18n="storeKicker">Store</p>
             <p id="account-email"></p>
+            <a class="add-product-button add-product-link" href="add-product.html" hidden data-i18n="addProductButton">Add product</a>
+            </div>
 
-            <h2 id="account-details" data-i18n="yourDetails">Your details</h2>
+            <div class="account-card" id="account-details">
+            <h2 data-i18n="yourDetails">Your details</h2>
             <label class="file-label" id="display-name-label" for="display-name" data-i18n="displayName">Customer name</label>
             <input id="display-name" type="text" maxlength="40" data-i18n-placeholder="displayName" placeholder="Display name">
             <label class="file-label" for="account-phone" data-i18n="phone">Phone</label>
@@ -84,8 +91,9 @@
             <p id="delivery-hint" data-i18n="deliveryHint">The store uses this address so the delivery knows where to go.</p>
             <label class="file-label" for="profile-image" data-i18n="profilePhoto">Profile photo</label>
             <input id="profile-image" type="file" accept="image/*">
+            </div>
 
-            <div id="store-contact" hidden>
+            <div id="store-contact" class="account-card" hidden>
                 <h2 data-i18n="storeContact">Store contact</h2>
                 <label class="file-label" id="account-area-label" for="account-area" data-i18n="area">Area</label>
                 <input id="account-area" type="text" data-i18n-placeholder="areaOrCity" placeholder="Area or city">
@@ -105,24 +113,9 @@
             <button type="button" id="save-account-button" data-i18n="save">Save</button>
             <p id="account-form-message"></p>
 
-            <div id="account-orders" hidden>
+            <div id="account-orders" class="account-card" hidden>
                 <h2 data-i18n="orders">Orders</h2>
                 <div id="order-list"></div>
-            </div>
-
-            <div id="account-publish" hidden>
-                <h2 id="account-publish-title" data-i18n="addAPiece">Add a piece</h2>
-                <p data-i18n="chooseFilters">Choose the filters customers can use.</p>
-                <div id="account-filters" class="filter-choices"></div>
-                <input id="account-product-name" type="text" data-i18n-placeholder="pieceName" placeholder="Piece name">
-                <input id="account-product-price" type="number" data-i18n-placeholder="priceIqd" placeholder="Price (IQD)">
-                <input id="account-product-stock" type="number" data-i18n-placeholder="stock" placeholder="Stock">
-                <input id="account-product-description" type="text" data-i18n-placeholder="description" placeholder="Description">
-                <label class="file-label" for="account-product-image" data-i18n="photo">Photo</label>
-                <input id="account-product-image" type="file" accept="image/*">
-                <button type="button" id="account-publish-button" data-i18n="publish">Publish</button>
-                <button type="button" id="account-cancel-edit" hidden data-i18n="cancel">Cancel</button>
-                <p id="account-publish-message"></p>
             </div>
         </div>
     </main>
@@ -131,6 +124,6 @@
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261009s"></script>
+    <script type="module" src="app.js?v=20261009t"></script>
 </body>
 </html>

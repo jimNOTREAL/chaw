@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" data-i18n-title="titleHome">
+<html lang="en" data-i18n-title="titleAddProduct">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-site-verification" content="mBHxZFwyummUPR-p25GcNPcNndZfxeIaQWR3AUuWx_I">
 
     <script>
         (function () {
@@ -25,7 +24,7 @@
             }
         })();
     </script>
-    <title>Chaw — Discover What's Around You</title>
+    <title>Add product — Chaw</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,59 +51,35 @@
         </button>
     </nav>
 
-    <main>
-        <section class="hero" id="home">
-            <div class="hero-content">
-                <h1 data-i18n-html="heroTitle">
-                    Discover what's <span>around you.</span>
-                </h1>
+    <main id="add-product-page" class="add-product-page">
+        <a class="back-link" href="account.html" data-i18n="backToProfile">Back to profile</a>
+        <p id="add-product-note" hidden></p>
+        <form id="add-product-form" class="account-card">
+            <h1 id="account-publish-title" data-i18n="addProductButton">Add product</h1>
+            <p data-i18n="chooseFilters">Pick tags from each section, such as Size or Color.</p>
 
-                <p data-i18n="heroText">
-                    Chaw connects people with local businesses,
-                    products and places worth discovering.
-                    Everything you need, closer than you think.
-                </p>
+            <label class="file-label" for="account-product-image" data-i18n="photos">Photos</label>
+            <p class="field-hint" data-i18n="addMorePhotos">You can add more than one photo.</p>
+            <div id="piece-photo-list" class="piece-photo-list"></div>
+            <input id="account-product-image" type="file" accept="image/*" multiple>
 
-                <a href="#shop" class="hero-button" data-i18n="exploreChaw">
-                    Explore Chaw
-                </a>
+            <label class="file-label" for="account-product-name" data-i18n="pieceName">Piece name</label>
+            <input id="account-product-name" type="text" data-i18n-placeholder="pieceName" placeholder="Piece name">
+            <label class="file-label" for="account-product-price" data-i18n="priceIqd">Price (IQD)</label>
+            <input id="account-product-price" type="number" data-i18n-placeholder="priceIqd" placeholder="Price (IQD)">
+            <label class="file-label" for="account-product-stock" data-i18n="stock">Stock</label>
+            <input id="account-product-stock" type="number" data-i18n-placeholder="stock" placeholder="Stock">
+            <label class="file-label" for="account-product-description" data-i18n="description">Description</label>
+            <input id="account-product-description" type="text" data-i18n-placeholder="description" placeholder="Description">
+
+            <div id="account-filters" class="filter-choices"></div>
+
+            <div class="add-product-actions">
+                <button type="button" id="account-publish-button" data-i18n="publish">Publish</button>
+                <button type="button" id="account-cancel-edit" data-i18n="cancel">Cancel</button>
             </div>
-
-            <section class="home-shop" id="shop">
-                <h2 data-i18n="theCollection">The collection</h2>
-                <div id="discover-list" class="discover-grid"></div>
-            </section>
-        </section>
-
-        <section class="features" id="discover">
-            <h2 data-i18n="everythingLocal">Everything local.</h2>
-
-            <div class="feature-container">
-                <div class="feature">
-                    <h3 data-i18n="featureDiscover">🛍 Discover</h3>
-                    <p data-i18n="featureDiscoverText">
-                        Find products, stores and services
-                        around you without wasting time searching.
-                    </p>
-                </div>
-
-                <div class="feature">
-                    <h3 data-i18n="featureBusinesses">🏪 Local Businesses</h3>
-                    <p data-i18n="featureBusinessesText">
-                        Businesses can showcase what they offer
-                        and reach more customers through Chaw.
-                    </p>
-                </div>
-
-                <div class="feature">
-                    <h3 data-i18n="featureNear">📍 Near You</h3>
-                    <p data-i18n="featureNearText">
-                        Explore what's available in your city
-                        and discover businesses you didn't know existed.
-                    </p>
-                </div>
-            </div>
-        </section>
+            <p id="account-publish-message"></p>
+        </form>
     </main>
 
     <footer>

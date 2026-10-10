@@ -33,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009s";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009t";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -162,6 +162,7 @@ function requireBuyer() {
 }
 
 const GUEST_KEY = "chaw-guest";
+const ACCOUNT_KEY = "chaw-account";
 let guestDeliveryPin = null;
 let guestLocationAsked = false;
 let guestLocationBusy = false;
@@ -169,6 +170,15 @@ let guestRenewing = false;
 
 function joinedAsGuest() {
     return localStorage.getItem(GUEST_KEY) === "1";
+}
+
+function rememberAccount(user) {
+    if (user && !user.isAnonymous) {
+        localStorage.setItem(ACCOUNT_KEY, "1");
+        return;
+    }
+
+    localStorage.removeItem(ACCOUNT_KEY);
 }
 
 function anonymousOff(error) {
@@ -666,14 +676,18 @@ function compressProductImage(file, maxSize = 800, maxLength = 700000) {
             canvas.getContext("2d").drawImage(image, 0, 0, width, height);
             URL.revokeObjectURL(objectUrl);
 
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+            const qualities = [0.72, 0.58, 0.45];
 
-            if (dataUrl.length > maxLength) {
-                reject(new Error(t("photoTooLarge")));
-                return;
+            for (let index = 0; index < qualities.length; index += 1) {
+                const dataUrl = canvas.toDataURL("image/jpeg", qualities[index]);
+
+                if (dataUrl.length <= maxLength) {
+                    resolve(dataUrl);
+                    return;
+                }
             }
 
-            resolve(dataUrl);
+            reject(new Error(t("photoTooLarge")));
         };
 
         image.onerror = () => {
@@ -683,6 +697,79 @@ function compressProductImage(file, maxSize = 800, maxLength = 700000) {
 
         image.src = objectUrl;
     });
+}
+
+const MAX_PIECE_PHOTOS = 6;
+let piecePhotos = [];
+
+function productPhotoList(product) {
+    if (!product) {
+        return [];
+    }
+
+    if (Array.isArray(product.imageUrls)) {
+        const urls = product.imageUrls.filter((url) => typeof url === "string" && url);
+        if (urls.length) {
+            return urls.slice(0, MAX_PIECE_PHOTOS);
+        }
+    }
+
+    return product.imageUrl ? [product.imageUrl] : [];
+}
+
+function renderPiecePhotoPreview() {
+    const list = document.getElementById("piece-photo-list");
+
+    if (!list) {
+        return;
+    }
+
+    list.replaceChildren();
+
+    piecePhotos.forEach((src, index) => {
+        const item = document.createElement("div");
+        item.className = "piece-photo";
+        const image = document.createElement("img");
+        image.src = src;
+        image.alt = "";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = t("removePhoto");
+        remove.addEventListener("click", () => {
+            piecePhotos.splice(index, 1);
+            renderPiecePhotoPreview();
+        });
+        item.append(image, remove);
+        list.appendChild(item);
+    });
+}
+
+async function addChosenPhotos(input) {
+    const message = document.getElementById("account-publish-message");
+    const files = [...(input.files || [])];
+    input.value = "";
+
+    for (let index = 0; index < files.length; index += 1) {
+        if (piecePhotos.length >= MAX_PIECE_PHOTOS) {
+            if (message) {
+                message.textContent = t("photoLimit");
+            }
+            break;
+        }
+
+        try {
+            const url = await uploadProductImage(auth.currentUser, files[index]);
+            if (url) {
+                piecePhotos.push(url);
+            }
+        } catch (error) {
+            if (message) {
+                message.textContent = error.message;
+            }
+        }
+    }
+
+    renderPiecePhotoPreview();
 }
 
 async function uploadProductImage(user, file) {
@@ -698,7 +785,7 @@ async function uploadProductImage(user, file) {
         throw new Error(t("imageUnder5"));
     }
 
-    return compressProductImage(file);
+    return compressProductImage(file, 640, 140000);
 }
 
 function clearProductForm() {
@@ -1427,6 +1514,7 @@ if (addProductButton) {
 
                 if (imageUrl) {
                     updates.imageUrl = imageUrl;
+                    updates.imageUrls = [imageUrl];
                 }
 
                 await updateDoc(doc(db, "products", editingId), updates);
@@ -1449,6 +1537,7 @@ if (addProductButton) {
                     price: productPrice,
                     stock: productStock,
                     imageUrl: imageUrl,
+                    imageUrls: imageUrl ? [imageUrl] : [],
                     filters: filters,
                     category: filters[0],
                     businessId: currentBusiness.email,
@@ -1517,9 +1606,10 @@ async function loadMyProducts() {
                 <button type="button" class="delete-product-button">${t("delete")}</button>
             `;
 
-            if (product.imageUrl) {
+            const cover = productPhotoList(product)[0];
+            if (cover) {
                 const productImage = document.createElement("img");
-                productImage.src = product.imageUrl;
+                productImage.src = cover;
                 productImage.alt = pieceText(product, "name") || t("productPhoto");
                 productItem.prepend(productImage);
             }
@@ -2402,6 +2492,7 @@ function setupAccountMenu() {
     const logoutButton = document.getElementById("logout-button");
     if (logoutButton) {
         logoutButton.addEventListener("click", async () => {
+            localStorage.removeItem(ACCOUNT_KEY);
             await signOut(auth);
             window.location.href = "index.html";
         });
@@ -2419,7 +2510,29 @@ function setupAccountMenu() {
 
     const cancelEditButton = document.getElementById("account-cancel-edit");
     if (cancelEditButton) {
-        cancelEditButton.addEventListener("click", clearAccountPieceForm);
+        cancelEditButton.addEventListener("click", () => {
+            if (document.getElementById("add-product-page")) {
+                window.location.href = "account.html";
+                return;
+            }
+
+            clearAccountPieceForm();
+        });
+    }
+
+    const imageInput = document.getElementById("account-product-image");
+    if (imageInput) {
+        imageInput.addEventListener("change", () => {
+            addChosenPhotos(imageInput);
+        });
+    }
+
+    const addForm = document.getElementById("add-product-form");
+    if (addForm) {
+        addForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            publishFromAccount();
+        });
     }
 
     setupCartLink();
@@ -2604,6 +2717,22 @@ async function loadAccountProfile(user) {
         piecesSection.hidden = true;
     }
 
+    document.querySelectorAll(".add-product-link").forEach((link) => {
+        link.hidden = !isStore;
+    });
+
+    const addForm = document.getElementById("add-product-form");
+    const addNote = document.getElementById("add-product-note");
+    if (addForm) {
+        addForm.hidden = !isStore;
+    }
+    if (addNote) {
+        addNote.hidden = isStore;
+        if (!isStore) {
+            addNote.textContent = t("onlyStoresAdd");
+        }
+    }
+
     if (publishSection) {
         publishSection.hidden = !isStore;
     }
@@ -2629,6 +2758,7 @@ async function loadAccountProfile(user) {
                 categories,
                 profile.category ? [profile.category] : []
             );
+            await loadPieceBeingEdited();
             await loadStoreOrders(user.uid);
             await loadAccountProducts(user.uid);
             setupOrderAlertButton();
@@ -2980,7 +3110,6 @@ async function publishFromAccount() {
     const price = Number(document.getElementById("account-product-price").value);
     const stock = Number(document.getElementById("account-product-stock").value);
     const description = document.getElementById("account-product-description").value.trim();
-    const fileInput = document.getElementById("account-product-image");
     const editingId = publishButton ? publishButton.dataset.editingId : "";
 
     if (!user || accountProfile.role !== "business") {
@@ -3008,7 +3137,7 @@ async function publishFromAccount() {
     }
 
     try {
-        const imageUrl = await uploadProductImage(user, fileInput.files[0]);
+        const photos = piecePhotos.slice(0, MAX_PIECE_PHOTOS);
         const fields = {
             ...languageFields("name", name),
             ...languageFields("description", description),
@@ -3021,12 +3150,10 @@ async function publishFromAccount() {
             phone: accountProfile.phone || "",
             whatsapp: accountProfile.whatsapp || "",
             acceptsCard: Boolean(accountProfile.acceptsCard),
-            cardPaymentUrl: accountProfile.cardPaymentUrl || ""
+            cardPaymentUrl: accountProfile.cardPaymentUrl || "",
+            imageUrl: photos[0] || "",
+            imageUrls: photos
         };
-
-        if (imageUrl) {
-            fields.imageUrl = imageUrl;
-        }
 
         if (editingId) {
             await updateDoc(doc(db, "products", editingId), fields);
@@ -3034,7 +3161,6 @@ async function publishFromAccount() {
         } else {
             await addDoc(collection(db, "products"), {
                 ...fields,
-                imageUrl: imageUrl,
                 businessId: user.email,
                 ownerUid: user.uid,
                 hidden: false
@@ -3043,6 +3169,9 @@ async function publishFromAccount() {
         }
 
         clearAccountPieceForm();
+        if (document.getElementById("add-product-page")) {
+            history.replaceState(null, "", "add-product.html");
+        }
         await loadAccountProducts(user.uid);
         await loadDiscover();
     } catch (error) {
@@ -3080,6 +3209,8 @@ function clearAccountPieceForm() {
     if (fileInput) {
         fileInput.value = "";
     }
+    piecePhotos = [];
+    renderPiecePhotoPreview();
     if (publishButton) {
         publishButton.textContent = t("publish");
         delete publishButton.dataset.editingId;
@@ -3089,7 +3220,79 @@ function clearAccountPieceForm() {
         publishTitle.textContent = t("addAPiece");
     }
     if (cancelButton) {
-        cancelButton.hidden = true;
+        cancelButton.hidden = !document.getElementById("add-product-page");
+    }
+}
+
+async function loadPieceBeingEdited() {
+    const page = document.getElementById("add-product-page");
+    const publishButton = document.getElementById("account-publish-button");
+
+    if (!page || !publishButton || !auth.currentUser) {
+        return;
+    }
+
+    const productId = new URLSearchParams(window.location.search).get("id");
+
+    if (!productId) {
+        return;
+    }
+
+    const message = document.getElementById("account-publish-message");
+
+    try {
+        const snap = await getDoc(doc(db, "products", productId));
+
+        if (!snap.exists() || snap.data().ownerUid !== auth.currentUser.uid) {
+            if (message) {
+                message.textContent = t("couldNotLoadPieces");
+            }
+            return;
+        }
+
+        const product = snap.data();
+        const nameInput = document.getElementById("account-product-name");
+        const priceInput = document.getElementById("account-product-price");
+        const stockInput = document.getElementById("account-product-stock");
+        const descriptionInput = document.getElementById("account-product-description");
+
+        if (nameInput) {
+            nameInput.value = product.name || "";
+        }
+        if (priceInput) {
+            priceInput.value = product.price;
+        }
+        if (stockInput) {
+            stockInput.value = product.stock;
+        }
+        if (descriptionInput) {
+            descriptionInput.value = product.description || "";
+        }
+
+        fillFilterChoices(
+            document.getElementById("account-filters"),
+            availableFilters,
+            filtersOnProduct(product)
+        );
+        piecePhotos = productPhotoList(product);
+        renderPiecePhotoPreview();
+        publishButton.textContent = t("saveChanges");
+        publishButton.dataset.editingId = productId;
+
+        const title = document.getElementById("account-publish-title");
+        if (title) {
+            title.textContent = t("editThisPiece");
+        }
+
+        const cancelButton = document.getElementById("account-cancel-edit");
+        if (cancelButton) {
+            cancelButton.hidden = false;
+        }
+    } catch (error) {
+        if (message) {
+            message.textContent = error.message;
+        }
+        console.error(error);
     }
 }
 
@@ -3122,11 +3325,18 @@ async function loadAccountProducts(uid) {
             const productId = productDocument.id;
             const card = document.createElement("article");
 
-            if (product.imageUrl) {
+            const photos = productPhotoList(product);
+            if (photos.length) {
                 const image = document.createElement("img");
-                image.src = product.imageUrl;
+                image.src = photos[0];
                 image.alt = pieceText(product, "name") || t("piecePhoto");
                 card.appendChild(image);
+                if (photos.length > 1) {
+                    const count = document.createElement("p");
+                    count.className = "photo-count";
+                    count.textContent = t("photoCount", { count: photos.length });
+                    card.appendChild(count);
+                }
             }
 
             const title = document.createElement("h3");
@@ -3148,31 +3358,7 @@ async function loadAccountProducts(uid) {
             editButton.type = "button";
             editButton.textContent = t("edit");
             editButton.addEventListener("click", () => {
-                document.getElementById("account-product-name").value = product.name || "";
-                document.getElementById("account-product-price").value = product.price;
-                document.getElementById("account-product-stock").value = product.stock;
-                document.getElementById("account-product-description").value = product.description || "";
-                fillFilterChoices(
-                    document.getElementById("account-filters"),
-                    availableFilters,
-                    filtersOnProduct(product)
-                );
-                const fileInput = document.getElementById("account-product-image");
-                if (fileInput) {
-                    fileInput.value = "";
-                }
-                const publishTitle = document.getElementById("account-publish-title");
-                if (publishTitle) {
-                    publishTitle.textContent = t("editThisPiece");
-                }
-                const publishButton = document.getElementById("account-publish-button");
-                publishButton.textContent = t("saveChanges");
-                publishButton.dataset.editingId = productId;
-                const cancelButton = document.getElementById("account-cancel-edit");
-                if (cancelButton) {
-                    cancelButton.hidden = false;
-                }
-                document.getElementById("account-publish").scrollIntoView({ behavior: "smooth" });
+                window.location.href = "add-product.html?id=" + encodeURIComponent(productId);
             });
 
             const deleteButton = document.createElement("button");
@@ -3185,7 +3371,8 @@ async function loadAccountProducts(uid) {
 
                 try {
                     await deleteDoc(doc(db, "products", productId));
-                    if (document.getElementById("account-publish-button").dataset.editingId === productId) {
+                    const publishButton = document.getElementById("account-publish-button");
+                    if (publishButton && publishButton.dataset.editingId === productId) {
                         clearAccountPieceForm();
                     }
                     await loadAccountProducts(uid);
@@ -3530,9 +3717,10 @@ function renderDiscover() {
         const link = document.createElement("a");
         link.href = "product.html?id=" + encodeURIComponent(product.id);
 
-        if (product.imageUrl) {
+        const cover = productPhotoList(product)[0];
+        if (cover) {
             const image = document.createElement("img");
-            image.src = product.imageUrl;
+            image.src = cover;
             image.alt = pieceText(product, "name") || t("productPhoto");
             link.appendChild(image);
         }
@@ -3735,6 +3923,50 @@ function productActions(product, productId, groups) {
     return actions;
 }
 
+function renderProductGallery(product, name) {
+    const photos = productPhotoList(product);
+
+    if (!photos.length) {
+        return null;
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "product-gallery";
+    const main = document.createElement("img");
+    main.src = photos[0];
+    main.alt = name;
+    wrap.appendChild(main);
+
+    if (photos.length > 1) {
+        const row = document.createElement("div");
+        row.className = "product-thumbs";
+
+        photos.forEach((src, index) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            if (index === 0) {
+                button.className = "active";
+            }
+            const thumb = document.createElement("img");
+            thumb.src = src;
+            thumb.alt = "";
+            button.appendChild(thumb);
+            button.addEventListener("click", () => {
+                main.src = src;
+                row.querySelectorAll("button").forEach((item) => {
+                    item.classList.remove("active");
+                });
+                button.classList.add("active");
+            });
+            row.appendChild(button);
+        });
+
+        wrap.appendChild(row);
+    }
+
+    return wrap;
+}
+
 async function loadProductPage() {
     const productView = document.getElementById("product-view");
 
@@ -3811,11 +4043,9 @@ async function loadProductPage() {
 
         copy.append(category, title, store, price, stock, description, productActions(product, productId, groups));
 
-        if (product.imageUrl) {
-            const image = document.createElement("img");
-            image.src = product.imageUrl;
-            image.alt = pieceText(product, "name") || t("productPhoto");
-            productView.append(image, copy);
+        const gallery = renderProductGallery(product, pieceText(product, "name") || t("productPhoto"));
+        if (gallery) {
+            productView.append(gallery, copy);
         } else {
             productView.appendChild(copy);
         }
@@ -3916,7 +4146,7 @@ function addProductToCart(product, productId, picked, quantity) {
             stock: stock,
             storeName: product.storeName || "",
             ownerUid: product.ownerUid || "",
-            imageUrl: product.imageUrl || "",
+            imageUrl: productPhotoList(product)[0] || "",
             acceptsCard: Boolean(product.acceptsCard),
             cardPaymentUrl: product.cardPaymentUrl || "",
             color: color,
@@ -5040,6 +5270,7 @@ onLanguageChange(() => {
     renderDiscover();
     renderCartPage();
     refreshAccountLabels();
+    renderPiecePhotoPreview();
     fillFilterChoices(
         document.getElementById("account-filters"),
         availableFilters,
@@ -5098,10 +5329,11 @@ async function startAuth() {
     }
 
     onAuthStateChanged(auth, (user) => {
+        rememberAccount(user);
         syncEntryGate(user);
         updateNav(user);
 
-        if (user && user.isAnonymous && (onDashboardPage() || document.getElementById("account-page"))) {
+        if (user && user.isAnonymous && (onDashboardPage() || document.getElementById("account-page") || document.getElementById("add-product-page"))) {
             window.location.href = "index.html";
             return;
         }
@@ -5116,8 +5348,10 @@ async function startAuth() {
             loadSales();
             prepareDashboard(user);
         } else if (!user) {
-            if (onDashboardPage() || document.getElementById("account-page")) {
-                const next = document.getElementById("account-page") ? "account.html" : "";
+            if (onDashboardPage() || document.getElementById("account-page") || document.getElementById("add-product-page")) {
+                const next = document.getElementById("add-product-page")
+                    ? "add-product.html" + window.location.search
+                    : document.getElementById("account-page") ? "account.html" : "";
                 window.location.href = next
                     ? "login.html?next=" + encodeURIComponent(next)
                     : "login.html";
