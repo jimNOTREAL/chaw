@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009z";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010f";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -2867,7 +2867,8 @@ function hasDeliveryPin(source) {
 }
 
 function mapsPinUrl(lat, lng) {
-    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(lat + "," + lng);
+    const point = Number(lat).toFixed(6) + "," + Number(lng).toFixed(6);
+    return "https://www.google.com/maps?q=" + encodeURIComponent(point) + "&z=19";
 }
 
 function hideLocationAsk() {
@@ -2948,28 +2949,65 @@ function readBrowserLocation() {
             return;
         }
 
-        const attempts = [
-            { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 },
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-        ];
+        let watchId = 0;
+        let timer = 0;
+        let best = null;
+        let settled = false;
+        const started = Date.now();
+        const closeEnough = 30;
+        const waitMs = 15000;
 
-        const tryAt = (index) => {
-            navigator.geolocation.getCurrentPosition(resolve, (error) => {
-                if (error && error.code === 1) {
-                    reject(error);
-                    return;
-                }
+        const finish = (position, error) => {
+            if (settled) {
+                return;
+            }
 
-                if (index + 1 < attempts.length) {
-                    tryAt(index + 1);
-                    return;
-                }
+            settled = true;
+            navigator.geolocation.clearWatch(watchId);
+            clearTimeout(timer);
 
-                reject(error || { code: 2 });
-            }, attempts[index]);
+            if (position) {
+                resolve(position);
+                return;
+            }
+
+            reject(error || { code: 2 });
         };
 
-        tryAt(0);
+        watchId = navigator.geolocation.watchPosition((position) => {
+            const accuracy = Number(position.coords.accuracy);
+            const previous = Number(best && best.coords.accuracy);
+
+            if (!best || !Number.isFinite(previous) || (Number.isFinite(accuracy) && accuracy < previous)) {
+                best = position;
+            }
+
+            if (Number.isFinite(accuracy) && accuracy <= closeEnough) {
+                finish(position);
+                return;
+            }
+
+            if (Date.now() - started >= waitMs && best) {
+                finish(best);
+            }
+        }, (error) => {
+            if (error && error.code === 1) {
+                finish(null, error);
+                return;
+            }
+
+            if (best) {
+                finish(best);
+            }
+        }, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 20000
+        });
+
+        timer = setTimeout(() => {
+            finish(best, { code: 3 });
+        }, waitMs);
     });
 }
 
@@ -3014,6 +3052,11 @@ function shareMyLocation(button) {
             localStorage.removeItem("chaw-loc-later");
             suggestLocation();
             renderCheckoutDetails();
+            const accuracy = Number(position.coords.accuracy);
+            const pinNote = document.getElementById("location-pin-note");
+            if (pinNote && Number.isFinite(accuracy) && accuracy > 50) {
+                pinNote.textContent = t("locationRough");
+            }
         } catch (error) {
             console.error(error);
             const message = error.code === "permission-denied" ? t("saveNeedsRules") : t("locationFailed");
@@ -5752,7 +5795,11 @@ function requestGuestLocation() {
                 address.value = lat.toFixed(5) + ", " + lng.toFixed(5);
             }
 
-            setGuestPinNote("guestPinSaved");
+            if (Number(position.coords.accuracy) > 50) {
+                setGuestPinNote("locationRough");
+            } else {
+                setGuestPinNote("guestPinSaved");
+            }
         } else {
             guestDeliveryPin = null;
             setGuestPinNote("guestTurnLocationOn");
