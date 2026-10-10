@@ -33,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009m";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009n";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -3999,6 +3999,83 @@ function orderLines(order) {
     }).join(", ");
 }
 
+function piecePhotoUrl(item, photos) {
+    if (item && item.imageUrl) {
+        return item.imageUrl;
+    }
+
+    if (item && item.productId && photos && photos.has(item.productId)) {
+        return photos.get(item.productId) || "";
+    }
+
+    return "";
+}
+
+async function photosForItems(items) {
+    const photos = new Map();
+    const ids = [];
+
+    (items || []).forEach((item) => {
+        if (item && !item.imageUrl && item.productId && !ids.includes(item.productId)) {
+            ids.push(item.productId);
+        }
+    });
+
+    await Promise.all(ids.map(async (productId) => {
+        try {
+            const snap = await getDoc(doc(db, "products", productId));
+            photos.set(productId, snap.exists() ? (snap.data().imageUrl || "") : "");
+        } catch (error) {
+            photos.set(productId, "");
+            console.error(error);
+        }
+    }));
+
+    return photos;
+}
+
+function appendOrderPieces(parent, items, photos) {
+    const list = document.createElement("div");
+    list.className = "order-pieces";
+
+    (items || []).forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "order-piece";
+        const photo = piecePhotoUrl(item, photos);
+
+        if (photo) {
+            const image = document.createElement("img");
+            image.src = photo;
+            image.alt = pieceText(item, "name") || item.name || t("piece");
+            row.appendChild(image);
+        }
+
+        const copy = document.createElement("div");
+        const name = document.createElement("p");
+        name.className = "order-piece-name";
+        name.textContent = pieceText(item, "name") || item.name || t("piece");
+        const detail = document.createElement("p");
+        const parts = [];
+
+        if (item.size) {
+            parts.push(t("sizeLine", { size: tagLabel(item.size) }));
+        }
+
+        if (item.color) {
+            parts.push(t("colorLine", { color: tagLabel(item.color) }));
+        }
+
+        parts.push(t("quantityLine", { count: item.quantity }));
+        parts.push(t("priceLine", { price: money(item.price) }));
+        detail.textContent = parts.join(" · ");
+        copy.append(name, detail);
+        row.appendChild(copy);
+        list.appendChild(row);
+    });
+
+    parent.appendChild(list);
+}
+
 async function loadCustomerOrders(user) {
     const list = document.getElementById("my-orders");
 
@@ -4020,6 +4097,7 @@ async function loadCustomerOrders(user) {
             return { id: orderDocument.id, ...orderDocument.data() };
         });
         orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        const photos = await photosForItems(orders.flatMap((order) => order.items || []));
         list.replaceChildren();
 
         if (!orders.length) {
@@ -4040,15 +4118,15 @@ async function loadCustomerOrders(user) {
             phone.textContent = t("phoneLine", { phone: order.customerPhone || "" });
             const location = document.createElement("p");
             location.textContent = t("deliverTo", { location: order.location || "" });
-            const items = document.createElement("p");
-            items.textContent = orderLines(order);
             const payment = document.createElement("p");
             payment.textContent = paymentLabel(order.paymentMethod);
             const moneyLines = document.createElement("div");
             appendOrderMoney(moneyLines, order);
             const status = document.createElement("p");
             status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
-            card.append(title, customer, phone, location, items, payment, moneyLines, status);
+            card.append(title, customer, phone, location);
+            appendOrderPieces(card, order.items, photos);
+            card.append(payment, moneyLines, status);
 
             if ((order.status || "new") === "new") {
                 const cancel = document.createElement("button");
@@ -4414,6 +4492,7 @@ async function loadStoreOrders(uid) {
             return { id: orderDocument.id, ...orderDocument.data() };
         });
         orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        const photos = await photosForItems(orders.flatMap((order) => order.items || []));
         list.replaceChildren();
 
         if (!orders.length) {
@@ -4438,15 +4517,15 @@ async function loadStoreOrders(uid) {
             payment.textContent = paymentLabel(order.paymentMethod);
             const moneyLines = document.createElement("div");
             appendOrderMoney(moneyLines, order);
-            const items = document.createElement("p");
-            items.textContent = orderLines(order);
             const status = document.createElement("p");
             status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
             card.append(title, location);
             if (order.customerPhone) {
                 card.appendChild(phone);
             }
-            card.append(payment, moneyLines, items, status);
+            card.append(payment, moneyLines);
+            appendOrderPieces(card, order.items, photos);
+            card.append(status);
             appendOrderActions(card, order);
 
             if (order.status === "new" || order.status === "on the way") {
@@ -4634,7 +4713,8 @@ async function placeOrder() {
                             color: item.color || "",
                             size: item.size || "",
                             price: Number(item.price),
-                            quantity: Number(item.quantity)
+                            quantity: Number(item.quantity),
+                            imageUrl: item.imageUrl || ""
                         };
                     }),
                     total: total,

@@ -1700,6 +1700,32 @@ footer {
     margin-bottom: 8px;
 }
 
+.order-pieces {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 12px 0 4px;
+}
+
+.order-piece {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.order-piece img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    background: #fff;
+    flex: 0 0 72px;
+}
+
+.order-piece-name {
+    color: var(--ink);
+    margin-bottom: 2px;
+}
+
 .order-actions {
     display: flex;
     flex-wrap: wrap;
