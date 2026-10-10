@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010n";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010o";
 
 
 const emailInput = document.getElementById("email");
@@ -865,12 +865,16 @@ function clearProductForm() {
         productImageInput.value = "";
     }
 
+    recognizedPieceTags = [];
+    paintRecognizedTags();
+
     if (productFiltersBox) {
         fillFilterChoices(
             productFiltersBox,
             [],
             currentBusiness && currentBusiness.category ? [currentBusiness.category] : [],
-            currentBusiness && currentBusiness.storeName
+            currentBusiness && currentBusiness.storeName,
+            storePickSections
         );
     }
 
@@ -1268,6 +1272,209 @@ function matchesCategory(category, typed) {
     });
 }
 
+const storePickSections = ["store", "size", "color"];
+let recognizedPieceTags = [];
+
+const pieceTagMap = {
+    "Pants": ["Pants"],
+    "Women's pants": ["Pants", "Women"],
+    "Women's coat": ["Coat", "Women"],
+    "Jacket": ["Jacket"],
+    "Jack": ["Jacket"],
+    "Shirt": ["Shirt"],
+    "Overshirt": ["Overshirt"],
+    "Blouse": ["Blouse"],
+    "Vest": ["Vest"],
+    "Skirt": ["Skirt"],
+    "Dress": ["Dress"],
+    "Shorts": ["Shorts"],
+    "Suit": ["Suit"],
+    "Scarf": ["Scarf"],
+    "Hat": ["Hat"],
+    "Abaya": ["Abaya"],
+    "Cardigan": ["Cardigan"],
+    "Pajamas": ["Pajamas"],
+    "Cargo pants": ["Cargo pants", "Pants"],
+    "Coat": ["Coat"],
+    "Dress shirt": ["Dress shirt", "Shirt"],
+    "Hoodie": ["Hoodie"],
+    "Jeans": ["Jeans"],
+    "Long-sleeve shirt": ["Long-sleeve shirt", "Shirt"],
+    "Short-sleeve shirt": ["Short-sleeve shirt", "Shirt"],
+    "Shoes": ["Shoes"],
+    "Sweater": ["Sweater"],
+    "Sweatpants": ["Sweatpants", "Pants"],
+    "Sweatshirt": ["Sweatshirt"],
+    "T-shirt": ["T-shirt"],
+    "Turtleneck": ["Turtleneck"],
+    "Men": ["Men"],
+    "Women": ["Women"],
+    "Children": ["Children"],
+    "New": ["New"],
+    "Second-hand": ["Second-hand"]
+};
+
+function canonicalFilterName(name) {
+    const found = (availableFilters || []).find((category) => {
+        return matchesCategory(category, name) || sameFilterWord(category.name, name);
+    });
+
+    return found ? found.name : name;
+}
+
+function tagsInPieceText(text) {
+    const source = String(text || "");
+
+    if (!source.trim()) {
+        return [];
+    }
+
+    const forms = [];
+
+    tagGlossary.forEach((entry) => {
+        if (!pieceTagMap[entry.en]) {
+            return;
+        }
+
+        [entry.en, entry.ar, entry.ckb].concat(entry.also || []).forEach((label) => {
+            if (label) {
+                forms.push({ label: String(label), entry: entry });
+            }
+        });
+    });
+
+    forms.sort((left, right) => right.label.length - left.label.length);
+    const occupied = [];
+    const chosen = [];
+
+    forms.forEach((form) => {
+        const pattern = new RegExp(
+            "(?:^|[^\\p{L}\\p{N}])(" + form.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?=$|[^\\p{L}\\p{N}])",
+            "giu"
+        );
+        let match = pattern.exec(source);
+
+        while (match) {
+            const start = match.index + match[0].length - match[1].length;
+            const end = start + match[1].length;
+            const overlaps = occupied.some((span) => start < span.end && end > span.start);
+
+            if (!overlaps) {
+                occupied.push({ start: start, end: end });
+
+                if (!chosen.includes(form.entry)) {
+                    chosen.push(form.entry);
+                }
+            }
+
+            match = pattern.exec(source);
+        }
+    });
+
+    const names = [];
+
+    chosen.forEach((entry) => {
+        (pieceTagMap[entry.en] || []).forEach((name) => {
+            const stored = canonicalFilterName(name);
+
+            if (!names.some((existing) => sameFilterWord(existing, stored))) {
+                names.push(stored);
+            }
+        });
+    });
+
+    return names;
+}
+
+function currentPieceText() {
+    const parts = [];
+    const accountName = document.getElementById("account-product-name");
+    const accountDescription = document.getElementById("account-product-description");
+
+    if (accountName && accountName.value.trim()) {
+        parts.push(accountName.value.trim());
+    }
+
+    if (accountDescription && accountDescription.value.trim()) {
+        parts.push(accountDescription.value.trim());
+    }
+
+    if (productNameInput && productNameInput.value.trim()) {
+        parts.push(productNameInput.value.trim());
+    }
+
+    if (productDescriptionInput && productDescriptionInput.value.trim()) {
+        parts.push(productDescriptionInput.value.trim());
+    }
+
+    return parts.join(" ");
+}
+
+function paintRecognizedTags() {
+    const note = document.getElementById("recognized-tags");
+
+    if (!note) {
+        return;
+    }
+
+    if (recognizedPieceTags.length) {
+        note.textContent = t("recognizedAs", {
+            tags: recognizedPieceTags.map((name) => tagLabel(name)).join(", ")
+        });
+        return;
+    }
+
+    note.textContent = currentPieceText() ? t("nothingRecognized") : t("tagsFollowName");
+}
+
+function refreshRecognizedTags() {
+    recognizedPieceTags = tagsInPieceText(currentPieceText());
+    paintRecognizedTags();
+}
+
+function keepSavedAutoTags(filters, storeName) {
+    const saved = (filters || []).filter((name) => {
+        if (!name || sameFilterWord(name, storeName)) {
+            return false;
+        }
+
+        const section = sectionForName(name);
+        return section !== "size" && section !== "color" && section !== "store";
+    });
+    const found = tagsInPieceText(currentPieceText());
+    recognizedPieceTags = found.length ? found : saved;
+    paintRecognizedTags();
+}
+
+function filtersForPiece(container, storeName) {
+    const unique = [];
+
+    checkedFilters(container).concat(recognizedPieceTags).forEach((name) => {
+        if (name && !unique.some((existing) => sameFilterWord(existing, name))) {
+            unique.push(name);
+        }
+    });
+
+    return ensureStoreTag(unique, storeName);
+}
+
+function bindPieceRecognition() {
+    ["account-product-name", "account-product-description", "product-name", "product-description"].forEach((id) => {
+        const input = document.getElementById(id);
+
+        if (!input || input.dataset.recognize) {
+            return;
+        }
+
+        input.dataset.recognize = "1";
+        input.addEventListener("input", refreshRecognizedTags);
+    });
+
+    paintRecognizedTags();
+}
+
+bindPieceRecognition();
+
 function sameLabel(left, right) {
     return String(left || "").trim().toLowerCase() === String(right || "").trim().toLowerCase();
 }
@@ -1583,7 +1790,7 @@ function fillSectionSelect(select, categories, selected) {
     select.value = [...select.options].some((option) => option.value === current) ? current : "";
 }
 
-function fillFilterChoices(container, categories, selectedNames, lockedName) {
+function fillFilterChoices(container, categories, selectedNames, lockedName, onlySections) {
     if (!container) {
         return;
     }
@@ -1643,6 +1850,9 @@ function fillFilterChoices(container, categories, selectedNames, lockedName) {
     }
 
     groupedBySection(choices).forEach((group) => {
+        if (onlySections && !onlySections.includes(group.key)) {
+            return;
+        }
         const block = document.createElement("div");
         block.className = "filter-section";
         const heading = document.createElement("h3");
@@ -1684,8 +1894,8 @@ if (addProductButton) {
         const productPrice = Number(productPriceInput.value);
         const productStock = Number(productStockInput.value);
         const productDescription = productDescriptionInput.value.trim();
-        const filters = ensureStoreTag(
-            checkedFilters(productFiltersBox),
+        const filters = filtersForPiece(
+            productFiltersBox,
             currentBusiness && currentBusiness.storeName
         );
 
@@ -1846,8 +2056,10 @@ async function loadMyProducts() {
                         productFiltersBox,
                         availableFilters,
                         filtersOnProduct(product),
-                        currentBusiness && currentBusiness.storeName
+                        currentBusiness && currentBusiness.storeName,
+                        storePickSections
                     );
+                    keepSavedAutoTags(filtersOnProduct(product), currentBusiness && currentBusiness.storeName);
 
                     if (productImageInput) {
                         productImageInput.value = "";
@@ -2485,7 +2697,8 @@ async function prepareDashboard(user) {
             productFiltersBox,
             categories,
             currentBusiness.category ? [currentBusiness.category] : [],
-            currentBusiness.storeName
+            currentBusiness.storeName,
+            storePickSections
         );
 
         if (storeNameInput) {
@@ -3168,7 +3381,8 @@ async function loadAccountProfile(user) {
                 document.getElementById("account-filters"),
                 categories,
                 profile.category ? [profile.category] : [],
-                storeName
+                storeName,
+                storePickSections
             );
             await loadPieceBeingEdited();
             await loadStoreOrders(user.uid);
@@ -3893,8 +4107,8 @@ async function publishFromAccount() {
     const user = auth.currentUser;
     const message = document.getElementById("account-publish-message");
     const publishButton = document.getElementById("account-publish-button");
-    const filters = ensureStoreTag(
-        checkedFilters(document.getElementById("account-filters")),
+    const filters = filtersForPiece(
+        document.getElementById("account-filters"),
         accountProfile.storeName
     );
     const name = document.getElementById("account-product-name").value.trim();
@@ -4007,6 +4221,8 @@ function clearAccountPieceForm() {
         fileInput.value = "";
     }
     piecePhotos = [];
+    recognizedPieceTags = [];
+    paintRecognizedTags();
     renderPiecePhotoPreview();
     if (publishButton) {
         publishButton.textContent = t("publish");
@@ -4070,8 +4286,10 @@ async function loadPieceBeingEdited() {
             document.getElementById("account-filters"),
             availableFilters,
             filtersOnProduct(product),
-            accountProfile.storeName
+            accountProfile.storeName,
+            storePickSections
         );
+        keepSavedAutoTags(filtersOnProduct(product), accountProfile.storeName);
         piecePhotos = productPhotoList(product);
         renderPiecePhotoPreview();
         publishButton.textContent = t("saveChanges");
@@ -6389,17 +6607,20 @@ onLanguageChange(() => {
     refreshAccountLabels();
     paintShopDoorNote();
     renderPiecePhotoPreview();
+    paintRecognizedTags();
     fillFilterChoices(
         document.getElementById("account-filters"),
         availableFilters,
         checkedFilters(document.getElementById("account-filters")),
-        accountProfile.storeName
+        accountProfile.storeName,
+        storePickSections
     );
     fillFilterChoices(
         productFiltersBox,
         availableFilters,
         checkedFilters(productFiltersBox),
-        currentBusiness && currentBusiness.storeName
+        currentBusiness && currentBusiness.storeName,
+        storePickSections
     );
 
     const user = auth.currentUser;
