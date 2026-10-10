@@ -33,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009n";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009o";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -2713,6 +2713,38 @@ function suggestLocation() {
     }
 }
 
+function readBrowserLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject({ code: 0 });
+            return;
+        }
+
+        const attempts = [
+            { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        ];
+
+        const tryAt = (index) => {
+            navigator.geolocation.getCurrentPosition(resolve, (error) => {
+                if (error && error.code === 1) {
+                    reject(error);
+                    return;
+                }
+
+                if (index + 1 < attempts.length) {
+                    tryAt(index + 1);
+                    return;
+                }
+
+                reject(error || { code: 2 });
+            }, attempts[index]);
+        };
+
+        tryAt(0);
+    });
+}
+
 function shareMyLocation(button) {
     const user = auth.currentUser;
     if (!user) {
@@ -2731,23 +2763,32 @@ function shareMyLocation(button) {
     button.disabled = true;
     button.textContent = t("findingLocation");
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
+    readBrowserLocation().then(async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
 
         try {
-            await setDoc(doc(db, "users", user.uid), {
+            const profileSnap = await getDoc(doc(db, "users", user.uid));
+            const pin = {
                 deliveryLat: lat,
                 deliveryLng: lng
-            }, { merge: true });
+            };
+
+            if (!profileSnap.exists()) {
+                pin.email = user.email || "";
+                pin.role = "customer";
+            }
+
+            await setDoc(doc(db, "users", user.uid), pin, { merge: true });
             accountProfile.deliveryLat = lat;
             accountProfile.deliveryLng = lng;
+            accountProfile.role = accountProfile.role || "customer";
             localStorage.removeItem("chaw-loc-later");
             suggestLocation();
             renderCheckoutDetails();
         } catch (error) {
             console.error(error);
-            const message = t("locationFailed");
+            const message = error.code === "permission-denied" ? t("saveNeedsRules") : t("locationFailed");
             const note = document.getElementById("location-pin-note");
             if (note) {
                 note.textContent = message;
@@ -2760,7 +2801,7 @@ function shareMyLocation(button) {
 
         button.disabled = false;
         button.textContent = label;
-    }, (error) => {
+    }).catch((error) => {
         button.disabled = false;
         button.textContent = t("useMyLocation");
         const note = document.getElementById("location-pin-note");
@@ -2775,7 +2816,7 @@ function shareMyLocation(button) {
                 text.textContent = message;
             }
         }
-    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+    });
 }
 
 async function saveAccountProfile() {
@@ -2839,6 +2880,12 @@ async function saveAccountProfile() {
             updates.deliveryLocation = deliveryInput.value.trim();
         }
 
+        const profileSnap = await getDoc(doc(db, "users", user.uid));
+        if (!profileSnap.exists()) {
+            updates.email = user.email || "";
+            updates.role = "customer";
+        }
+
         await setDoc(doc(db, "users", user.uid), updates, { merge: true });
         accountProfile.displayName = displayName;
         accountProfile.storeName = isStore ? displayName : accountProfile.storeName;
@@ -2869,7 +2916,20 @@ async function saveAccountProfile() {
             currentBusiness.acceptsCard = accountProfile.acceptsCard;
             currentBusiness.cardPaymentUrl = accountProfile.cardPaymentUrl;
             currentBusiness.category = accountProfile.category;
-            await syncStoreOntoProducts(user, currentBusiness);
+
+            try {
+                await syncStoreOntoProducts(user, currentBusiness);
+            } catch (error) {
+                console.error(error);
+                message.textContent = error.code === "permission-denied"
+                    ? t("detailsSavedPiecesLater")
+                    : error.message;
+                showAccountPhoto(
+                    accountProfile.photoUrl,
+                    displayName.charAt(0).toUpperCase()
+                );
+                return;
+            }
 
             if (storeNameInput) {
                 storeNameInput.value = displayName;
@@ -2894,7 +2954,7 @@ async function saveAccountProfile() {
             await loadStoreOrders(user.uid);
         }
     } catch (error) {
-        message.textContent = error.message;
+        message.textContent = error.code === "permission-denied" ? t("saveNeedsRules") : error.message;
     }
 }
 
@@ -4954,19 +5014,19 @@ function requestGuestLocation() {
     }
 
     if (!navigator.geolocation) {
-        setGuestPinNote("guestTurnLocationOn");
+        setGuestPinNote("locationUnsupported");
         return;
     }
 
     guestLocationBusy = true;
-    setGuestPinNote("guestTurnLocationOn");
+    setGuestPinNote("findingLocation");
 
     if (button) {
         button.disabled = true;
         button.textContent = t("findingLocation");
     }
 
-    navigator.geolocation.getCurrentPosition((position) => {
+    readBrowserLocation().then((position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
 
@@ -4982,21 +5042,16 @@ function requestGuestLocation() {
             guestDeliveryPin = null;
             setGuestPinNote("guestTurnLocationOn");
         }
-
-        guestLocationBusy = false;
-        if (button) {
-            button.disabled = false;
-            button.textContent = t("useMyLocation");
-        }
-    }, () => {
+    }).catch((error) => {
         guestDeliveryPin = null;
+        setGuestPinNote(error && error.code === 1 ? "locationDenied" : "locationFailed");
+    }).finally(() => {
         guestLocationBusy = false;
-        setGuestPinNote("guestTurnLocationOn");
         if (button) {
             button.disabled = false;
             button.textContent = t("useMyLocation");
         }
-    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    });
 }
 
 const guestLocationButton = document.getElementById("guest-location");

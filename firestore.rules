@@ -55,7 +55,10 @@ service cloud.firestore {
           isSelf(uid)
           && request.resource.data.role == "customer"
           && request.resource.data.keys().hasAll(["email", "role"])
-          && request.resource.data.keys().hasOnly(["email", "role", "displayName", "photoUrl"])
+          && request.resource.data.keys().hasOnly([
+            "email", "role", "displayName", "photoUrl", "phone",
+            "deliveryLocation", "deliveryLat", "deliveryLng"
+          ])
           && request.resource.data.email is string
           && (
             request.resource.data.email == ""
