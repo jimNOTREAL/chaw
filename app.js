@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010o";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010p";
 
 
 const emailInput = document.getElementById("email");
@@ -1272,7 +1272,7 @@ function matchesCategory(category, typed) {
     });
 }
 
-const storePickSections = ["store", "size", "color"];
+const storePickSections = ["store", "size", "color", "brand"];
 let recognizedPieceTags = [];
 
 const pieceTagMap = {
@@ -1309,9 +1309,7 @@ const pieceTagMap = {
     "Turtleneck": ["Turtleneck"],
     "Men": ["Men"],
     "Women": ["Women"],
-    "Children": ["Children"],
-    "New": ["New"],
-    "Second-hand": ["Second-hand"]
+    "Children": ["Children"]
 };
 
 function canonicalFilterName(name) {
@@ -1439,7 +1437,9 @@ function keepSavedAutoTags(filters, storeName) {
         }
 
         const section = sectionForName(name);
-        return section !== "size" && section !== "color" && section !== "store";
+        const mark = glossaryHit(name);
+        const isMark = Boolean(mark && (mark.en === "New" || mark.en === "Second-hand"));
+        return section !== "size" && section !== "color" && section !== "store" && section !== "brand" && !isMark;
     });
     const found = tagsInPieceText(currentPieceText());
     recognizedPieceTags = found.length ? found : saved;
@@ -1824,6 +1824,21 @@ function fillFilterChoices(container, categories, selectedNames, lockedName, onl
         names.push(type.name);
     });
 
+    [
+        { name: "New", section: "brand" },
+        { name: "Second-hand", section: "brand" }
+    ].forEach((mark) => {
+        const existing = choices.find((item) => sameFilterWord(item.name, mark.name));
+
+        if (existing) {
+            existing.section = "brand";
+            return;
+        }
+
+        choices.push(mark);
+        names.push(mark.name);
+    });
+
     selected.forEach((name) => {
         if (name && !names.some((existing) => sameFilterWord(existing, name)) && !sameFilterWord(name, locked)) {
             choices.push({ name: name, section: "" });
@@ -1871,9 +1886,29 @@ function fillFilterChoices(container, categories, selectedNames, lockedName, onl
                 label.className = "locked-tag";
                 label.title = t("storeTagLocked");
             }
+            if (group.key === "brand") {
+                input.addEventListener("change", () => {
+                    if (!input.checked) {
+                        return;
+                    }
+
+                    options.querySelectorAll("input").forEach((other) => {
+                        if (other !== input) {
+                            other.checked = false;
+                        }
+                    });
+                });
+            }
             label.append(input, document.createTextNode(tagLabel(category.name)));
             options.appendChild(label);
         });
+
+        if (group.key === "brand") {
+            const picked = [...options.querySelectorAll("input:checked")];
+            picked.slice(1).forEach((extra) => {
+                extra.checked = false;
+            });
+        }
 
         block.append(heading, options);
         container.appendChild(block);
