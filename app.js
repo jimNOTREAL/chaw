@@ -33,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009r";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009s";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -4239,7 +4239,11 @@ async function loadCustomerOrders(user) {
             const moneyLines = document.createElement("div");
             appendOrderMoney(moneyLines, order);
             const status = document.createElement("p");
+            status.dataset.orderStatus = order.status || "new";
             status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
+            if ((order.status || "new") === "cancelled") {
+                status.className = "order-status-cancelled";
+            }
             card.append(title, customer, phone, location);
             appendOrderPieces(card, order.items, photos);
             card.append(payment, moneyLines, status);
@@ -4248,8 +4252,14 @@ async function loadCustomerOrders(user) {
                 const cancel = document.createElement("button");
                 cancel.type = "button";
                 cancel.textContent = t("cancelOrder");
-                cancel.addEventListener("click", () => cancelCustomerOrder(order, user, cancel));
+                cancel.addEventListener("click", () => cancelCustomerOrder(order, user, cancel, status));
                 card.appendChild(cancel);
+            } else if ((order.status || "new") === "cancelled") {
+                const done = document.createElement("button");
+                done.type = "button";
+                done.disabled = true;
+                done.textContent = t("statusCancelled");
+                card.appendChild(done);
             }
 
             list.appendChild(card);
@@ -4260,7 +4270,7 @@ async function loadCustomerOrders(user) {
     }
 }
 
-async function cancelCustomerOrder(order, user, button) {
+async function cancelCustomerOrder(order, user, button, statusLine) {
     if (!user || (order.status || "new") !== "new") {
         return;
     }
@@ -4283,6 +4293,18 @@ async function cancelCustomerOrder(order, user, button) {
         }
 
         await updateDoc(orderRef, { status: "cancelled" });
+
+        if (statusLine) {
+            statusLine.dataset.orderStatus = "cancelled";
+            statusLine.className = "order-status-cancelled";
+            statusLine.textContent = t("statusLine", { status: t("statusCancelled") });
+        }
+
+        button.textContent = t("statusCancelled");
+
+        if (message) {
+            message.textContent = t("orderCancelled");
+        }
 
         const needed = new Map();
         (current.items || []).forEach((item) => {
@@ -4325,14 +4347,14 @@ async function cancelCustomerOrder(order, user, button) {
 
         await loadCustomerOrders(user);
 
-        if (message && stockFailed) {
-            message.textContent = t("stockNotReturned");
+        if (message) {
+            message.textContent = stockFailed ? t("stockNotReturned") : t("orderCancelled");
         }
     } catch (error) {
         button.disabled = false;
+        button.textContent = t("cancelOrder");
         const denied = error.code === "permission-denied";
         const text = denied ? t("saveNeedsRules") : (error.message || t("couldNotCancel"));
-        button.textContent = text;
 
         if (message) {
             message.textContent = text;

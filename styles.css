@@ -1770,6 +1770,18 @@ footer {
     margin-bottom: 2px;
 }
 
+.order-card button:disabled {
+    opacity: 1;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    cursor: default;
+}
+
+.order-status-cancelled {
+    color: var(--wine);
+}
+
 .order-actions {
     display: flex;
     flex-wrap: wrap;
