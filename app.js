@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010h";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010i";
 
 
 const emailInput = document.getElementById("email");
@@ -867,7 +867,8 @@ function clearProductForm() {
         fillFilterChoices(
             productFiltersBox,
             [],
-            currentBusiness && currentBusiness.category ? [currentBusiness.category] : []
+            currentBusiness && currentBusiness.category ? [currentBusiness.category] : [],
+            currentBusiness && currentBusiness.storeName
         );
     }
 
@@ -928,7 +929,23 @@ async function syncStoreOntoProducts(user, store) {
     const writes = [];
 
     snapshot.forEach((productDocument) => {
-        writes.push(updateDoc(productDocument.ref, contactFields(store)));
+        const data = productDocument.data();
+        const oldName = data.storeName || "";
+        let names = Array.isArray(data.filters) ? data.filters.filter(Boolean) : [];
+
+        if (oldName && store.storeName && !sameFilterWord(oldName, store.storeName)) {
+            names = names.filter((name) => !sameFilterWord(name, oldName));
+        }
+
+        names = ensureStoreTag(names, store.storeName);
+        const fields = contactFields(store);
+        fields.filters = names;
+
+        if (!data.category || sameFilterWord(data.category, oldName)) {
+            fields.category = categoryFromFilters(names, store.storeName) || data.category || "";
+        }
+
+        writes.push(updateDoc(productDocument.ref, fields));
     });
 
     await Promise.all(writes);
@@ -964,11 +981,34 @@ function fillNamedSelect(select, categories, selectedName) {
 }
 
 function filtersOnProduct(product) {
-    if (Array.isArray(product.filters) && product.filters.length > 0) {
-        return product.filters.filter(Boolean);
+    const names = Array.isArray(product.filters) && product.filters.length > 0
+        ? product.filters.filter(Boolean)
+        : (product.category ? [product.category] : []);
+    const store = String(product && product.storeName || "").trim();
+
+    if (store && !names.some((name) => sameFilterWord(name, store))) {
+        names.push(store);
     }
 
-    return product.category ? [product.category] : [];
+    return names;
+}
+
+function ensureStoreTag(filters, storeName) {
+    const name = String(storeName || "").trim();
+    const list = (filters || []).map((item) => String(item || "").trim()).filter(Boolean);
+
+    if (!name) {
+        return list;
+    }
+
+    const rest = list.filter((item) => !sameFilterWord(item, name));
+    rest.push(name);
+    return rest;
+}
+
+function categoryFromFilters(filters, storeName) {
+    const picked = (filters || []).find((name) => name && !sameFilterWord(name, storeName));
+    return picked || "";
 }
 
 function isAllColorsTag(name) {
@@ -1028,7 +1068,7 @@ function itemChoiceText(item) {
     return [item && item.color, item && item.size].filter(Boolean).map((name) => tagLabel(name)).join(" · ");
 }
 
-const builtinSections = ["size", "color", "type", "department", "brand"];
+const builtinSections = ["store", "size", "color", "type", "department", "brand"];
 
 function guessSection(name) {
     const word = String(name || "").trim().toLowerCase();
@@ -1325,6 +1365,10 @@ function sectionLabel(key) {
         return t("sectionType");
     }
 
+    if (key === "store") {
+        return t("sectionStore");
+    }
+
     if (key === "other" || !key) {
         return t("sectionOther");
     }
@@ -1355,6 +1399,10 @@ function sectionForName(name) {
 
     if (found) {
         return sectionKeyOf(found);
+    }
+
+    if (discoverProducts.some((product) => sameFilterWord(product.storeName, name))) {
+        return "store";
     }
 
     return guessSection(name);
@@ -1475,13 +1523,14 @@ function fillSectionSelect(select, categories, selected) {
     select.value = [...select.options].some((option) => option.value === current) ? current : "";
 }
 
-function fillFilterChoices(container, categories, selectedNames) {
+function fillFilterChoices(container, categories, selectedNames, lockedName) {
     if (!container) {
         return;
     }
 
     const selected = new Set(selectedNames || []);
     const choices = [];
+    const locked = String(lockedName || "").trim();
 
     categories.forEach((category) => {
         if (isAllColorsTag(category.name)) {
@@ -1500,10 +1549,22 @@ function fillFilterChoices(container, categories, selectedNames) {
     const names = choices.map((category) => category.name);
 
     selected.forEach((name) => {
-        if (name && !names.includes(name)) {
+        if (name && !names.some((existing) => sameFilterWord(existing, name)) && !sameFilterWord(name, locked)) {
             choices.push({ name: name, section: "" });
         }
     });
+
+    if (locked) {
+        const existing = choices.find((item) => sameFilterWord(item.name, locked));
+
+        if (existing) {
+            existing.name = locked;
+            existing.section = "store";
+            existing.locked = true;
+        } else {
+            choices.unshift({ name: locked, section: "store", locked: true });
+        }
+    }
 
     container.innerHTML = "";
 
@@ -1525,7 +1586,12 @@ function fillFilterChoices(container, categories, selectedNames) {
             const input = document.createElement("input");
             input.type = "checkbox";
             input.value = category.name;
-            input.checked = selected.has(category.name);
+            input.checked = Boolean(category.locked) || [...selected].some((name) => sameFilterWord(name, category.name));
+            input.disabled = Boolean(category.locked);
+            if (category.locked) {
+                label.className = "locked-tag";
+                label.title = t("storeTagLocked");
+            }
             label.append(input, document.createTextNode(tagLabel(category.name)));
             options.appendChild(label);
         });
@@ -1549,7 +1615,10 @@ if (addProductButton) {
         const productPrice = Number(productPriceInput.value);
         const productStock = Number(productStockInput.value);
         const productDescription = productDescriptionInput.value.trim();
-        const filters = checkedFilters(productFiltersBox);
+        const filters = ensureStoreTag(
+            checkedFilters(productFiltersBox),
+            currentBusiness && currentBusiness.storeName
+        );
 
         const user = auth.currentUser;
 
@@ -1578,7 +1647,9 @@ if (addProductButton) {
                     price: productPrice,
                     stock: productStock,
                     filters: filters,
-                    category: filters[0] || ""
+                    category: categoryFromFilters(filters, currentBusiness && currentBusiness.storeName)
+                        || (currentBusiness && currentBusiness.category)
+                        || ""
                 };
 
                 if (currentBusiness) {
@@ -1612,7 +1683,7 @@ if (addProductButton) {
                     imageUrl: imageUrl,
                     imageUrls: imageUrl ? [imageUrl] : [],
                     filters: filters,
-                    category: filters[0],
+                    category: categoryFromFilters(filters, currentBusiness.storeName) || currentBusiness.category || "",
                     businessId: currentBusiness.email,
                     ownerUid: user.uid,
                     hidden: false,
@@ -1702,7 +1773,12 @@ async function loadMyProducts() {
                     productStockInput.value = product.stock;
                     productDescriptionInput.value = product.description;
 
-                    fillFilterChoices(productFiltersBox, availableFilters, filtersOnProduct(product));
+                    fillFilterChoices(
+                        productFiltersBox,
+                        availableFilters,
+                        filtersOnProduct(product),
+                        currentBusiness && currentBusiness.storeName
+                    );
 
                     if (productImageInput) {
                         productImageInput.value = "";
@@ -2171,6 +2247,11 @@ async function loadAdminPanel() {
             : t("noCategoryYet");
 
         label.textContent = (account.email || account.id) + storeLabel + categoryLabel;
+        const pinButton = document.createElement("button");
+        pinButton.type = "button";
+        pinButton.className = "row-button";
+        pinButton.textContent = t("setShopLocation");
+        pinButton.addEventListener("click", () => setShopDoorForAccount(account, pinButton));
         removeButton.type = "button";
         removeButton.className = "row-button";
         removeButton.textContent = t("remove");
@@ -2186,7 +2267,9 @@ async function loadAdminPanel() {
             }
         });
 
-        row.append(label, removeButton);
+        const savedDoor = document.createElement("span");
+        savedDoor.textContent = shopPinFrom(account) ? t("shopDoorSavedShort") : "";
+        row.append(label, savedDoor, pinButton, removeButton);
         businessList.appendChild(row);
     });
 
@@ -2323,7 +2406,8 @@ async function prepareDashboard(user) {
         fillFilterChoices(
             productFiltersBox,
             categories,
-            currentBusiness.category ? [currentBusiness.category] : []
+            currentBusiness.category ? [currentBusiness.category] : [],
+            currentBusiness.storeName
         );
 
         if (storeNameInput) {
@@ -2959,7 +3043,8 @@ async function loadAccountProfile(user) {
             fillFilterChoices(
                 document.getElementById("account-filters"),
                 categories,
-                profile.category ? [profile.category] : []
+                profile.category ? [profile.category] : [],
+                storeName
             );
             await loadPieceBeingEdited();
             await loadStoreOrders(user.uid);
@@ -3303,6 +3388,65 @@ if (shopLocationButton) {
     shopLocationButton.addEventListener("click", () => setShopLocation(shopLocationButton));
 }
 
+async function setShopDoorForAccount(account, button) {
+    const user = auth.currentUser;
+
+    if (!user || !isAdmin(user) || !account || !account.id) {
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        adminMessage.textContent = t("locationUnsupported");
+        return;
+    }
+
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = t("findingLocation");
+
+    try {
+        const position = await readBrowserLocation();
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        await updateDoc(doc(db, "users", account.id), {
+            deliveryLat: lat,
+            deliveryLng: lng
+        });
+
+        const productSnapshot = await getDocs(query(
+            collection(db, "products"),
+            where("ownerUid", "==", account.id)
+        ));
+        const writes = [];
+
+        productSnapshot.forEach((productDocument) => {
+            writes.push(updateDoc(productDocument.ref, {
+                shopLat: lat,
+                shopLng: lng
+            }));
+        });
+
+        if (writes.length) {
+            await Promise.all(writes);
+        }
+
+        account.deliveryLat = lat;
+        account.deliveryLng = lng;
+        adminMessage.textContent = Number(position.coords.accuracy) > 50
+            ? t("locationRough")
+            : t("shopDoorSavedFor", { store: account.storeName || account.email || t("theStore") });
+        await loadAdminPanel();
+    } catch (error) {
+        console.error(error);
+        adminMessage.textContent = error && error.code === 1
+            ? t("locationDenied")
+            : (error && error.code === "permission-denied" ? t("saveNeedsRules") : t("locationFailed"));
+        button.disabled = false;
+        button.textContent = label;
+    }
+}
+
 function normalizeDriverNumber(raw) {
     let digits = String(raw || "").replace(/\D/g, "");
 
@@ -3559,7 +3703,10 @@ async function publishFromAccount() {
     const user = auth.currentUser;
     const message = document.getElementById("account-publish-message");
     const publishButton = document.getElementById("account-publish-button");
-    const filters = checkedFilters(document.getElementById("account-filters"));
+    const filters = ensureStoreTag(
+        checkedFilters(document.getElementById("account-filters")),
+        accountProfile.storeName
+    );
     const name = document.getElementById("account-product-name").value.trim();
     const price = Number(document.getElementById("account-product-price").value);
     const stock = Number(document.getElementById("account-product-stock").value);
@@ -3598,7 +3745,7 @@ async function publishFromAccount() {
             price: price,
             stock: stock,
             filters: filters,
-            category: filters[0],
+            category: categoryFromFilters(filters, accountProfile.storeName) || accountProfile.category || "",
             storeName: accountProfile.storeName,
             area: accountProfile.area || "",
             phone: accountProfile.phone || "",
@@ -3732,7 +3879,8 @@ async function loadPieceBeingEdited() {
         fillFilterChoices(
             document.getElementById("account-filters"),
             availableFilters,
-            filtersOnProduct(product)
+            filtersOnProduct(product),
+            accountProfile.storeName
         );
         piecePhotos = productPhotoList(product);
         renderPiecePhotoPreview();
@@ -6032,12 +6180,14 @@ onLanguageChange(() => {
     fillFilterChoices(
         document.getElementById("account-filters"),
         availableFilters,
-        checkedFilters(document.getElementById("account-filters"))
+        checkedFilters(document.getElementById("account-filters")),
+        accountProfile.storeName
     );
     fillFilterChoices(
         productFiltersBox,
         availableFilters,
-        checkedFilters(productFiltersBox)
+        checkedFilters(productFiltersBox),
+        currentBusiness && currentBusiness.storeName
     );
 
     const user = auth.currentUser;

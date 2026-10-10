@@ -555,10 +555,12 @@ nav ul a:hover {
     padding: 6px 8px !important;
 }
 
-.filter-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 18px;
+.filter-options label.locked-tag {
+    font-weight: 600;
+}
+
+.filter-options label.locked-tag input {
+    accent-color: var(--ink);
 }
 
 .filter-group {
