@@ -845,7 +845,7 @@ nav ul a:hover {
 
 .home-shop .product-card img {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 5;
     height: auto;
     min-height: 0;
     margin: 0;
@@ -1426,7 +1426,7 @@ select:focus {
 
 #product-list img {
     width: min(100%, 320px);
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 5;
     height: auto;
     object-fit: cover;
     object-position: center;
@@ -1435,20 +1435,23 @@ select:focus {
     display: block;
 }
 
-.product-card {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 520px;
-}
-
 .product-card img {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 5;
     height: auto;
     object-fit: cover;
     object-position: center;
     border-radius: 0;
     margin-bottom: 10px;
     display: block;
+    background: #f3efe9;
+}
+
+.product-card > a p:last-child {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .filter-bar {
@@ -1730,12 +1733,13 @@ footer {
 .product-page > img,
 .product-gallery > img {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 5;
     height: auto;
-    max-height: 560px;
+    max-height: min(70vh, 640px);
     object-fit: cover;
     object-position: center;
     display: block;
+    background: #f3efe9;
 }
 
 .product-thumbs {
@@ -1862,10 +1866,14 @@ footer {
     }
 
     .home-shop .product-card img,
-    .home-shop .product-card:nth-child(5n + 1) img {
-        aspect-ratio: 1 / 1;
+    .home-shop .product-card:nth-child(5n + 1) img,
+    .product-card img,
+    .product-page > img,
+    .product-gallery > img {
+        aspect-ratio: 4 / 5;
         height: auto;
         min-height: 0;
+        max-height: 460px;
         grid-column: auto;
         grid-row: auto;
     }
@@ -1906,9 +1914,30 @@ footer {
 
     .product-page > img,
     .product-gallery > img {
-        aspect-ratio: 1 / 1;
+        aspect-ratio: 4 / 5;
         height: auto;
-        max-height: none;
+        max-height: 62vh;
+    }
+}
+
+@media (max-width: 560px) {
+    .home-shop .discover-grid,
+    .discover-grid {
+        grid-template-columns: 1fr;
+        width: min(420px, 100%);
+    }
+
+    .product-card img,
+    .home-shop .product-card img,
+    .home-shop .product-card:nth-child(5n + 1) img,
+    .product-page > img,
+    .product-gallery > img {
+        aspect-ratio: 3 / 4;
+        max-height: 62vh;
+    }
+
+    .product-card h2 {
+        font-size: 26px;
     }
 }
 
@@ -2046,8 +2075,9 @@ footer {
 
 #account-product-list img {
     width: min(100%, 280px);
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 3 / 4;
     height: auto;
+    max-height: 360px;
     object-fit: cover;
     object-position: center;
     display: block;
