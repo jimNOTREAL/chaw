@@ -4454,6 +4454,7 @@ async function loadCustomerOrders(user) {
         }
 
         orders.forEach((order) => {
+            const statusName = String(order.status || "new").trim().toLowerCase();
             const card = document.createElement("article");
             card.className = "order-card";
             const title = document.createElement("h3");
@@ -4471,27 +4472,30 @@ async function loadCustomerOrders(user) {
             const status = document.createElement("p");
             status.dataset.orderStatus = order.status || "new";
             status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
-            if ((order.status || "new") === "cancelled") {
+            if (statusName === "cancelled") {
                 status.className = "order-status-cancelled";
             }
-            card.append(title, customer, phone, location);
-            appendOrderPieces(card, order.items, photos);
-            card.append(payment, moneyLines, status);
+            card.appendChild(title);
 
-            if ((order.status || "new") === "new") {
+            if (statusName === "new") {
                 const cancel = document.createElement("button");
                 cancel.type = "button";
+                cancel.className = "cancel-order";
                 cancel.textContent = t("cancelOrder");
                 cancel.addEventListener("click", () => cancelCustomerOrder(order, user, cancel, status));
                 card.appendChild(cancel);
-            } else if ((order.status || "new") === "cancelled") {
+            } else if (statusName === "cancelled") {
                 const done = document.createElement("button");
                 done.type = "button";
+                done.className = "cancel-order";
                 done.disabled = true;
                 done.textContent = t("statusCancelled");
                 card.appendChild(done);
             }
 
+            card.append(customer, phone, location);
+            appendOrderPieces(card, order.items, photos);
+            card.append(payment, moneyLines, status);
             list.appendChild(card);
         });
     } catch (error) {
@@ -4501,7 +4505,7 @@ async function loadCustomerOrders(user) {
 }
 
 async function cancelCustomerOrder(order, user, button, statusLine) {
-    if (!user || (order.status || "new") !== "new") {
+    if (!user || String(order.status || "new").trim().toLowerCase() !== "new") {
         return;
     }
 
@@ -4518,7 +4522,7 @@ async function cancelCustomerOrder(order, user, button, statusLine) {
 
         const current = orderSnap.data();
 
-        if (current.customerUid !== user.uid || (current.status || "new") !== "new") {
+        if (current.customerUid !== user.uid || String(current.status || "new").trim().toLowerCase() !== "new") {
             throw new Error(t("couldNotCancel"));
         }
 

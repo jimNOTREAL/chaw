@@ -1920,6 +1920,25 @@ footer {
     cursor: default;
 }
 
+.cart-page .cancel-order {
+    display: block;
+    width: 100%;
+    margin: 8px 0 16px;
+    background: var(--wine);
+    color: #fff;
+    font-size: 15px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.cart-page .cancel-order:disabled {
+    opacity: 1;
+    background: transparent;
+    color: var(--wine);
+    border: 1px solid var(--wine);
+    cursor: default;
+}
+
 .order-status-cancelled {
     color: var(--wine);
 }

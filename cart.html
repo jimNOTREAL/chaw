@@ -29,7 +29,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261009t">
+    <link rel="stylesheet" href="styles.css?v=20261009u">
 </head>
 <body>
     <nav>
@@ -54,6 +54,11 @@
     <main class="cart-page">
         <h1 data-i18n="cartHeading">Cart</h1>
         <div id="cart-list"></div>
+
+        <h2 data-i18n="yourOrders">Your orders</h2>
+        <div id="my-orders"></div>
+        <p id="cart-message"></p>
+
         <div id="checkout-box">
             <p id="cart-total"></p>
             <div id="cart-fees"></div>
@@ -83,16 +88,12 @@
             <p class="field-hint" data-i18n="payByCardNote">Pay by card opens the store’s payment link. Chaw does not ask for your card number.</p>
             <button type="button" id="checkout-button" data-i18n="placeOrder">Place order</button>
         </div>
-        <p id="cart-message"></p>
-
-        <h2 data-i18n="yourOrders">Your orders</h2>
-        <div id="my-orders"></div>
     </main>
 
     <footer>
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261009t"></script>
+    <script type="module" src="app.js?v=20261009u"></script>
 </body>
 </html>
