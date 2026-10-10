@@ -36,9 +36,8 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010f";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010g";
 
-const DELIVERY_FEE_IQD = 3000;
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -902,7 +901,7 @@ function storeDetailsFromForm() {
 }
 
 function contactFields(store) {
-    return {
+    const fields = {
         storeName: store.storeName || "",
         phone: store.phone || "",
         whatsapp: "",
@@ -910,6 +909,14 @@ function contactFields(store) {
         acceptsCard: Boolean(store.acceptsCard),
         cardPaymentUrl: store.cardPaymentUrl || ""
     };
+    const pin = shopPinFrom(store);
+
+    if (pin) {
+        fields.shopLat = pin.lat;
+        fields.shopLng = pin.lng;
+    }
+
+    return fields;
 }
 
 async function syncStoreOntoProducts(user, store) {
@@ -1786,16 +1793,125 @@ function money(amount) {
     return (Number.isFinite(number) ? formatAmount(number) : "0") + " IQD";
 }
 
-function deliveryStoreCount(cart) {
-    return new Set(cart.map((item) => item.ownerUid).filter(Boolean)).size;
-}
-
 function cartClothesTotal(cart) {
     return cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
 }
 
-function cartDeliveryTotal(cart) {
-    return deliveryStoreCount(cart) * DELIVERY_FEE_IQD;
+function shopPinFrom(source) {
+    if (!source) {
+        return null;
+    }
+
+    const lat = Number(source.shopLat != null ? source.shopLat : source.lat != null ? source.lat : source.deliveryLat);
+    const lng = Number(source.shopLng != null ? source.shopLng : source.lng != null ? source.lng : source.deliveryLng);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        return null;
+    }
+
+    return { lat: lat, lng: lng };
+}
+
+function distanceKm(from, to) {
+    const earth = 6371;
+    const rad = (degrees) => degrees * Math.PI / 180;
+    const dLat = rad(to.lat - from.lat);
+    const dLng = rad(to.lng - from.lng);
+    const a = Math.pow(Math.sin(dLat / 2), 2)
+        + Math.cos(rad(from.lat)) * Math.cos(rad(to.lat)) * Math.pow(Math.sin(dLng / 2), 2);
+
+    return earth * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function deliveryFeeForKm(km) {
+    const distance = Math.round(Number(km) * 10) / 10;
+
+    if (!Number.isFinite(distance) || distance < 0) {
+        return null;
+    }
+
+    if (distance <= 2) {
+        return 1000;
+    }
+
+    const steps = Math.ceil((distance - 2) / 0.5);
+    return 1000 + steps * 250;
+}
+
+function customerDeliveryPin() {
+    const user = auth.currentUser;
+
+    if (!user) {
+        return null;
+    }
+
+    if (user.isAnonymous) {
+        return shopPinFrom(guestDeliveryPin);
+    }
+
+    return shopPinFrom(accountProfile);
+}
+
+function storeQuotes(cart, pinsByProduct, destination) {
+    if (!destination) {
+        return { lines: [], total: 0, blocked: "customer" };
+    }
+
+    const groups = new Map();
+
+    cart.forEach((item) => {
+        const key = item.ownerUid || "";
+
+        if (!groups.has(key)) {
+            groups.set(key, {
+                storeName: item.storeName || "",
+                pin: null
+            });
+        }
+
+        const pin = pinsByProduct.get(item.id);
+
+        if (pin) {
+            groups.get(key).pin = pin;
+        }
+    });
+
+    const lines = [];
+
+    for (const group of groups.values()) {
+        if (!group.pin) {
+            return {
+                lines: [],
+                total: 0,
+                blocked: "shop",
+                storeName: group.storeName || t("theStore")
+            };
+        }
+
+        const km = Math.round(distanceKm(group.pin, destination) * 10) / 10;
+        const fee = deliveryFeeForKm(km);
+
+        if (fee == null) {
+            return {
+                lines: [],
+                total: 0,
+                blocked: "shop",
+                storeName: group.storeName || t("theStore")
+            };
+        }
+
+        lines.push({
+            storeName: group.storeName,
+            km: km.toFixed(1),
+            fee: fee
+        });
+    }
+
+    return {
+        lines: lines,
+        total: lines.reduce((sum, line) => sum + line.fee, 0),
+        blocked: null
+    };
 }
 
 function savedDeliveryFee(order) {
@@ -2196,7 +2312,9 @@ async function prepareDashboard(user) {
             phone: profile.phone || "",
             whatsapp: profile.whatsapp || "",
             acceptsCard: Boolean(profile.acceptsCard),
-            cardPaymentUrl: profile.cardPaymentUrl || ""
+            cardPaymentUrl: profile.cardPaymentUrl || "",
+            shopLat: Number(profile.deliveryLat),
+            shopLng: Number(profile.deliveryLng)
         };
 
         const categories = await loadCategories();
@@ -2854,6 +2972,7 @@ async function loadAccountProfile(user) {
 
     watchStoreOrders(user);
     suggestLocation();
+    paintShopDoorNote();
 
     if (document.getElementById("checkout-address")) {
         renderCheckoutDetails();
@@ -3090,6 +3209,100 @@ function shareMyLocation(button) {
     });
 }
 
+function paintShopDoorNote() {
+    const note = document.getElementById("shop-pin-note");
+
+    if (!note) {
+        return;
+    }
+
+    const isStore = accountProfile.role === "business";
+    note.hidden = !isStore;
+
+    if (!isStore) {
+        return;
+    }
+
+    if (note.dataset.rough === "1") {
+        note.textContent = t("locationRough");
+        return;
+    }
+
+    note.textContent = shopPinFrom(accountProfile) ? t("shopDoorSaved") : "";
+}
+
+function setShopLocation(button) {
+    const user = auth.currentUser;
+    const note = document.getElementById("shop-pin-note");
+
+    if (!user || accountProfile.role !== "business") {
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        if (note) {
+            note.hidden = false;
+            note.textContent = t("locationUnsupported");
+        }
+        return;
+    }
+
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = t("findingLocation");
+
+    readBrowserLocation().then(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        try {
+            await setDoc(doc(db, "users", user.uid), {
+                deliveryLat: lat,
+                deliveryLng: lng
+            }, { merge: true });
+            accountProfile.deliveryLat = lat;
+            accountProfile.deliveryLng = lng;
+
+            if (!currentBusiness) {
+                currentBusiness = { email: user.email || "" };
+            }
+
+            currentBusiness.shopLat = lat;
+            currentBusiness.shopLng = lng;
+            await syncStoreOntoProducts(user, currentBusiness);
+
+            if (note) {
+                note.dataset.rough = Number(position.coords.accuracy) > 50 ? "1" : "";
+            }
+
+            paintShopDoorNote();
+        } catch (error) {
+            console.error(error);
+            if (note) {
+                note.hidden = false;
+                note.dataset.rough = "";
+                note.textContent = error.code === "permission-denied" ? t("saveNeedsRules") : t("locationFailed");
+            }
+        }
+
+        button.disabled = false;
+        button.textContent = label;
+    }).catch((error) => {
+        button.disabled = false;
+        button.textContent = t("setShopLocation");
+        if (note) {
+            note.hidden = false;
+            note.dataset.rough = "";
+            note.textContent = error && error.code === 1 ? t("locationDenied") : t("locationFailed");
+        }
+    });
+}
+
+const shopLocationButton = document.getElementById("set-shop-location");
+if (shopLocationButton) {
+    shopLocationButton.addEventListener("click", () => setShopLocation(shopLocationButton));
+}
+
 function normalizeDriverNumber(raw) {
     let digits = String(raw || "").replace(/\D/g, "");
 
@@ -3298,6 +3511,8 @@ async function saveAccountProfile() {
             currentBusiness.acceptsCard = accountProfile.acceptsCard;
             currentBusiness.cardPaymentUrl = accountProfile.cardPaymentUrl;
             currentBusiness.category = accountProfile.category;
+            currentBusiness.shopLat = accountProfile.deliveryLat;
+            currentBusiness.shopLng = accountProfile.deliveryLng;
 
             try {
                 await syncStoreOntoProducts(user, currentBusiness);
@@ -3393,6 +3608,12 @@ async function publishFromAccount() {
             imageUrl: photos[0] || "",
             imageUrls: photos
         };
+        const shopPin = shopPinFrom(accountProfile);
+
+        if (shopPin) {
+            fields.shopLat = shopPin.lat;
+            fields.shopLng = shopPin.lng;
+        }
 
         if (editingId) {
             await updateDoc(doc(db, "products", editingId), fields);
@@ -4518,7 +4739,7 @@ function renderCheckoutDetails() {
 
     const cart = readCart();
     box.hidden = cart.length === 0;
-    renderCartFees(cart);
+    refreshCartFees(cart);
 
     if (!address) {
         return;
@@ -4558,8 +4779,11 @@ function renderCheckoutDetails() {
             : t("deliverTo", { location: accountProfile.deliveryLocation }) + pinNote;
 }
 
-function renderCartFees(cart) {
+let cartFeeRequest = 0;
+
+function renderCartFees(cart, quote) {
     const host = document.getElementById("cart-fees");
+    const button = document.getElementById("checkout-button");
 
     if (!host) {
         return;
@@ -4568,10 +4792,126 @@ function renderCartFees(cart) {
     host.replaceChildren();
 
     if (!cart.length) {
+        if (button) {
+            button.disabled = false;
+        }
         return;
     }
 
-    appendMoneySplit(host, cartClothesTotal(cart), cartDeliveryTotal(cart), selectedPaymentMethod());
+    const note = document.createElement("p");
+
+    if (!quote) {
+        note.textContent = t("findingDeliveryPrice");
+        host.appendChild(note);
+        if (button) {
+            button.disabled = true;
+        }
+        return;
+    }
+
+    if (quote.blocked) {
+        note.textContent = quote.blocked === "signin"
+            ? t("signInForDeliveryPrice")
+            : quote.blocked === "shop"
+                ? t("shopDoorMissing", { store: quote.storeName || t("theStore") })
+                : t("deliveryNeedsPin");
+        host.appendChild(note);
+        if (button) {
+            button.disabled = true;
+        }
+        return;
+    }
+
+    if (button) {
+        button.disabled = false;
+    }
+
+    appendMoneySplit(host, cartClothesTotal(cart), quote.total, selectedPaymentMethod());
+
+    const deliveryLines = [...host.querySelectorAll("p")];
+    const delivery = deliveryLines[1];
+
+    if (delivery && quote.lines.length === 1) {
+        delivery.textContent = t("deliveryKmLine", {
+            amount: money(quote.lines[0].fee),
+            km: quote.lines[0].km
+        });
+    } else if (delivery && quote.lines.length > 1) {
+        delivery.remove();
+        const door = host.lastElementChild;
+        quote.lines.forEach((line) => {
+            const row = document.createElement("p");
+            row.textContent = t("deliveryFromStore", {
+                store: line.storeName || t("theStore"),
+                amount: money(line.fee),
+                km: line.km
+            });
+            host.insertBefore(row, door);
+        });
+    }
+
+    const door = host.lastElementChild;
+    const rule = document.createElement("p");
+    rule.textContent = t("deliveryPriceNote");
+
+    if (door) {
+        host.insertBefore(rule, door);
+    } else {
+        host.appendChild(rule);
+    }
+}
+
+async function loadShopPins(cart) {
+    const ids = [...new Set(cart.map((item) => item.id).filter(Boolean))];
+    const pins = new Map();
+
+    await Promise.all(ids.map(async (id) => {
+        try {
+            const snap = await getDoc(doc(db, "products", id));
+            pins.set(id, snap.exists() ? shopPinFrom(snap.data()) : null);
+        } catch (error) {
+            console.error(error);
+            pins.set(id, null);
+        }
+    }));
+
+    return pins;
+}
+
+async function refreshCartFees(cart) {
+    const host = document.getElementById("cart-fees");
+
+    if (!host) {
+        return;
+    }
+
+    const request = ++cartFeeRequest;
+
+    if (!cart.length) {
+        renderCartFees(cart, { lines: [], total: 0, blocked: null });
+        return;
+    }
+
+    if (!auth.currentUser) {
+        renderCartFees(cart, { lines: [], total: 0, blocked: "signin" });
+        return;
+    }
+
+    const destination = customerDeliveryPin();
+
+    if (!destination) {
+        renderCartFees(cart, { lines: [], total: 0, blocked: "customer" });
+        return;
+    }
+
+    renderCartFees(cart, null);
+    const pins = await loadShopPins(cart);
+
+    if (request !== cartFeeRequest) {
+        return;
+    }
+
+    renderCartFees(readCart(), storeQuotes(readCart(), pins, customerDeliveryPin()));
 }
 
 function paymentLabel(method) {
@@ -5165,13 +5505,20 @@ function driverOrderMessage(order) {
         : "";
 
     const fee = savedDeliveryFee(order);
-    const fees = fee == null
+    let fees = fee == null
         ? ""
         : t("driverFees", {
             clothes: money(order.total),
             delivery: money(fee),
             cash: money(order.paymentMethod === "card" ? fee : Number(order.total) + fee)
         });
+    const shop = shopPinFrom(accountProfile);
+    const door = shopPinFrom(order);
+
+    if (accountProfile.role === "business" && shop && door) {
+        const km = Math.round(distanceKm(shop, door) * 10) / 10;
+        fees += "\n" + t("distanceLine", { km: km.toFixed(1) });
+    }
 
     return t("driverOrder", {
         name: order.customerName || order.customerEmail || t("customer"),
@@ -5439,6 +5786,14 @@ async function placeOrder() {
         }
     }
 
+    if (deliveryLat == null || deliveryLng == null || !hasDeliveryPin({
+        deliveryLat: deliveryLat,
+        deliveryLng: deliveryLng
+    })) {
+        message.textContent = t("deliveryNeedsPin");
+        return;
+    }
+
     const selectedPayment = document.querySelector("input[name='payment']:checked");
     const paymentMethod = selectedPayment && selectedPayment.value === "card" ? "card" : "delivery";
 
@@ -5466,6 +5821,7 @@ async function placeOrder() {
             });
 
             const stockUpdates = [];
+            const shopPins = new Map();
 
             for (const [productId, quantity] of needed) {
                 const productRef = doc(db, "products", productId);
@@ -5477,16 +5833,47 @@ async function placeOrder() {
                     throw new Error(t("noLongerAvailable", { name: name }));
                 }
 
-                const stock = Number(productSnap.data().stock || 0);
+                const productData = productSnap.data();
+                const stock = Number(productData.stock || 0);
 
                 if (stock < quantity) {
                     throw new Error(t("onlyLeftOf", { stock: stock, name: name }));
+                }
+
+                const pin = shopPinFrom(productData);
+                const owner = productData.ownerUid || (productName && productName.ownerUid) || "";
+
+                if (pin && owner) {
+                    shopPins.set(owner, pin);
                 }
 
                 stockUpdates.push({
                     ref: productRef,
                     stock: stock - quantity
                 });
+            }
+
+            const fees = new Map();
+
+            for (const [ownerUid, items] of groups) {
+                const pin = shopPins.get(ownerUid);
+                const storeName = items[0].storeName || t("theStore");
+
+                if (!pin) {
+                    throw new Error(t("shopDoorMissing", { store: storeName }));
+                }
+
+                const km = Math.round(distanceKm(pin, {
+                    lat: deliveryLat,
+                    lng: deliveryLng
+                }) * 10) / 10;
+                const fee = deliveryFeeForKm(km);
+
+                if (fee == null) {
+                    throw new Error(t("shopDoorMissing", { store: storeName }));
+                }
+
+                fees.set(ownerUid, fee);
             }
 
             stockUpdates.forEach((update) => {
@@ -5523,7 +5910,7 @@ async function placeOrder() {
                         };
                     }),
                     total: total,
-                    deliveryFee: DELIVERY_FEE_IQD,
+                    deliveryFee: fees.get(ownerUid),
                     status: "new",
                     seen: false,
                     createdAt: Date.now()
@@ -5640,6 +6027,7 @@ onLanguageChange(() => {
     renderDiscover();
     renderCartPage();
     refreshAccountLabels();
+    paintShopDoorNote();
     renderPiecePhotoPreview();
     fillFilterChoices(
         document.getElementById("account-filters"),
@@ -5800,6 +6188,8 @@ function requestGuestLocation() {
             } else {
                 setGuestPinNote("guestPinSaved");
             }
+
+            renderCheckoutDetails();
         } else {
             guestDeliveryPin = null;
             setGuestPinNote("guestTurnLocationOn");
