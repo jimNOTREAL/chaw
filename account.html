@@ -32,7 +32,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261009w">
+    <link rel="stylesheet" href="styles.css?v=20261009z">
 </head>
 <body>
     <nav>
@@ -101,8 +101,12 @@
                 <label class="file-label" id="account-area-label" for="account-area" data-i18n="area">Area</label>
                 <input id="account-area" type="text" data-i18n-placeholder="areaOrCity" placeholder="Area or city">
                 <label class="file-label" for="account-driver-whatsapp" data-i18n="driverWhatsapp">Driver WhatsApp</label>
-                <input id="account-driver-whatsapp" type="tel" maxlength="30" placeholder="9647XXXXXXXX">
-                <p class="field-hint" data-i18n="driverWhatsappHint">This number receives the address when you send an order. Include the country code.</p>
+                <div id="driver-number-list" class="driver-number-list"></div>
+                <div class="driver-add">
+                    <input id="account-driver-whatsapp" type="tel" maxlength="20" inputmode="tel" placeholder="9647XXXXXXXX" autocomplete="tel">
+                    <button type="button" id="add-driver-number" data-i18n="addDriverNumberButton">Add number</button>
+                </div>
+                <p class="field-hint" data-i18n="driverWhatsappHint">Add each driver. When an order arrives, choose who receives it. A 07 number is saved with the Iraq code.</p>
                 <h2 data-i18n="cardPayments">Card payments</h2>
                 <label class="check-label" for="account-accept-card">
                     <input id="account-accept-card" type="checkbox">
@@ -127,6 +131,6 @@
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261009y"></script>
+    <script type="module" src="app.js?v=20261009z"></script>
 </body>
 </html>

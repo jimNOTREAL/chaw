@@ -670,6 +670,61 @@ nav ul a:hover {
     margin-top: 0;
 }
 
+.driver-number-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
+.driver-number-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.driver-number-row span {
+    font-family: "Jost", sans-serif;
+    letter-spacing: 0.04em;
+}
+
+.driver-add {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.driver-add input {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.account-panel .driver-add button,
+.account-panel .driver-number-row button {
+    width: auto;
+    margin-top: 0;
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 14px;
+}
+
+.account-panel .driver-number-row button {
+    background: transparent;
+    color: var(--wine);
+    border: 1px solid var(--line);
+}
+
+.order-card .send-driver,
+.order-alert .send-driver {
+    background: #1f7a4d;
+    color: #fff;
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 14px;
+}
+
 .add-product-actions button {
     width: auto;
     flex: 1;
@@ -1378,6 +1433,11 @@ select:focus {
     border-radius: 0;
     margin-bottom: 14px;
     display: block;
+}
+
+.product-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 520px;
 }
 
 .product-card img {

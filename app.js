@@ -19,6 +19,9 @@ import {
 
 import {
     getFirestore,
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
     doc,
     setDoc,
     addDoc,
@@ -33,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009t";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009z";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -117,9 +120,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = openDatabase();
 
-console.log("Firebase connected successfully!");
+function openDatabase() {
+    try {
+        return initializeFirestore(app, {
+            localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager()
+            })
+        });
+    } catch (error) {
+        console.error(error);
+        return getFirestore(app);
+    }
+}
 
 function isAdmin(user) {
     return Boolean(
@@ -557,6 +571,7 @@ async function signInWithProvider(provider, button, openingKey, labelKey) {
     } catch (error) {
         if (error.code === "auth/popup-blocked") {
             try {
+                sessionStorage.setItem("chaw-redirect", "1");
                 await signInWithRedirect(auth, provider);
                 return;
             } catch (redirectError) {
@@ -731,6 +746,41 @@ function productPhotoList(product) {
     }
 
     return product.imageUrl ? [product.imageUrl] : [];
+}
+
+function showWhenNear(image, src) {
+    image.decoding = "async";
+
+    if (!src) {
+        return;
+    }
+
+    const start = () => {
+        if (!("IntersectionObserver" in window)) {
+            image.src = src;
+            return;
+        }
+
+        const watcher = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                image.src = src;
+                watcher.disconnect();
+            });
+        }, { rootMargin: "240px" });
+
+        watcher.observe(image);
+    };
+
+    if (image.isConnected) {
+        start();
+        return;
+    }
+
+    requestAnimationFrame(start);
 }
 
 function renderPiecePhotoPreview() {
@@ -1625,8 +1675,8 @@ async function loadMyProducts() {
             const cover = productPhotoList(product)[0];
             if (cover) {
                 const productImage = document.createElement("img");
-                productImage.src = cover;
                 productImage.alt = pieceText(product, "name") || t("productPhoto");
+                showWhenNear(productImage, cover);
                 productItem.prepend(productImage);
             }
 
@@ -2484,6 +2534,7 @@ let accountProfile = {
     displayName: "",
     photoUrl: ""
 };
+let editingDriverNumbers = [];
 
 function setupAccountMenu() {
     const list = document.querySelector("nav ul");
@@ -2517,6 +2568,20 @@ function setupAccountMenu() {
     const saveButton = document.getElementById("save-account-button");
     if (saveButton) {
         saveButton.addEventListener("click", saveAccountProfile);
+    }
+
+    const addDriverButton = document.getElementById("add-driver-number");
+    const driverNumberInput = document.getElementById("account-driver-whatsapp");
+    if (addDriverButton) {
+        addDriverButton.addEventListener("click", addTypedDriverNumber);
+    }
+    if (driverNumberInput) {
+        driverNumberInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                addTypedDriverNumber();
+            }
+        });
     }
 
     const publishButton = document.getElementById("account-publish-button");
@@ -2714,8 +2779,12 @@ async function loadAccountProfile(user) {
     }
 
     const driverWhatsappInput = document.getElementById("account-driver-whatsapp");
-    if (driverWhatsappInput && document.activeElement !== driverWhatsappInput) {
-        driverWhatsappInput.value = accountProfile.driverWhatsapp;
+    if (!driverWhatsappInput || document.activeElement !== driverWhatsappInput) {
+        editingDriverNumbers = parseDriverNumbers(accountProfile.driverWhatsapp);
+        renderDriverNumbers();
+        if (driverWhatsappInput) {
+            driverWhatsappInput.value = "";
+        }
     }
 
     const acceptCardInput = document.getElementById("account-accept-card");
@@ -2978,6 +3047,114 @@ function shareMyLocation(button) {
     });
 }
 
+function normalizeDriverNumber(raw) {
+    let digits = String(raw || "").replace(/\D/g, "");
+
+    if (digits.startsWith("00")) {
+        digits = digits.slice(2);
+    }
+
+    if (digits.startsWith("0")) {
+        digits = "964" + digits.slice(1);
+    }
+
+    if (digits.length < 8 || digits.length > 15) {
+        return "";
+    }
+
+    return digits;
+}
+
+function parseDriverNumbers(value) {
+    const seen = [];
+
+    String(value || "").split(/[\n,;]+/).forEach((part) => {
+        const number = normalizeDriverNumber(part);
+
+        if (number && !seen.includes(number)) {
+            seen.push(number);
+        }
+    });
+
+    return seen;
+}
+
+function currentDriverNumbers() {
+    if (document.getElementById("driver-number-list")) {
+        return editingDriverNumbers.slice();
+    }
+
+    return parseDriverNumbers(accountProfile.driverWhatsapp);
+}
+
+function renderDriverNumbers() {
+    const list = document.getElementById("driver-number-list");
+
+    if (!list) {
+        return;
+    }
+
+    list.replaceChildren();
+
+    editingDriverNumbers.forEach((number) => {
+        const row = document.createElement("div");
+        row.className = "driver-number-row";
+        const label = document.createElement("span");
+        label.textContent = number;
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = t("removeNumber");
+        remove.addEventListener("click", () => {
+            editingDriverNumbers = editingDriverNumbers.filter((item) => item !== number);
+            renderDriverNumbers();
+        });
+        row.append(label, remove);
+        list.appendChild(row);
+    });
+}
+
+function addTypedDriverNumber() {
+    const input = document.getElementById("account-driver-whatsapp");
+    const message = document.getElementById("account-form-message");
+
+    if (!input) {
+        return false;
+    }
+
+    const typed = input.value.trim();
+
+    if (!typed) {
+        return true;
+    }
+
+    const number = normalizeDriverNumber(typed);
+
+    if (!number) {
+        if (message) {
+            message.textContent = t("driverNumberShort");
+        }
+        return false;
+    }
+
+    if (!editingDriverNumbers.includes(number) && editingDriverNumbers.length >= 6) {
+        if (message) {
+            message.textContent = t("driverNumberLimit");
+        }
+        return false;
+    }
+
+    if (!editingDriverNumbers.includes(number)) {
+        editingDriverNumbers.push(number);
+    }
+
+    input.value = "";
+    if (message && (message.textContent === t("driverNumberShort") || message.textContent === t("driverNumberLimit"))) {
+        message.textContent = "";
+    }
+    renderDriverNumbers();
+    return true;
+}
+
 async function saveAccountProfile() {
     const user = auth.currentUser;
     const message = document.getElementById("account-form-message");
@@ -2986,7 +3163,6 @@ async function saveAccountProfile() {
     const areaInput = document.getElementById("account-area");
     const deliveryInput = document.getElementById("delivery-location");
     const phoneInput = document.getElementById("account-phone");
-    const driverWhatsappInput = document.getElementById("account-driver-whatsapp");
     const acceptCardBox = document.getElementById("account-accept-card");
     const cardUrlInput = document.getElementById("account-card-url");
 
@@ -3016,10 +3192,14 @@ async function saveAccountProfile() {
         }
 
         if (isStore) {
+            if (!addTypedDriverNumber()) {
+                return;
+            }
+
             updates.storeName = displayName;
             updates.area = areaInput ? areaInput.value.trim() : "";
             updates.whatsapp = "";
-            updates.driverWhatsapp = driverWhatsappInput ? driverWhatsappInput.value.trim() : "";
+            updates.driverWhatsapp = editingDriverNumbers.join("\n");
             updates.acceptsCard = Boolean(acceptCardBox && acceptCardBox.checked);
             const cardUrl = cardUrlInput ? cardUrlInput.value.trim() : "";
 
@@ -3344,8 +3524,8 @@ async function loadAccountProducts(uid) {
             const photos = productPhotoList(product);
             if (photos.length) {
                 const image = document.createElement("img");
-                image.src = photos[0];
                 image.alt = pieceText(product, "name") || t("piecePhoto");
+                showWhenNear(image, photos[0]);
                 card.appendChild(image);
                 if (photos.length > 1) {
                     const count = document.createElement("p");
@@ -3736,8 +3916,8 @@ function renderDiscover() {
         const cover = productPhotoList(product)[0];
         if (cover) {
             const image = document.createElement("img");
-            image.src = cover;
             image.alt = pieceText(product, "name") || t("productPhoto");
+            showWhenNear(image, cover);
             link.appendChild(image);
         }
 
@@ -3951,6 +4131,7 @@ function renderProductGallery(product, name) {
     const main = document.createElement("img");
     main.src = photos[0];
     main.alt = name;
+    main.decoding = "async";
     wrap.appendChild(main);
 
     if (photos.length > 1) {
@@ -3964,8 +4145,9 @@ function renderProductGallery(product, name) {
                 button.className = "active";
             }
             const thumb = document.createElement("img");
-            thumb.src = src;
             thumb.alt = "";
+            thumb.decoding = "async";
+            thumb.src = src;
             button.appendChild(thumb);
             button.addEventListener("click", () => {
                 main.src = src;
@@ -4412,8 +4594,8 @@ function appendOrderPieces(parent, items, photos) {
 
         if (photo) {
             const image = document.createElement("img");
-            image.src = photo;
             image.alt = pieceText(item, "name") || item.name || t("piece");
+            showWhenNear(image, photo);
             row.appendChild(image);
         }
 
@@ -4462,6 +4644,8 @@ async function loadCustomerOrders(user) {
         ));
         const orders = snapshot.docs.map((orderDocument) => {
             return { id: orderDocument.id, ...orderDocument.data() };
+        }).filter((order) => {
+            return String(order.status || "new").trim().toLowerCase() !== "cancelled";
         });
         orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         const photos = await photosForItems(orders.flatMap((order) => order.items || []));
@@ -4493,9 +4677,6 @@ async function loadCustomerOrders(user) {
             const status = document.createElement("p");
             status.dataset.orderStatus = order.status || "new";
             status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
-            if (statusName === "cancelled") {
-                status.className = "order-status-cancelled";
-            }
             card.appendChild(title);
 
             if (customerCanCancel(statusName)) {
@@ -4503,15 +4684,8 @@ async function loadCustomerOrders(user) {
                 cancel.type = "button";
                 cancel.className = "cancel-order";
                 cancel.textContent = t("cancelOrder");
-                cancel.addEventListener("click", () => cancelCustomerOrder(order, user, cancel, status));
+                cancel.addEventListener("click", () => cancelCustomerOrder(order, user, cancel));
                 card.appendChild(cancel);
-            } else if (statusName === "cancelled") {
-                const done = document.createElement("button");
-                done.type = "button";
-                done.className = "cancel-order";
-                done.disabled = true;
-                done.textContent = t("statusCancelled");
-                card.appendChild(done);
             }
 
             card.append(customer, phone, location);
@@ -4525,7 +4699,7 @@ async function loadCustomerOrders(user) {
     }
 }
 
-async function cancelCustomerOrder(order, user, button, statusLine) {
+async function cancelCustomerOrder(order, user, button) {
     if (!user || !customerCanCancel(order.status)) {
         return;
     }
@@ -4549,13 +4723,17 @@ async function cancelCustomerOrder(order, user, button, statusLine) {
 
         await updateDoc(orderRef, { status: "cancelled" });
 
-        if (statusLine) {
-            statusLine.dataset.orderStatus = "cancelled";
-            statusLine.className = "order-status-cancelled";
-            statusLine.textContent = t("statusLine", { status: t("statusCancelled") });
+        const card = button.closest(".order-card");
+        if (card) {
+            card.remove();
         }
 
-        button.textContent = t("statusCancelled");
+        const list = document.getElementById("my-orders");
+        if (list && !list.querySelector(".order-card")) {
+            const empty = document.createElement("p");
+            empty.textContent = t("noOrders");
+            list.replaceChildren(empty);
+        }
 
         if (message) {
             message.textContent = t("orderCancelled");
@@ -4622,6 +4800,23 @@ async function cancelCustomerOrder(order, user, button, statusLine) {
 let stopWatchingOrders = null;
 let knownOrderIds = null;
 let latestAlertOrders = [];
+let latestCancelOrders = [];
+const CANCEL_SEEN_KEY = "chaw-cancel-seen";
+
+function readCancelSeen() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(CANCEL_SEEN_KEY) || "[]");
+        return new Set(Array.isArray(parsed) ? parsed : []);
+    } catch (error) {
+        return new Set();
+    }
+}
+
+function rememberCancelSeen(ids) {
+    const seen = readCancelSeen();
+    ids.forEach((id) => seen.add(id));
+    localStorage.setItem(CANCEL_SEEN_KEY, JSON.stringify(Array.from(seen).slice(-40)));
+}
 
 function ensureOrderAlert() {
     if (document.getElementById("order-alert")) {
@@ -4662,8 +4857,14 @@ function openStoreOrders(orderId) {
     }
 }
 
-function showOrderAlert(orders) {
+function showOrderAlert(orders, cancelledOrders) {
     latestAlertOrders = orders || [];
+
+    if (cancelledOrders !== undefined) {
+        latestCancelOrders = cancelledOrders || [];
+    }
+
+    const cancelled = latestCancelOrders;
     ensureOrderAlert();
     const banner = document.getElementById("order-alert");
     const accountLink = document.querySelector("#account-link a");
@@ -4680,7 +4881,7 @@ function showOrderAlert(orders) {
 
     banner.replaceChildren();
 
-    if (!orders.length) {
+    if (!orders.length && !cancelled.length) {
         banner.hidden = true;
         return;
     }
@@ -4720,15 +4921,15 @@ function showOrderAlert(orders) {
             banner.appendChild(maps);
         }
 
-        const digits = String(accountProfile.driverWhatsapp || "").replace(/\D/g, "");
-        if (digits) {
-            const send = document.createElement("a");
-            send.href = "https://wa.me/" + digits + "?text=" + encodeURIComponent(driverOrderMessage(order));
-            send.target = "_blank";
-            send.rel = "noopener";
-            send.textContent = t("sendToDriver");
-            banner.appendChild(send);
-        }
+        appendDriverSend(banner, order);
+    });
+
+    cancelled.forEach((order) => {
+        const text = document.createElement("p");
+        text.textContent = t("customerCancelled", {
+            name: order.customerName || t("aCustomer")
+        });
+        banner.appendChild(text);
     });
 
     const open = document.createElement("a");
@@ -4747,7 +4948,11 @@ function showOrderAlert(orders) {
     const dismiss = document.createElement("button");
     dismiss.type = "button";
     dismiss.textContent = t("markSeen");
-    dismiss.addEventListener("click", () => markOrdersSeen(orders));
+    dismiss.addEventListener("click", () => {
+        rememberCancelSeen(cancelled.map((order) => order.id));
+        latestCancelOrders = [];
+        markOrdersSeen(orders);
+    });
 
     banner.append(open, dismiss);
 }
@@ -4782,6 +4987,21 @@ function notifyStore(order) {
     };
 }
 
+function notifyStoreCancelled(order) {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+        return;
+    }
+
+    const note = new Notification(t("orderCancelledTitle"), {
+        body: t("customerCancelled", {
+            name: order.customerName || t("aCustomer")
+        })
+    });
+    note.onclick = () => {
+        window.location.href = "account.html";
+    };
+}
+
 function stopStoreAlerts() {
     if (stopWatchingOrders) {
         stopWatchingOrders();
@@ -4789,7 +5009,7 @@ function stopStoreAlerts() {
     }
 
     knownOrderIds = null;
-    showOrderAlert([]);
+    showOrderAlert([], []);
 }
 
 function setupOrderAlertButton() {
@@ -4824,24 +5044,51 @@ function watchStoreOrders(user) {
         where("ownerUid", "==", user.uid)
     ), (snapshot) => {
         const fresh = [];
+        const cancelled = [];
+        const seenCancels = readCancelSeen();
+        const recentEnough = 90 * 24 * 60 * 60 * 1000;
 
         snapshot.forEach((orderDocument) => {
             const data = orderDocument.data();
-            if ((data.status || "new") === "new" && !data.seen) {
+            const status = String(data.status || "new").trim().toLowerCase();
+
+            if (status === "new" && !data.seen) {
                 fresh.push({ id: orderDocument.id, ...data });
+            }
+
+            if (status === "cancelled" && !seenCancels.has(orderDocument.id)) {
+                const age = Date.now() - Number(data.createdAt || 0);
+                if (data.createdAt && age < recentEnough) {
+                    cancelled.push({ id: orderDocument.id, ...data });
+                }
             }
         });
 
         if (knownOrderIds) {
             snapshot.docChanges().forEach((change) => {
-                if (change.type === "added" && !knownOrderIds.has(change.doc.id)) {
+                const data = change.doc.data();
+                const status = String(data.status || "new").trim().toLowerCase();
+
+                if (change.type === "added" && !knownOrderIds.has(change.doc.id) && status === "new") {
                     notifyStore(change.doc.data());
+                }
+
+                if (change.type === "modified" && status === "cancelled") {
+                    notifyStoreCancelled({ id: change.doc.id, ...data });
+                    const card = document.getElementById("order-" + change.doc.id);
+                    if (card) {
+                        card.remove();
+                    }
+                    const orderList = document.getElementById("order-list");
+                    if (orderList && !orderList.querySelector(".order-card")) {
+                        orderList.textContent = t("noOrders");
+                    }
                 }
             });
         }
 
         knownOrderIds = new Set(snapshot.docs.map((orderDocument) => orderDocument.id));
-        showOrderAlert(fresh);
+        showOrderAlert(fresh, cancelled);
     }, (error) => {
         console.error(error);
     });
@@ -4880,6 +5127,66 @@ function driverOrderMessage(order) {
     });
 }
 
+function askForDriverNumber() {
+    const message = document.getElementById("account-form-message");
+    const contact = document.getElementById("store-contact");
+
+    if (message) {
+        message.textContent = t("addDriverNumber");
+    }
+
+    if (contact) {
+        contact.hidden = false;
+        contact.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    const input = document.getElementById("account-driver-whatsapp");
+    if (input) {
+        input.focus();
+    }
+}
+
+function openDriverWhatsApp(number, order) {
+    const digits = normalizeDriverNumber(number);
+
+    if (!digits) {
+        askForDriverNumber();
+        return;
+    }
+
+    const url = "https://api.whatsapp.com/send?phone=" + digits + "&text=" + encodeURIComponent(driverOrderMessage(order));
+    const opened = window.open(url, "_blank", "noopener");
+
+    if (!opened) {
+        window.location.href = url;
+    }
+}
+
+function appendDriverSend(parent, order) {
+    const numbers = currentDriverNumbers();
+
+    if (!numbers.length) {
+        const send = document.createElement("button");
+        send.type = "button";
+        send.className = "send-driver";
+        send.textContent = t("sendToDriver");
+        send.addEventListener("click", askForDriverNumber);
+        parent.appendChild(send);
+        return;
+    }
+
+    numbers.forEach((number) => {
+        const send = document.createElement("button");
+        send.type = "button";
+        send.className = "send-driver";
+        send.textContent = numbers.length === 1
+            ? t("sendToDriver")
+            : t("sendToNumber", { number: number });
+        send.addEventListener("click", () => openDriverWhatsApp(number, order));
+        parent.appendChild(send);
+    });
+}
+
 function appendOrderActions(card, order) {
     const actions = document.createElement("div");
     actions.className = "order-actions";
@@ -4900,29 +5207,7 @@ function appendOrderActions(card, order) {
         actions.appendChild(call);
     }
 
-    const digits = String(accountProfile.driverWhatsapp || "").replace(/\D/g, "");
-    const note = document.createElement("p");
-
-    if (digits) {
-        const send = document.createElement("a");
-        send.href = "https://wa.me/" + digits + "?text=" + encodeURIComponent(driverOrderMessage(order));
-        send.target = "_blank";
-        send.rel = "noopener";
-        send.textContent = t("sendToDriver");
-        actions.appendChild(send);
-    } else {
-        const send = document.createElement("button");
-        send.type = "button";
-        send.textContent = t("sendToDriver");
-        send.addEventListener("click", () => {
-            note.textContent = t("addDriverNumber");
-            if (!note.isConnected) {
-                card.appendChild(note);
-            }
-        });
-        actions.appendChild(send);
-    }
-
+    appendDriverSend(actions, order);
     card.appendChild(actions);
 }
 
@@ -4943,6 +5228,8 @@ async function loadStoreOrders(uid) {
         ));
         const orders = snapshot.docs.map((orderDocument) => {
             return { id: orderDocument.id, ...orderDocument.data() };
+        }).filter((order) => {
+            return String(order.status || "new").trim().toLowerCase() !== "cancelled";
         });
         orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         const photos = await photosForItems(orders.flatMap((order) => order.items || []));
@@ -5291,6 +5578,7 @@ onLanguageChange(() => {
     });
     renderCartCount();
     showOrderAlert(latestAlertOrders);
+    renderDriverNumbers();
     suggestLocation();
     renderDiscover();
     renderCartPage();
@@ -5382,12 +5670,15 @@ async function startAuth() {
     });
 
     try {
-        const redirectResult = await getRedirectResult(auth);
+        if (sessionStorage.getItem("chaw-redirect") === "1") {
+            sessionStorage.removeItem("chaw-redirect");
+            const redirectResult = await getRedirectResult(auth);
 
-        if (redirectResult && redirectResult.user) {
-            isSigningUp = true;
-            await saveGoogleProfile(redirectResult.user);
-            isSigningUp = false;
+            if (redirectResult && redirectResult.user) {
+                isSigningUp = true;
+                await saveGoogleProfile(redirectResult.user);
+                isSigningUp = false;
+            }
         }
     } catch (error) {
         isSigningUp = false;
