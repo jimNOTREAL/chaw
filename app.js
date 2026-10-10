@@ -33,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009l";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009m";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -3986,6 +3986,10 @@ function statusLabel(status) {
         return t("delivered");
     }
 
+    if (status === "cancelled") {
+        return t("statusCancelled");
+    }
+
     return t("statusNew");
 }
 
@@ -4029,7 +4033,13 @@ async function loadCustomerOrders(user) {
             const card = document.createElement("article");
             card.className = "order-card";
             const title = document.createElement("h3");
-            title.textContent = order.storeName || "Store";
+            title.textContent = order.storeName || t("store");
+            const customer = document.createElement("p");
+            customer.textContent = t("customerNameLine", { name: order.customerName || "" });
+            const phone = document.createElement("p");
+            phone.textContent = t("phoneLine", { phone: order.customerPhone || "" });
+            const location = document.createElement("p");
+            location.textContent = t("deliverTo", { location: order.location || "" });
             const items = document.createElement("p");
             items.textContent = orderLines(order);
             const payment = document.createElement("p");
@@ -4038,11 +4048,85 @@ async function loadCustomerOrders(user) {
             appendOrderMoney(moneyLines, order);
             const status = document.createElement("p");
             status.textContent = t("statusLine", { status: statusLabel(order.status || "new") });
-            card.append(title, items, payment, moneyLines, status);
+            card.append(title, customer, phone, location, items, payment, moneyLines, status);
+
+            if ((order.status || "new") === "new") {
+                const cancel = document.createElement("button");
+                cancel.type = "button";
+                cancel.textContent = t("cancelOrder");
+                cancel.addEventListener("click", () => cancelCustomerOrder(order, user, cancel));
+                card.appendChild(cancel);
+            }
+
             list.appendChild(card);
         });
     } catch (error) {
         list.textContent = t("ordersAfterRules");
+        console.error(error);
+    }
+}
+
+async function cancelCustomerOrder(order, user, button) {
+    if (!user || (order.status || "new") !== "new") {
+        return;
+    }
+
+    button.disabled = true;
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const orderRef = doc(db, "orders", order.id);
+            const orderSnap = await transaction.get(orderRef);
+
+            if (!orderSnap.exists()) {
+                throw new Error(t("couldNotCancel"));
+            }
+
+            const current = orderSnap.data();
+
+            if (current.customerUid !== user.uid || current.status !== "new") {
+                throw new Error(t("couldNotCancel"));
+            }
+
+            const needed = new Map();
+            (current.items || []).forEach((item) => {
+                if (!item.productId) {
+                    return;
+                }
+
+                needed.set(item.productId, (needed.get(item.productId) || 0) + Number(item.quantity || 0));
+            });
+
+            const stockUpdates = [];
+
+            for (const [productId, quantity] of needed) {
+                if (!quantity) {
+                    continue;
+                }
+
+                const productRef = doc(db, "products", productId);
+                const productSnap = await transaction.get(productRef);
+
+                if (!productSnap.exists()) {
+                    continue;
+                }
+
+                stockUpdates.push({
+                    ref: productRef,
+                    stock: Number(productSnap.data().stock || 0) + quantity
+                });
+            }
+
+            stockUpdates.forEach((update) => {
+                transaction.update(update.ref, { stock: update.stock });
+            });
+            transaction.update(orderRef, { status: "cancelled" });
+        });
+
+        await loadCustomerOrders(user);
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = error.message || t("couldNotCancel");
         console.error(error);
     }
 }
@@ -4365,7 +4449,7 @@ async function loadStoreOrders(uid) {
             card.append(payment, moneyLines, items, status);
             appendOrderActions(card, order);
 
-            if (order.status !== "delivered") {
+            if (order.status === "new" || order.status === "on the way") {
                 const button = document.createElement("button");
                 button.type = "button";
                 button.textContent = order.status === "on the way" ? t("markDelivered") : t("onTheWay");

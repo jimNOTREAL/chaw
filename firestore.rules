@@ -32,6 +32,14 @@ service cloud.firestore {
         && request.resource.data.stock < resource.data.stock;
     }
 
+    function stockOnlyRise() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["stock"])
+        && request.resource.data.stock is number
+        && resource.data.stock is number
+        && request.resource.data.stock > resource.data.stock;
+    }
+
     function ownsProduct() {
       return isStore() && resource.data.ownerUid == request.auth.uid;
     }
@@ -94,7 +102,7 @@ service cloud.firestore {
       allow create: if isStore()
         && request.resource.data.ownerUid == request.auth.uid;
 
-      allow update: if stockOnlyDrop() || ownsProduct() || isAdmin();
+      allow update: if stockOnlyDrop() || stockOnlyRise() || ownsProduct() || isAdmin();
 
       allow delete: if ownsProduct();
     }
@@ -157,11 +165,20 @@ service cloud.firestore {
         && (!("deliveryLat" in request.resource.data) || request.resource.data.deliveryLat is number)
         && (!("deliveryLng" in request.resource.data) || request.resource.data.deliveryLng is number);
 
-      allow update: if isStore()
-        && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "seen"])
-        && request.resource.data.status in ["new", "on the way", "delivered"]
-        && request.resource.data.seen is bool;
+      allow update: if (
+          signedIn()
+          && resource.data.customerUid == request.auth.uid
+          && resource.data.status == "new"
+          && request.resource.data.status == "cancelled"
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        ) || (
+          isStore()
+          && resource.data.ownerUid == request.auth.uid
+          && resource.data.status != "cancelled"
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "seen"])
+          && request.resource.data.status in ["new", "on the way", "delivered"]
+          && request.resource.data.seen is bool
+        );
 
       allow delete: if false;
     }
