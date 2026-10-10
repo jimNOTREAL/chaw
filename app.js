@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010i";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010j";
 
 
 const emailInput = document.getElementById("email");
@@ -980,6 +980,55 @@ function fillNamedSelect(select, categories, selectedName) {
     select.value = selectedName || "";
 }
 
+function mainClothingTypes() {
+    return [
+        { name: "Skirt", nameAr: "تنورة", nameCkb: "تەنورە" },
+        { name: "Dress", nameAr: "فستان", nameCkb: "درێس" },
+        { name: "Shorts", nameAr: "شورت", nameCkb: "شۆرت" },
+        { name: "Vest", nameAr: "صدرية", nameCkb: "باڵە" },
+        { name: "Suit", nameAr: "بدلة", nameCkb: "تەقم" },
+        { name: "Scarf", nameAr: "وشاح", nameCkb: "سکارف" },
+        { name: "Hat", nameAr: "قبعة", nameCkb: "کڵاو" },
+        { name: "Abaya", nameAr: "عباءة", nameCkb: "عەبایە" },
+        { name: "Cardigan", nameAr: "كارديجان", nameCkb: "کاردیگان" },
+        { name: "Pajamas", nameAr: "بيجامة", nameCkb: "بیجامە" }
+    ];
+}
+
+function hasClothingType(categories, typeName) {
+    return (categories || []).some((category) => {
+        return [category.name, category.nameEn, category.nameAr, category.nameCkb].some((value) => {
+            return value && sameFilterWord(value, typeName);
+        });
+    });
+}
+
+async function ensureMainClothingTypes(categories) {
+    if (localStorage.getItem("chaw-type-seed") === "1") {
+        return false;
+    }
+
+    const missing = mainClothingTypes().filter((type) => !hasClothingType(categories, type.name));
+
+    if (!missing.length) {
+        localStorage.setItem("chaw-type-seed", "1");
+        return false;
+    }
+
+    for (const type of missing) {
+        await addDoc(collection(db, "categories"), {
+            name: type.name,
+            nameEn: type.name,
+            nameAr: type.nameAr,
+            nameCkb: type.nameCkb,
+            section: "type"
+        });
+    }
+
+    localStorage.setItem("chaw-type-seed", "1");
+    return true;
+}
+
 function filtersOnProduct(product) {
     const names = Array.isArray(product.filters) && product.filters.length > 0
         ? product.filters.filter(Boolean)
@@ -1117,6 +1166,15 @@ const tagGlossary = [
     { en: "Wool", ar: "صوف", ckb: "خوری" },
     { en: "Rain", ar: "مطري", ckb: "باراناوی" },
     { en: "Jacket", ar: "جاكيت", ckb: "چاکەت" },
+    { en: "Skirt", ar: "تنورة", ckb: "تەنورە", also: ["skirt"] },
+    { en: "Dress", ar: "فستان", ckb: "درێس", also: ["dress"] },
+    { en: "Shorts", ar: "شورت", ckb: "شۆرت", also: ["shorts"] },
+    { en: "Suit", ar: "بدلة", ckb: "تەقم", also: ["suit"] },
+    { en: "Scarf", ar: "وشاح", ckb: "سکارف", also: ["scarf"] },
+    { en: "Hat", ar: "قبعة", ckb: "کڵاو", also: ["hat"] },
+    { en: "Abaya", ar: "عباءة", ckb: "عەبایە", also: ["abaya"] },
+    { en: "Cardigan", ar: "كارديجان", ckb: "کاردیگان", also: ["cardigan"] },
+    { en: "Pajamas", ar: "بيجامة", ckb: "بیجامە", also: ["pajamas", "pyjamas"] },
     { en: "Jack", ar: "جاكيت", ckb: "چاکەت" },
     { en: "Shirt", ar: "قميص", ckb: "قەمیس" },
     { en: "Overshirt", ar: "قمصلة", ckb: "قەمسەڵە" },
@@ -1547,6 +1605,15 @@ function fillFilterChoices(container, categories, selectedNames, lockedName) {
         });
     });
     const names = choices.map((category) => category.name);
+
+    mainClothingTypes().forEach((type) => {
+        if (choices.some((item) => sameFilterWord(item.name, type.name))) {
+            return;
+        }
+
+        choices.push({ name: type.name, section: "type" });
+        names.push(type.name);
+    });
 
     selected.forEach((name) => {
         if (name && !names.some((existing) => sameFilterWord(existing, name)) && !sameFilterWord(name, locked)) {
@@ -2152,7 +2219,16 @@ async function loadAdminPanel() {
         return;
     }
 
-    const categories = await loadCategories();
+    let categories = await loadCategories();
+
+    try {
+        if (await ensureMainClothingTypes(categories)) {
+            categories = await loadCategories();
+        }
+    } catch (error) {
+        console.error(error);
+    }
+
     const users = await loadUsers();
     const businesses = users.filter((account) => account.role === "business");
 
