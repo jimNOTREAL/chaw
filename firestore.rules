@@ -1,0 +1,192 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == "mfm77hi@gmail.com";
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function isStore() {
+      return signedIn()
+        && exists(userPath())
+        && get(userPath()).data.role == "business";
+    }
+
+    function stockOnlyDrop() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["stock"])
+        && request.resource.data.stock is number
+        && resource.data.stock is number
+        && request.resource.data.stock >= 0
+        && request.resource.data.stock < resource.data.stock;
+    }
+
+    function ownsProduct() {
+      return isStore() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    function roleUnchanged() {
+      return request.resource.data.get("role", "") == resource.data.get("role", "");
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+
+      allow create: if (
+          isSelf(uid)
+          && request.resource.data.role == "customer"
+          && request.resource.data.keys().hasAll(["email", "role"])
+          && request.resource.data.keys().hasOnly(["email", "role", "displayName", "photoUrl"])
+          && request.resource.data.email is string
+          && (
+            request.resource.data.email == ""
+            || request.auth.token.email == request.resource.data.email
+          )
+        ) || (
+          isAdmin()
+          && isSelf(uid)
+          && request.resource.data.role == "admin"
+        );
+
+      allow update: if isAdmin()
+        || (
+          isSelf(uid)
+          && roleUnchanged()
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(["email"])
+            || request.resource.data.email == request.auth.token.email
+          )
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "displayName",
+            "photoUrl",
+            "storeName",
+            "area",
+            "whatsapp",
+            "driverWhatsapp",
+            "acceptsCard",
+            "cardPaymentUrl",
+            "phone",
+            "deliveryLocation",
+            "deliveryLat",
+            "deliveryLng",
+            "email",
+            "category"
+          ])
+        );
+
+      allow delete: if false;
+    }
+
+    match /products/{productId} {
+      allow read: if signedIn();
+
+      allow create: if isStore()
+        && request.resource.data.ownerUid == request.auth.uid;
+
+      allow update: if stockOnlyDrop() || ownsProduct() || isAdmin();
+
+      allow delete: if ownsProduct();
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn() && (
+        resource.data.customerUid == request.auth.uid
+        || (isStore() && resource.data.ownerUid == request.auth.uid)
+      );
+
+      allow create: if signedIn()
+        && request.resource.data.customerUid == request.auth.uid
+        && request.resource.data.keys().hasAll([
+          "customerUid",
+          "customerName",
+          "customerEmail",
+          "location",
+          "customerPhone",
+          "paymentMethod",
+          "ownerUid",
+          "storeName",
+          "items",
+          "total",
+          "deliveryFee",
+          "status",
+          "seen",
+          "createdAt"
+        ])
+        && request.resource.data.keys().hasOnly([
+          "customerUid",
+          "customerName",
+          "customerEmail",
+          "location",
+          "customerPhone",
+          "paymentMethod",
+          "ownerUid",
+          "storeName",
+          "items",
+          "total",
+          "deliveryFee",
+          "status",
+          "seen",
+          "createdAt",
+          "deliveryLat",
+          "deliveryLng"
+        ])
+        && request.resource.data.customerName is string
+        && request.resource.data.customerEmail is string
+        && request.resource.data.location is string
+        && request.resource.data.customerPhone is string
+        && request.resource.data.ownerUid is string
+        && request.resource.data.storeName is string
+        && request.resource.data.paymentMethod in ["card", "delivery"]
+        && request.resource.data.items is list
+        && request.resource.data.total is number
+        && request.resource.data.deliveryFee is number
+        && request.resource.data.status == "new"
+        && request.resource.data.seen == false
+        && request.resource.data.createdAt is number
+        && (!("deliveryLat" in request.resource.data) || request.resource.data.deliveryLat is number)
+        && (!("deliveryLng" in request.resource.data) || request.resource.data.deliveryLng is number);
+
+      allow update: if isStore()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "seen"])
+        && request.resource.data.status in ["new", "on the way", "delivered"]
+        && request.resource.data.seen is bool;
+
+      allow delete: if false;
+    }
+
+    match /sales/{saleId} {
+      allow read: if isStore() && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if isStore()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          "ownerUid",
+          "productId",
+          "productName",
+          "quantity",
+          "price",
+          "total",
+          "soldAt"
+        ]);
+
+      allow update, delete: if false;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
