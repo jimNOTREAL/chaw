@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010l";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010n";
 
 
 const emailInput = document.getElementById("email");
@@ -77,6 +77,8 @@ const categoryWordCkbInput = document.getElementById("category-word-ckb");
 const addCategoryButton = document.getElementById("add-category-button");
 const categoryList = document.getElementById("category-list");
 const businessEmailInput = document.getElementById("business-email");
+const businessStoreNameInput = document.getElementById("business-store-name");
+const businessDoorPinInput = document.getElementById("business-door-pin");
 const businessCategorySelect = document.getElementById("business-category");
 const allowBusinessButton = document.getElementById("allow-business-button");
 const businessList = document.getElementById("business-list");
@@ -2660,8 +2662,21 @@ if (allowBusinessButton) {
         const email = businessEmailInput.value.trim().toLowerCase();
         const category = businessCategorySelect ? businessCategorySelect.value : "";
 
+        const storeName = businessStoreNameInput ? businessStoreNameInput.value.trim() : "";
+        const pin = pinFromText(businessDoorPinInput ? businessDoorPinInput.value : "");
+
         if (!email || !category) {
             adminMessage.textContent = t("typeEmailCategory");
+            return;
+        }
+
+        if (!storeName) {
+            adminMessage.textContent = t("typeStoreNameFirst");
+            return;
+        }
+
+        if (pin === false) {
+            adminMessage.textContent = t("doorPinUnread");
             return;
         }
 
@@ -2682,10 +2697,18 @@ if (allowBusinessButton) {
                 return;
             }
 
-            await updateDoc(doc(db, "users", account.id), {
+            const userUpdates = {
                 role: "business",
-                category: category
-            });
+                category: category,
+                storeName: storeName
+            };
+
+            if (pin) {
+                userUpdates.deliveryLat = pin.lat;
+                userUpdates.deliveryLng = pin.lng;
+            }
+
+            await updateDoc(doc(db, "users", account.id), userUpdates);
 
             try {
                 const productSnapshot = await getDocs(query(
@@ -2695,9 +2718,26 @@ if (allowBusinessButton) {
                 const productWrites = [];
 
                 productSnapshot.forEach((productDocument) => {
-                    productWrites.push(updateDoc(productDocument.ref, {
-                        category: category
-                    }));
+                    const data = productDocument.data();
+                    const oldName = data.storeName || "";
+                    let names = Array.isArray(data.filters) ? data.filters.filter(Boolean) : [];
+
+                    if (oldName && !sameFilterWord(oldName, storeName)) {
+                        names = names.filter((name) => !sameFilterWord(name, oldName));
+                    }
+
+                    const fields = {
+                        storeName: storeName,
+                        category: category,
+                        filters: ensureStoreTag(names, storeName)
+                    };
+
+                    if (pin) {
+                        fields.shopLat = pin.lat;
+                        fields.shopLng = pin.lng;
+                    }
+
+                    productWrites.push(updateDoc(productDocument.ref, fields));
                 });
 
                 if (productWrites.length > 0) {
@@ -2708,10 +2748,18 @@ if (allowBusinessButton) {
             }
 
             businessEmailInput.value = "";
+            if (businessStoreNameInput) {
+                businessStoreNameInput.value = "";
+            }
+            if (businessDoorPinInput) {
+                businessDoorPinInput.value = "";
+            }
             if (businessCategorySelect) {
                 businessCategorySelect.value = "";
             }
-            adminMessage.textContent = t("canPublishIn", { email: email, category: category });
+            adminMessage.textContent = pin
+                ? t("businessNamedPinned", { email: email, store: storeName })
+                : t("businessNamed", { email: email, store: storeName });
             await loadAdminPanel();
         } catch (error) {
             adminMessage.textContent = error.message;
@@ -3149,6 +3197,44 @@ function hasDeliveryPin(source) {
 function mapsPinUrl(lat, lng) {
     const point = Number(lat).toFixed(6) + "," + Number(lng).toFixed(6);
     return "https://www.google.com/maps?q=" + encodeURIComponent(point) + "&z=19";
+}
+
+function pinFromText(raw) {
+    let text = String(raw || "").trim();
+
+    if (!text) {
+        return null;
+    }
+
+    try {
+        text = decodeURIComponent(text.replace(/\+/g, " "));
+    } catch (error) {
+        text = String(raw || "").trim();
+    }
+
+    const patterns = [
+        /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+        /@(-?\d{1,3}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/,
+        /[?&](?:q|query|ll)=(-?\d{1,3}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/,
+        /^\s*(-?\d{1,3}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/
+    ];
+
+    for (let index = 0; index < patterns.length; index += 1) {
+        const match = text.match(patterns[index]);
+
+        if (!match) {
+            continue;
+        }
+
+        const lat = Number(match[1]);
+        const lng = Number(match[2]);
+
+        if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0)) {
+            return { lat: lat, lng: lng };
+        }
+    }
+
+    return false;
 }
 
 function hideLocationAsk() {
