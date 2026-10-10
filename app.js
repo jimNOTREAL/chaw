@@ -5857,7 +5857,8 @@ async function loadStoreOrders(uid) {
         const orders = snapshot.docs.map((orderDocument) => {
             return { id: orderDocument.id, ...orderDocument.data() };
         }).filter((order) => {
-            return String(order.status || "new").trim().toLowerCase() !== "cancelled";
+            const status = String(order.status || "new").trim().toLowerCase();
+            return status !== "cancelled" && status !== "delivered";
         });
         orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         const photos = await photosForItems(orders.flatMap((order) => order.items || []));
@@ -5903,11 +5904,32 @@ async function loadStoreOrders(uid) {
                 button.textContent = order.status === "on the way" ? t("markDelivered") : t("onTheWay");
                 button.addEventListener("click", async () => {
                     const nextStatus = order.status === "on the way" ? "delivered" : "on the way";
+                    button.disabled = true;
 
                     try {
                         await updateDoc(doc(db, "orders", order.id), { status: nextStatus });
-                        await loadStoreOrders(uid);
+
+                        if (nextStatus !== "delivered") {
+                            await loadStoreOrders(uid);
+                            return;
+                        }
+
+                        status.textContent = t("statusLine", { status: statusLabel("delivered") });
+                        button.remove();
+                        window.setTimeout(() => {
+                            const card = document.getElementById("order-" + order.id);
+                            if (card) {
+                                card.remove();
+                            }
+                            if (!list.querySelector(".order-card")) {
+                                list.replaceChildren();
+                                const empty = document.createElement("p");
+                                empty.textContent = t("noOrders");
+                                list.appendChild(empty);
+                            }
+                        }, 3000);
                     } catch (error) {
+                        button.disabled = false;
                         status.textContent = error.message;
                     }
                 });
