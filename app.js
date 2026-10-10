@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010p";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010q";
 
 
 const emailInput = document.getElementById("email");
@@ -1040,12 +1040,21 @@ function filtersOnProduct(product) {
         ? product.filters.filter(Boolean)
         : (product.category ? [product.category] : []);
     const store = String(product && product.storeName || "").trim();
+    const cleaned = names.filter((name) => !isAllColorsTag(name));
 
-    if (store && !names.some((name) => sameFilterWord(name, store))) {
-        names.push(store);
+    if (cleaned.some((name) => isAllSizesTag(name))) {
+        knownSizeNames().forEach((size) => {
+            if (!cleaned.some((name) => sameFilterWord(name, size))) {
+                cleaned.push(size);
+            }
+        });
     }
 
-    return names;
+    if (store && !cleaned.some((name) => sameFilterWord(name, store))) {
+        cleaned.push(store);
+    }
+
+    return cleaned;
 }
 
 function ensureStoreTag(filters, storeName) {
@@ -1077,11 +1086,28 @@ function isAllColorsTag(name) {
     return word === "all colors" || word === "all color" || word === "all colours";
 }
 
+function isAllSizesTag(name) {
+    const hit = glossaryHit(name);
+
+    if (hit && hit.en === "All sizes") {
+        return true;
+    }
+
+    const word = String(name || "").trim().toLowerCase();
+    return word === "all sizes" || word === "all size";
+}
+
+function knownSizeNames() {
+    return (availableFilters || [])
+        .filter((category) => sectionKeyOf(category) === "size" && !isAllSizesTag(category.name))
+        .map((category) => category.name);
+}
+
 function optionGroups(product) {
     const groups = { color: [], size: [] };
 
     filtersOnProduct(product).forEach((name) => {
-        if (isAllColorsTag(name)) {
+        if (isAllColorsTag(name) || isAllSizesTag(name)) {
             return;
         }
 
@@ -1272,7 +1298,7 @@ function matchesCategory(category, typed) {
     });
 }
 
-const storePickSections = ["store", "size", "color", "brand"];
+const storePickSections = ["size", "color", "brand"];
 let recognizedPieceTags = [];
 
 const pieceTagMap = {
@@ -1556,27 +1582,59 @@ function customLabel(found, lang) {
 }
 
 function categoryLabel(category) {
+    const hit = glossaryHit(category && category.name)
+        || glossaryHit(category && category.nameEn)
+        || glossaryHit(category && category.nameAr)
+        || glossaryHit(category && category.nameCkb);
+
+    if (hit) {
+        return hit[uiLang()];
+    }
+
     const custom = customLabel(category, uiLang());
 
-    if (custom) {
+    if (custom && readableInLang(custom, uiLang())) {
         return custom;
     }
 
-    const hit = glossaryHit(category && category.name);
-    return hit ? hit[uiLang()] : translatePhrase(category && category.name);
+    return translatePhrase(category && category.name);
 }
 
 function tagLabel(name) {
     const lang = uiLang();
-    const found = availableFilters.find((category) => category.name === name);
+    const direct = glossaryHit(name);
+
+    if (direct) {
+        return direct[lang];
+    }
+
+    const found = (availableFilters || []).find((category) => {
+        return sameFilterWord(category.name, name) || matchesCategory(category, name);
+    });
+    const throughCategory = found && (
+        glossaryHit(found.name) ||
+        glossaryHit(found.nameEn) ||
+        glossaryHit(found.nameAr) ||
+        glossaryHit(found.nameCkb)
+    );
+
+    if (throughCategory) {
+        return throughCategory[lang];
+    }
+
     const custom = customLabel(found, lang);
 
-    if (custom) {
+    if (custom && readableInLang(custom, lang)) {
         return custom;
     }
 
-    const hit = glossaryHit(name);
-    return hit ? hit[lang] : translatePhrase(name);
+    const translated = translatePhrase(name);
+
+    if (translated && readableInLang(translated, lang)) {
+        return translated;
+    }
+
+    return String(name || "");
 }
 
 function letterCounts(text) {
@@ -1899,6 +1957,24 @@ function fillFilterChoices(container, categories, selectedNames, lockedName, onl
                     });
                 });
             }
+            if (group.key === "size") {
+                input.addEventListener("change", () => {
+                    const boxes = [...options.querySelectorAll("input")];
+                    const all = boxes.find((box) => isAllSizesTag(box.value));
+                    const sizes = boxes.filter((box) => !isAllSizesTag(box.value));
+
+                    if (isAllSizesTag(input.value)) {
+                        sizes.forEach((box) => {
+                            box.checked = input.checked;
+                        });
+                        return;
+                    }
+
+                    if (all) {
+                        all.checked = sizes.length > 0 && sizes.every((box) => box.checked);
+                    }
+                });
+            }
             label.append(input, document.createTextNode(tagLabel(category.name)));
             options.appendChild(label);
         });
@@ -1908,6 +1984,17 @@ function fillFilterChoices(container, categories, selectedNames, lockedName, onl
             picked.slice(1).forEach((extra) => {
                 extra.checked = false;
             });
+        }
+
+        if (group.key === "size") {
+            const boxes = [...options.querySelectorAll("input")];
+            const all = boxes.find((box) => isAllSizesTag(box.value));
+
+            if (all && all.checked) {
+                boxes.forEach((box) => {
+                    box.checked = true;
+                });
+            }
         }
 
         block.append(heading, options);
@@ -2463,6 +2550,58 @@ async function loadUsers() {
     return users;
 }
 
+async function tidyTags(categories) {
+    const removals = [];
+    const updates = [];
+
+    categories.forEach((category) => {
+        const words = [category.name, category.nameEn, category.nameAr, category.nameCkb];
+
+        if (words.some((word) => isAllColorsTag(word))) {
+            removals.push(deleteDoc(doc(db, "categories", category.id)));
+            return;
+        }
+
+        const hit = glossaryHit(category.name)
+            || glossaryHit(category.nameEn)
+            || glossaryHit(category.nameAr)
+            || glossaryHit(category.nameCkb);
+
+        if (!hit) {
+            return;
+        }
+
+        if (category.nameEn !== hit.en || category.nameAr !== hit.ar || category.nameCkb !== hit.ckb) {
+            updates.push(updateDoc(doc(db, "categories", category.id), {
+                nameEn: hit.en,
+                nameAr: hit.ar,
+                nameCkb: hit.ckb
+            }));
+        }
+    });
+
+    const productSnapshot = await getDocs(collection(db, "products"));
+
+    productSnapshot.forEach((productDocument) => {
+        const filters = productDocument.data().filters;
+
+        if (!Array.isArray(filters) || !filters.some((name) => isAllColorsTag(name))) {
+            return;
+        }
+
+        updates.push(updateDoc(productDocument.ref, {
+            filters: filters.filter((name) => !isAllColorsTag(name))
+        }));
+    });
+
+    if (!removals.length && !updates.length) {
+        return false;
+    }
+
+    await Promise.all(removals.concat(updates));
+    return true;
+}
+
 async function loadAdminPanel() {
     if (!categoryList || !businessList) {
         return;
@@ -2471,6 +2610,14 @@ async function loadAdminPanel() {
     let categories = await loadCategories();
 
     try {
+        if (!loadAdminPanel.tidied) {
+            loadAdminPanel.tidied = true;
+
+            if (await tidyTags(categories)) {
+                categories = await loadCategories();
+            }
+        }
+
         if (await ensureMainClothingTypes(categories)) {
             categories = await loadCategories();
         }
@@ -2497,6 +2644,10 @@ async function loadAdminPanel() {
         heading.textContent = sectionLabel(group.key);
 
         group.items.forEach((category) => {
+            if (isAllColorsTag(category.name)) {
+                return;
+            }
+
             const row = document.createElement("p");
             const label = document.createElement("span");
             const sectionSelect = document.createElement("select");
@@ -5074,7 +5225,9 @@ async function loadProductPage() {
         const productTags = filtersOnProduct(product);
         const groups = optionGroups(product);
         const chosenNames = new Set(groups.color.concat(groups.size));
-        const visibleTags = productTags.filter((name) => !chosenNames.has(name) && !isAllColorsTag(name));
+        const visibleTags = productTags.filter((name) => {
+            return !chosenNames.has(name) && !isAllColorsTag(name) && !isAllSizesTag(name);
+        });
 
         if (!productTags.length) {
             category.textContent = "Chaw";
