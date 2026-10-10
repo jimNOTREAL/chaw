@@ -33,7 +33,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009p";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261009r";
 
 const DELIVERY_FEE_IQD = 3000;
 
@@ -4265,62 +4265,79 @@ async function cancelCustomerOrder(order, user, button) {
         return;
     }
 
+    const message = document.getElementById("cart-message");
     button.disabled = true;
 
     try {
-        await runTransaction(db, async (transaction) => {
-            const orderRef = doc(db, "orders", order.id);
-            const orderSnap = await transaction.get(orderRef);
+        const orderRef = doc(db, "orders", order.id);
+        const orderSnap = await getDoc(orderRef);
 
-            if (!orderSnap.exists()) {
-                throw new Error(t("couldNotCancel"));
+        if (!orderSnap.exists()) {
+            throw new Error(t("couldNotCancel"));
+        }
+
+        const current = orderSnap.data();
+
+        if (current.customerUid !== user.uid || (current.status || "new") !== "new") {
+            throw new Error(t("couldNotCancel"));
+        }
+
+        await updateDoc(orderRef, { status: "cancelled" });
+
+        const needed = new Map();
+        (current.items || []).forEach((item) => {
+            if (!item.productId) {
+                return;
             }
 
-            const current = orderSnap.data();
+            const quantity = Number(item.quantity || 0);
 
-            if (current.customerUid !== user.uid || current.status !== "new") {
-                throw new Error(t("couldNotCancel"));
+            if (quantity > 0) {
+                needed.set(item.productId, (needed.get(item.productId) || 0) + quantity);
             }
-
-            const needed = new Map();
-            (current.items || []).forEach((item) => {
-                if (!item.productId) {
-                    return;
-                }
-
-                needed.set(item.productId, (needed.get(item.productId) || 0) + Number(item.quantity || 0));
-            });
-
-            const stockUpdates = [];
-
-            for (const [productId, quantity] of needed) {
-                if (!quantity) {
-                    continue;
-                }
-
-                const productRef = doc(db, "products", productId);
-                const productSnap = await transaction.get(productRef);
-
-                if (!productSnap.exists()) {
-                    continue;
-                }
-
-                stockUpdates.push({
-                    ref: productRef,
-                    stock: Number(productSnap.data().stock || 0) + quantity
-                });
-            }
-
-            stockUpdates.forEach((update) => {
-                transaction.update(update.ref, { stock: update.stock });
-            });
-            transaction.update(orderRef, { status: "cancelled" });
         });
 
+        let stockFailed = false;
+
+        for (const [productId, quantity] of needed) {
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const productRef = doc(db, "products", productId);
+                    const productSnap = await transaction.get(productRef);
+
+                    if (!productSnap.exists()) {
+                        return;
+                    }
+
+                    const stock = Number(productSnap.data().stock);
+
+                    if (!Number.isFinite(stock)) {
+                        return;
+                    }
+
+                    transaction.update(productRef, { stock: stock + quantity });
+                });
+            } catch (error) {
+                stockFailed = true;
+                console.error(error);
+            }
+        }
+
         await loadCustomerOrders(user);
+
+        if (message && stockFailed) {
+            message.textContent = t("stockNotReturned");
+        }
     } catch (error) {
         button.disabled = false;
-        button.textContent = error.message || t("couldNotCancel");
+        const denied = error.code === "permission-denied";
+        const text = denied ? t("saveNeedsRules") : (error.message || t("couldNotCancel"));
+        button.textContent = text;
+
+        if (message) {
+            message.textContent = text;
+        }
+
         console.error(error);
     }
 }
