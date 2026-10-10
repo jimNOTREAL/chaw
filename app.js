@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010g";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010h";
 
 
 const emailInput = document.getElementById("email");
@@ -1835,7 +1835,7 @@ function deliveryFeeForKm(km) {
     }
 
     const steps = Math.ceil((distance - 2) / 0.5);
-    return 1000 + steps * 250;
+    return Math.min(3000, 1000 + steps * 250);
 }
 
 function customerDeliveryPin() {
