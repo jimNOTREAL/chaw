@@ -21,7 +21,7 @@ import {
     getFirestore,
     initializeFirestore,
     persistentLocalCache,
-    persistentMultipleTabManager,
+    persistentSingleTabManager,
     doc,
     setDoc,
     addDoc,
@@ -126,7 +126,7 @@ function openDatabase() {
     try {
         return initializeFirestore(app, {
             localCache: persistentLocalCache({
-                tabManager: persistentMultipleTabManager()
+                tabManager: persistentSingleTabManager({ forceOwnership: true })
             })
         });
     } catch (error) {
@@ -3917,7 +3917,8 @@ function renderDiscover() {
         if (cover) {
             const image = document.createElement("img");
             image.alt = pieceText(product, "name") || t("productPhoto");
-            showWhenNear(image, cover);
+            image.decoding = "async";
+            image.src = cover;
             link.appendChild(image);
         }
 
@@ -3983,28 +3984,41 @@ function renderDiscover() {
     });
 }
 
-async function loadDiscover() {
+let stopDiscoverWatch = null;
+
+function loadDiscover() {
     if (!discoverList) {
         return;
     }
 
-    try {
-        availableFilters = await loadCategories();
-        const snapshot = await getDocs(collection(db, "products"));
-        discoverProducts = [];
+    if (stopDiscoverWatch) {
+        stopDiscoverWatch();
+        stopDiscoverWatch = null;
+    }
 
-        snapshot.forEach((productDocument) => {
-            discoverProducts.push({
+    loadCategories().then((categories) => {
+        availableFilters = categories;
+        renderDiscover();
+    }).catch((error) => {
+        console.error(error);
+    });
+
+    stopDiscoverWatch = onSnapshot(collection(db, "products"), (snapshot) => {
+        if (!snapshot.size && snapshot.metadata.fromCache) {
+            return;
+        }
+
+        discoverProducts = snapshot.docs.map((productDocument) => {
+            return {
                 id: productDocument.id,
                 ...productDocument.data()
-            });
+            };
         });
-
         renderDiscover();
-    } catch (error) {
+    }, (error) => {
         discoverList.innerHTML = "<p>" + t("couldNotLoadProducts") + "</p>";
         console.error(error);
-    }
+    });
 }
 
 function productActions(product, productId, groups) {
