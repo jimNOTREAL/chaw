@@ -1330,6 +1330,38 @@ select:focus {
     display: block;
 }
 
+.product-card .qty-choice,
+.qty-label .qty-choice {
+    width: 72px;
+    margin: 10px 16px 0;
+    padding: 10px 8px;
+    border: 1px solid var(--line);
+    background: #fff;
+    font-family: "Jost", "Noto Sans Arabic", sans-serif;
+    font-size: 16px;
+}
+
+.qty-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.qty-label .qty-choice {
+    margin: 0;
+}
+
+#account-orders,
+.order-card {
+    scroll-margin-top: 88px;
+}
+
 .product-card .cart-button {
     margin: 10px 16px 0;
     align-self: flex-start;
