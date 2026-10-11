@@ -14,6 +14,7 @@ import {
     onAuthStateChanged,
     setPersistence,
     browserLocalPersistence,
+    browserSessionPersistence,
     signOut
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
@@ -36,18 +37,88 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010w";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011a";
 
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
+const passwordConfirmInput = document.getElementById("password-confirm");
+const signupNameInput = document.getElementById("signup-name");
+const rememberMeInput = document.getElementById("remember-me");
 const signupButton = document.getElementById("signup-button");
 const loginButton = document.getElementById("login-button");
 const authMessage = document.getElementById("auth-message");
 
 let isSigningUp = false;
+let authBusy = false;
 let authMode = "login";
 let authReady = Promise.resolve();
+
+function setAuthBusy(busy, mode) {
+    authBusy = Boolean(busy);
+    const creating = mode === "signup" || authMode === "signup";
+    const controls = [
+        loginButton,
+        signupButton,
+        document.getElementById("forgot-password"),
+        document.getElementById("google-signin"),
+        document.getElementById("facebook-signin"),
+        document.getElementById("mode-signin"),
+        document.getElementById("mode-signup"),
+        document.getElementById("switch-auth-link")
+    ];
+
+    controls.forEach((control) => {
+        if (control) {
+            control.disabled = authBusy;
+        }
+    });
+
+    if (loginButton && !loginButton.hidden) {
+        loginButton.textContent = authBusy ? t("signingIn") : t("signIn");
+    }
+
+    if (signupButton && !signupButton.hidden) {
+        signupButton.textContent = authBusy ? t("creatingAccount") : t("createAccount");
+    }
+
+    if (authMessage && authBusy) {
+        authMessage.textContent = creating ? t("creatingAccount") : t("signingIn");
+        authMessage.classList.remove("is-error");
+        authMessage.classList.add("is-busy");
+    } else if (authMessage) {
+        authMessage.classList.remove("is-busy");
+    }
+}
+
+async function applyRememberPersistence() {
+    const keep = !rememberMeInput || rememberMeInput.checked;
+    await setPersistence(auth, keep ? browserLocalPersistence : browserSessionPersistence);
+}
+
+function setupPasswordToggles() {
+    document.querySelectorAll(".password-toggle").forEach((button) => {
+        if (button.dataset.bound === "1") {
+            return;
+        }
+
+        button.dataset.bound = "1";
+        button.addEventListener("click", () => {
+            const field = document.getElementById(button.getAttribute("data-password-target") || "");
+            if (!field) {
+                return;
+            }
+
+            const show = field.type === "password";
+            field.type = show ? "text" : "password";
+            const label = button.querySelector("span") || button;
+            label.textContent = t(show ? "hidePassword" : "showPassword");
+            button.setAttribute("aria-label", t(show ? "hidePassword" : "showPassword"));
+        });
+    });
+}
+
+setupPasswordToggles();
 
 function cleanTyped(value) {
     return String(value || "")
@@ -426,13 +497,17 @@ function showAuthMode(mode) {
     const forgotButton = document.getElementById("forgot-password");
     const signTab = document.getElementById("mode-signin");
     const createTab = document.getElementById("mode-signup");
+    const nameRow = document.getElementById("signup-name-row");
+    const confirmRow = document.getElementById("confirm-password-row");
+    const rememberRow = document.getElementById("remember-row");
+    const switchLink = document.getElementById("switch-auth-link");
 
     if (heading) {
-        heading.textContent = creating ? t("createHeading") : t("signInHeading");
+        heading.textContent = creating ? t("createHeading") : t("accountWelcome");
     }
 
     if (lead) {
-        lead.textContent = creating ? t("createLead") : t("signInLead");
+        lead.textContent = creating ? t("createLead") : t("accountWelcomeLead");
     }
 
     if (signTab) {
@@ -449,12 +524,12 @@ function showAuthMode(mode) {
 
     if (signupButton) {
         signupButton.hidden = !creating;
-        signupButton.textContent = t("createAccount");
+        signupButton.textContent = authBusy ? t("creatingAccount") : t("createAccount");
     }
 
     if (loginButton) {
         loginButton.hidden = creating;
-        loginButton.textContent = t("signIn");
+        loginButton.textContent = authBusy ? t("signingIn") : t("signIn");
     }
 
     if (forgotButton) {
@@ -462,29 +537,78 @@ function showAuthMode(mode) {
         forgotButton.textContent = t("forgotPassword");
     }
 
+    if (nameRow) {
+        nameRow.hidden = !creating;
+    }
+
+    if (confirmRow) {
+        confirmRow.hidden = !creating;
+    }
+
+    if (rememberRow) {
+        rememberRow.hidden = creating;
+    }
+
+    if (switchLink) {
+        switchLink.hidden = !creating;
+        switchLink.textContent = t("haveAccount");
+    }
+
     if (passwordInput) {
         passwordInput.autocomplete = creating ? "new-password" : "current-password";
+    }
+
+    if (passwordConfirmInput && !creating) {
+        passwordConfirmInput.value = "";
     }
 }
 
 if (signupButton) {
     signupButton.addEventListener("click", async () => {
+        if (authBusy) {
+            return;
+        }
+
+        const fullName = cleanTyped(signupNameInput && signupNameInput.value);
         const email = cleanTyped(emailInput.value).toLowerCase();
         const password = cleanTyped(passwordInput.value);
+        const confirm = cleanTyped(passwordConfirmInput && passwordConfirmInput.value);
+
+        if (!fullName) {
+            authMessage.textContent = t("enterFullName");
+            authMessage.classList.add("is-error");
+            return;
+        }
 
         if (!email) {
             authMessage.textContent = t("enterEmailFirst");
+            authMessage.classList.add("is-error");
             return;
         }
 
         if (!password) {
             authMessage.textContent = t("enterPassword");
+            authMessage.classList.add("is-error");
+            return;
+        }
+
+        if (password.length < 6) {
+            authMessage.textContent = t("passwordTooShort");
+            authMessage.classList.add("is-error");
+            return;
+        }
+
+        if (password !== confirm) {
+            authMessage.textContent = t("passwordsDoNotMatch");
+            authMessage.classList.add("is-error");
             return;
         }
 
         try {
             await authReady;
             isSigningUp = true;
+            setAuthBusy(true, "signup");
+            await applyRememberPersistence();
 
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
@@ -493,16 +617,20 @@ if (signupButton) {
             );
 
             const user = userCredential.user;
-
-            await setDoc(doc(db, "users", user.uid), {
+            const profile = {
                 email: user.email,
-                role: "customer"
-            });
+                role: "customer",
+                displayName: fullName.slice(0, 40)
+            };
 
-            window.location.href = nextPage();
+            await setDoc(doc(db, "users", user.uid), profile);
+
+            window.location.href = nextPage() === "index.html" ? "account.html" : nextPage();
         } catch (error) {
             isSigningUp = false;
+            setAuthBusy(false, "signup");
             authMessage.textContent = authErrorText(error);
+            authMessage.classList.add("is-error");
             console.error(error);
         }
     });
@@ -566,14 +694,20 @@ async function saveGoogleProfile(user) {
 
 async function signInWithProvider(provider, button, openingKey, labelKey) {
     const kind = provider.providerId === "facebook.com" ? "facebook" : "google";
+    if (authBusy) {
+        return;
+    }
+
     button.disabled = true;
     buttonLabel(button, t(openingKey));
+    setAuthBusy(true, authMode);
 
     try {
         isSigningUp = true;
+        await applyRememberPersistence();
         const result = await signInWithPopup(auth, provider);
         await saveGoogleProfile(result.user);
-        window.location.href = nextPage();
+        window.location.href = nextPage() === "index.html" ? "account.html" : nextPage();
     } catch (error) {
         if (error.code === "auth/popup-blocked") {
             try {
@@ -586,12 +720,15 @@ async function signInWithProvider(provider, button, openingKey, labelKey) {
         }
 
         isSigningUp = false;
+        setAuthBusy(false, authMode);
         button.disabled = false;
         buttonLabel(button, t(labelKey));
         if (authMessage && error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
             authMessage.textContent = authErrorText(error, kind);
+            authMessage.classList.add("is-error");
         } else if (authMessage) {
             authMessage.textContent = "";
+            authMessage.classList.remove("is-error");
         }
         console.error(error);
     }
@@ -617,6 +754,10 @@ if (emailForm) {
     emailForm.addEventListener("submit", async (event) => {
         event.preventDefault();
 
+        if (authBusy) {
+            return;
+        }
+
         if (authMode === "signup") {
             signupButton.click();
             return;
@@ -627,20 +768,26 @@ if (emailForm) {
 
         if (!email) {
             authMessage.textContent = t("enterEmailFirst");
+            authMessage.classList.add("is-error");
             return;
         }
 
         if (!password) {
             authMessage.textContent = t("enterPassword");
+            authMessage.classList.add("is-error");
             return;
         }
 
         try {
             await authReady;
+            setAuthBusy(true, "login");
+            await applyRememberPersistence();
             await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = nextPage();
+            window.location.href = nextPage() === "index.html" ? "account.html" : nextPage();
         } catch (error) {
+            setAuthBusy(false, "login");
             authMessage.textContent = authErrorText(error);
+            authMessage.classList.add("is-error");
             console.error(error);
         }
     });
@@ -650,18 +797,28 @@ const forgotButton = document.getElementById("forgot-password");
 
 if (forgotButton) {
     forgotButton.addEventListener("click", async () => {
+        if (authBusy) {
+            return;
+        }
+
         const email = cleanTyped(emailInput.value).toLowerCase();
 
         if (!email) {
             authMessage.textContent = t("enterEmailFirst");
+            authMessage.classList.add("is-error");
             return;
         }
 
         try {
+            setAuthBusy(true, "login");
             await sendPasswordResetEmail(auth, email);
+            setAuthBusy(false, "login");
             authMessage.textContent = t("resetSent");
+            authMessage.classList.remove("is-error");
         } catch (error) {
+            setAuthBusy(false, "login");
             authMessage.textContent = authErrorText(error);
+            authMessage.classList.add("is-error");
             console.error(error);
         }
     });
@@ -671,16 +828,22 @@ function chooseAuthMode(mode) {
     showAuthMode(mode);
     if (authMessage) {
         authMessage.textContent = "";
+        authMessage.classList.remove("is-error", "is-busy");
     }
 }
 
 const signTab = document.getElementById("mode-signin");
 const createTab = document.getElementById("mode-signup");
+const switchAuthLink = document.getElementById("switch-auth-link");
 
 if (signTab && createTab) {
     signTab.addEventListener("click", () => chooseAuthMode("login"));
     createTab.addEventListener("click", () => chooseAuthMode("signup"));
     showAuthMode("login");
+}
+
+if (switchAuthLink) {
+    switchAuthLink.addEventListener("click", () => chooseAuthMode("login"));
 }
 
 onLanguageChange(() => {
@@ -3514,13 +3677,49 @@ async function loadAccountProfile(user) {
     }
 
     const ordersSection = document.getElementById("account-orders");
-    if (ordersSection && !isStore) {
-        ordersSection.hidden = true;
+    const customerOrderList = document.getElementById("my-orders");
+    const storeOrderList = document.getElementById("order-list");
+    if (ordersSection) {
+        ordersSection.hidden = false;
+    }
+    if (customerOrderList) {
+        customerOrderList.hidden = isStore;
+    }
+    if (storeOrderList) {
+        storeOrderList.hidden = !isStore;
+    }
+
+    const storeInvite = document.getElementById("customer-store-invite");
+    if (storeInvite) {
+        storeInvite.hidden = isStore || isAdmin(user);
     }
 
     const storeContact = document.getElementById("store-contact");
     if (storeContact) {
         storeContact.hidden = !isStore;
+    }
+
+    const roleKey = isAdmin(user)
+        ? "roleAdmin"
+        : (isStore ? "roleBusiness" : "roleCustomer");
+    const roleLabel = t(roleKey);
+    const welcome = document.getElementById("account-welcome");
+    const roleLine = document.getElementById("account-role-line");
+    const roleBadge = document.getElementById("account-role-badge");
+    const welcomeName = isStore
+        ? (storeName || accountProfile.displayName || user.email || "")
+        : (accountProfile.displayName || user.email || "");
+
+    if (welcome) {
+        welcome.textContent = welcomeName
+            ? t("accountWelcomeBack", { name: welcomeName })
+            : t("accountDashboardTitle");
+    }
+    if (roleLine) {
+        roleLine.textContent = roleLabel;
+    }
+    if (roleBadge) {
+        roleBadge.textContent = roleLabel;
     }
 
     const phoneInput = document.getElementById("account-phone");
@@ -3607,6 +3806,8 @@ async function loadAccountProfile(user) {
         } catch (error) {
             console.error(error);
         }
+    } else if (document.getElementById("my-orders") && document.getElementById("account-page")) {
+        await loadCustomerOrders(user);
     }
 
     watchStoreOrders(user);
@@ -7053,6 +7254,7 @@ if (discoverAreaSelect) {
 
 function refreshAccountLabels() {
     const isStore = accountProfile.role === "business";
+    const user = auth.currentUser;
     const nameLabel = document.getElementById("display-name-label");
     const nameInput = document.getElementById("display-name");
     const photoLabel = document.querySelector("label[for='profile-image']");
@@ -7085,6 +7287,32 @@ function refreshAccountLabels() {
         addProductButton.textContent = addProductButton.dataset.editingId
             ? t("saveChanges")
             : t("publishProduct");
+    }
+
+    if (!user || !document.getElementById("account-page")) {
+        return;
+    }
+
+    const roleKey = isAdmin(user)
+        ? "roleAdmin"
+        : (isStore ? "roleBusiness" : "roleCustomer");
+    const welcomeName = isStore
+        ? (accountProfile.storeName || accountProfile.displayName || user.email || "")
+        : (accountProfile.displayName || user.email || "");
+    const welcome = document.getElementById("account-welcome");
+    const roleLine = document.getElementById("account-role-line");
+    const roleBadge = document.getElementById("account-role-badge");
+
+    if (welcome) {
+        welcome.textContent = welcomeName
+            ? t("accountWelcomeBack", { name: welcomeName })
+            : t("accountDashboardTitle");
+    }
+    if (roleLine) {
+        roleLine.textContent = t(roleKey);
+    }
+    if (roleBadge) {
+        roleBadge.textContent = t(roleKey);
     }
 }
 

@@ -3028,3 +3028,440 @@ body.market-home > main {
         grid-template-columns: 1fr;
     }
 }
+
+/* Premium account landing + dashboard */
+body.account-landing,
+body.account-dash {
+    background:
+        radial-gradient(circle at top, rgba(198, 165, 106, 0.12), transparent 36%),
+        linear-gradient(180deg, #f7f2eb 0%, var(--ivory) 42%, #efe7dc 100%);
+}
+
+body.account-landing > main,
+body.account-dash > main {
+    padding: 0;
+}
+
+.account-auth-main {
+    min-height: calc(100vh - 140px);
+}
+
+.account-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+    min-height: calc(100vh - 140px);
+}
+
+.account-split-visual {
+    position: relative;
+    min-height: 100%;
+    overflow: hidden;
+    background: #111;
+}
+
+.account-split-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scale(1.02);
+}
+
+.account-split-veil {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(10, 9, 8, 0.18), rgba(10, 9, 8, 0.72)),
+        linear-gradient(90deg, rgba(10, 9, 8, 0.55), transparent 55%);
+}
+
+.account-split-copy {
+    position: absolute;
+    inset-inline-start: 10%;
+    inset-block-end: 12%;
+    max-width: 420px;
+    color: #f7f3ec;
+    z-index: 1;
+}
+
+.account-brand-mark,
+.account-hero-kicker {
+    font-family: "Playfair Display", "Noto Naskh Arabic", serif;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-size: 12px;
+    color: #c6a56a;
+    margin-bottom: 14px;
+}
+
+.account-split-copy h1 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-size: clamp(36px, 4.4vw, 58px);
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 14px;
+    text-align: start;
+}
+
+.account-split-copy p {
+    color: rgba(247, 243, 236, 0.86);
+    line-height: 1.75;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+}
+
+.account-split-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px;
+    padding: 40px 7% 48px;
+    background:
+        linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(244, 239, 232, 0.98));
+}
+
+.account-auth-box {
+    max-width: 460px;
+    width: 100%;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(22, 19, 17, 0.08);
+    box-shadow: 0 18px 50px rgba(22, 19, 17, 0.08);
+    padding: 34px 28px 28px;
+    text-align: start;
+    border-radius: 18px;
+}
+
+.account-panel-mark {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    filter: invert(1);
+    margin-bottom: 12px;
+    opacity: 0.9;
+}
+
+.account-auth-box h2 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-size: clamp(30px, 3.5vw, 40px);
+    margin-bottom: 8px;
+    text-align: start;
+}
+
+.account-auth-box > p,
+.account-auth-box #auth-lead {
+    color: #5c564e;
+    margin-bottom: 22px;
+    letter-spacing: 0;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+}
+
+.account-landing .auth-modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 22px;
+    padding: 4px;
+    background: rgba(22, 19, 17, 0.04);
+    border-radius: 999px;
+}
+
+.account-landing .auth-mode {
+    border: 0;
+    background: transparent;
+    color: #5c564e;
+    padding: 12px 10px;
+    border-radius: 999px;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.account-landing .auth-mode.is-active {
+    background: #111;
+    color: #f7f3ec;
+    box-shadow: 0 8px 18px rgba(17, 17, 17, 0.18);
+}
+
+.account-landing .auth-field {
+    margin-bottom: 14px;
+}
+
+.account-landing .auth-field label,
+.account-landing .auth-check {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #3f3a34;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+}
+
+.account-landing .auth-field input,
+.account-landing .password-wrap input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(22, 19, 17, 0.12);
+    background: #fffdf9;
+    border-radius: 12px;
+    padding: 13px 14px;
+    font: inherit;
+    color: #161311;
+}
+
+.account-landing .password-wrap {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.account-landing .password-toggle {
+    border: 1px solid rgba(22, 19, 17, 0.12);
+    background: #f4efe8;
+    color: #3f3a34;
+    border-radius: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 13px;
+}
+
+.account-landing .auth-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0 18px;
+}
+
+.account-landing .auth-check input {
+    width: auto;
+    margin: 0;
+}
+
+.account-landing #login-button,
+.account-landing #signup-button {
+    width: 100%;
+    border: 0;
+    border-radius: 999px;
+    background: #111;
+    color: #f7f3ec;
+    padding: 14px 18px;
+    margin-top: 4px;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.account-landing #login-button:hover,
+.account-landing #signup-button:hover {
+    background: #2a2420;
+}
+
+.account-landing #login-button:disabled,
+.account-landing #signup-button:disabled,
+.account-landing .google-signin:disabled,
+.account-landing .facebook-signin:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.account-landing .auth-link {
+    display: inline-block;
+    margin-top: 14px;
+    margin-inline-end: 14px;
+    border: 0;
+    background: none;
+    color: #8a6a3d;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 0;
+}
+
+.account-landing .auth-message {
+    min-height: 1.4em;
+    margin-top: 12px;
+    color: #5c564e;
+    font-size: 14px;
+}
+
+.account-landing .auth-message.is-error {
+    color: #8a2f2f;
+}
+
+.account-landing .auth-message.is-busy {
+    color: #8a6a3d;
+}
+
+.account-landing .auth-or {
+    margin: 18px 0;
+    text-align: center;
+    color: #8a8379;
+}
+
+.account-landing .provider-signin {
+    display: grid;
+    gap: 10px;
+}
+
+.account-landing .google-signin,
+.account-landing .facebook-signin {
+    width: 100%;
+    justify-content: center;
+    border-radius: 999px;
+}
+
+.store-invite {
+    max-width: 460px;
+    border: 1px solid rgba(198, 165, 106, 0.35);
+    background: rgba(255, 252, 247, 0.9);
+    border-radius: 16px;
+    padding: 20px 22px;
+}
+
+.store-invite h3 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    margin: 0 0 8px;
+    font-size: 24px;
+}
+
+.store-invite p {
+    color: #5c564e;
+    line-height: 1.7;
+    margin: 0 0 14px;
+}
+
+.store-invite-button {
+    display: inline-block;
+    padding: 12px 18px;
+    border-radius: 999px;
+    background: #c6a56a;
+    color: #161311;
+    text-decoration: none;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-weight: 500;
+}
+
+.account-dash .account-layout {
+    width: min(1100px, calc(100% - 40px));
+    margin: 28px auto 80px;
+}
+
+.account-hero {
+    margin-bottom: 22px;
+}
+
+.account-hero h1 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-size: clamp(34px, 5vw, 52px);
+    text-align: start;
+    margin: 0 0 8px;
+}
+
+.account-role-line,
+.account-role-badge {
+    color: #8a6a3d;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    letter-spacing: 0.04em;
+}
+
+.account-role-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid rgba(198, 165, 106, 0.45);
+    border-radius: 999px;
+    background: rgba(198, 165, 106, 0.12);
+    font-size: 13px;
+}
+
+.account-dash .account-card {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(22, 19, 17, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(22, 19, 17, 0.05);
+    padding: 24px;
+}
+
+.account-dash .account-card h2 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    margin-top: 0;
+}
+
+.account-quick-links {
+    display: grid;
+    gap: 10px;
+}
+
+.account-shortcut {
+    display: block;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(22, 19, 17, 0.08);
+    background: #fffdf9;
+    color: #161311;
+    text-decoration: none;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.account-shortcut:hover {
+    border-color: rgba(198, 165, 106, 0.7);
+    transform: translateY(-1px);
+}
+
+.account-dash #save-account-button,
+.account-dash #logout-button {
+    border-radius: 999px;
+}
+
+.account-dash #logout-button {
+    background: transparent;
+    border: 1px solid rgba(22, 19, 17, 0.18);
+    color: #161311;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+.account-dash #customer-store-invite {
+    margin-top: 8px;
+}
+
+@media (max-width: 960px) {
+    .account-split {
+        grid-template-columns: 1fr;
+    }
+
+    .account-split-visual {
+        min-height: 220px;
+        max-height: 280px;
+    }
+
+    .account-split-copy {
+        inset-inline-start: 6%;
+        inset-block-end: 10%;
+        max-width: 90%;
+    }
+
+    .account-split-copy h1 {
+        font-size: clamp(28px, 7vw, 40px);
+    }
+
+    .account-split-panel {
+        padding: 28px 18px 40px;
+    }
+
+    .account-auth-box,
+    .store-invite {
+        max-width: none;
+    }
+}
+
+@media (max-width: 720px) {
+    .account-dash .account-layout,
+    #account-page.store-layout {
+        width: min(100% - 24px, 100%);
+        grid-template-columns: 1fr;
+    }
+}

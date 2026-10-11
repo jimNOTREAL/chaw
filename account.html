@@ -31,36 +31,68 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261010s">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Noto+Naskh+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=20261011a">
 </head>
-<body>
-    <nav>
-        <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
-            <img src="chaw-eye-white.png" alt="Chaw eye logo">
-            <div class="logo">Chaw</div>
-        </a>
+<body class="account-dash market-home">
+    <nav class="market-nav">
+        <div class="nav-start">
+            <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
+                <img src="chaw-eye-white.png" alt="">
+                <div class="logo">Chaw</div>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html" data-i18n="home">Home</a></li>
+                <li><a href="discover.html" data-i18n="navProducts">Products</a></li>
+                <li><a href="discover.html#categories" data-i18n="navSections">Categories</a></li>
+                <li><a href="about.html" data-i18n="navAbout">About us</a></li>
+                <li><a href="index.html#contact" data-i18n="navContact">Contact</a></li>
+                <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
+            </ul>
+        </div>
 
-        <ul>
-            <li><a href="index.html" data-i18n="home">Home</a></li>
-            <li><a href="discover.html" data-i18n="discover">Discover</a></li>
-            <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
-        </ul>
+        <form class="nav-search" action="discover.html" method="get">
+            <label class="search-icon" for="home-search" data-i18n-aria="searchWant" aria-label="Search for what you want...">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16l4 4"></path></svg>
+            </label>
+            <input id="home-search" name="q" type="search" data-i18n-placeholder="searchWant" placeholder="Search for what you want..." autocomplete="off">
+        </form>
 
-        <a href="login.html" class="nav-button" id="join-link" data-i18n="signIn">Sign in</a>
-        <button type="button" id="account-button" class="account-button" hidden data-i18n-aria="yourAccount" aria-label="Your account">
-            <img id="nav-avatar" alt="" hidden>
-            <span id="nav-initial"></span>
-        </button>
+        <div class="nav-tools">
+            <a href="login.html" class="nav-tool" id="join-link">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5 19c1.4-3 3.8-4.5 7-4.5S17.6 16 19 19"></path></svg>
+                <span data-i18n="myAccount">My account</span>
+            </a>
+            <button type="button" id="account-button" class="account-button nav-tool" hidden data-i18n-aria="yourAccount" aria-label="Your account">
+                <img id="nav-avatar" alt="" hidden>
+                <span id="nav-initial"></span>
+                <span class="nav-tool-label" data-i18n="myAccount">My account</span>
+            </button>
+            <a href="discover.html" class="nav-tool icon-only" data-i18n-aria="savedPieces" aria-label="Saved pieces">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z"></path></svg>
+                <span id="saved-count" class="nav-badge" hidden>0</span>
+            </a>
+            <a href="cart.html" class="nav-tool icon-only" id="cart-link" data-i18n-aria="cart" aria-label="Cart">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"></path><path d="M9 8V7a3 3 0 0 1 6 0v1"></path></svg>
+                <span id="nav-cart-count" class="nav-badge" hidden>0</span>
+            </a>
+        </div>
     </nav>
 
     <main id="account-page" class="account-layout">
+        <header class="account-hero">
+            <p class="account-hero-kicker" data-i18n="myAccount">My account</p>
+            <h1 id="account-welcome" data-i18n="accountDashboardTitle">Your account</h1>
+            <p id="account-role-line" class="account-role-line"></p>
+        </header>
+
         <nav id="store-jump" class="page-jump" hidden>
             <a href="#account-products" data-i18n="jumpPieces">Pieces</a>
             <a href="#account-orders" data-i18n="jumpOrders">Orders</a>
             <a href="#account-details" data-i18n="jumpDetails">Details</a>
             <a href="add-product.html" data-i18n="addProductButton">Add product</a>
         </nav>
+
         <section id="account-products" class="account-catalog account-card" hidden>
             <div class="section-head">
                 <h2 data-i18n="editYourPieces">Edit your pieces</h2>
@@ -73,27 +105,35 @@
 
         <div id="account-panel" class="account-panel account-page">
             <div class="account-card account-identity">
-            <div class="account-photo-wrap">
-                <img id="account-photo" alt="" hidden>
-                <span id="account-initial"></span>
-                <button type="button" id="logout-button" data-i18n="logOut">Log out</button>
+                <div class="account-photo-wrap">
+                    <img id="account-photo" alt="" hidden>
+                    <span id="account-initial"></span>
+                    <button type="button" id="logout-button" data-i18n="logOut">Log out</button>
+                </div>
+                <p id="account-store-kicker" hidden data-i18n="storeKicker">Store</p>
+                <p id="account-email"></p>
+                <p id="account-role-badge" class="account-role-badge"></p>
+                <a class="add-product-button add-product-link" href="add-product.html" hidden data-i18n="addProductButton">Add product</a>
             </div>
-            <p id="account-store-kicker" hidden data-i18n="storeKicker">Store</p>
-            <p id="account-email"></p>
-            <a class="add-product-button add-product-link" href="add-product.html" hidden data-i18n="addProductButton">Add product</a>
+
+            <div class="account-card account-quick-links">
+                <h2 data-i18n="accountShortcuts">Shortcuts</h2>
+                <a href="discover.html" class="account-shortcut" data-i18n="savedPiecesOpen">Open saved pieces on Discover</a>
+                <a href="cart.html" class="account-shortcut" data-i18n="yourOrders">Your orders</a>
+                <a href="discover.html" class="account-shortcut" data-i18n="shopPieces">Shop pieces</a>
             </div>
 
             <div class="account-card" id="account-details">
-            <h2 data-i18n="yourDetails">Your details</h2>
-            <label class="file-label" id="display-name-label" for="display-name" data-i18n="displayName">Customer name</label>
-            <input id="display-name" type="text" maxlength="40" data-i18n-placeholder="displayName" placeholder="Display name">
-            <label class="file-label" for="account-phone" data-i18n="phone">Phone</label>
-            <input id="account-phone" type="tel" maxlength="30" data-i18n-placeholder="phoneNumber" placeholder="Phone number">
-            <label class="file-label" id="delivery-label" for="delivery-location" data-i18n="deliveryLocation">Delivery location</label>
-            <input id="delivery-location" type="text" maxlength="160" data-i18n-placeholder="streetPlaceholder" placeholder="Street, area, city">
-            <p id="delivery-hint" data-i18n="deliveryHint">The store uses this address so the delivery knows where to go.</p>
-            <label class="file-label" for="profile-image" data-i18n="profilePhoto">Profile photo</label>
-            <input id="profile-image" type="file" accept="image/*">
+                <h2 data-i18n="yourDetails">Your details</h2>
+                <label class="file-label" id="display-name-label" for="display-name" data-i18n="displayName">Customer name</label>
+                <input id="display-name" type="text" maxlength="40" data-i18n-placeholder="displayName" placeholder="Display name">
+                <label class="file-label" for="account-phone" data-i18n="phone">Phone</label>
+                <input id="account-phone" type="tel" maxlength="30" data-i18n-placeholder="phoneNumber" placeholder="Phone number">
+                <label class="file-label" id="delivery-label" for="delivery-location" data-i18n="deliveryLocation">Delivery location</label>
+                <input id="delivery-location" type="text" maxlength="160" data-i18n-placeholder="streetPlaceholder" placeholder="Street, area, city">
+                <p id="delivery-hint" data-i18n="deliveryHint">The store uses this address so the delivery knows where to go.</p>
+                <label class="file-label" for="profile-image" data-i18n="profilePhoto">Profile photo</label>
+                <input id="profile-image" type="file" accept="image/*">
             </div>
 
             <div id="store-contact" class="account-card" hidden>
@@ -123,10 +163,18 @@
             <button type="button" id="save-account-button" data-i18n="save">Save</button>
             <p id="account-form-message"></p>
 
-            <div id="account-orders" class="account-card" hidden>
+            <div id="account-orders" class="account-card">
                 <h2 data-i18n="orders">Orders</h2>
+                <div id="my-orders"></div>
                 <div id="order-list"></div>
             </div>
+
+            <aside id="customer-store-invite" class="store-invite account-card">
+                <h3 data-i18n="ownAStore">Do you own a store?</h3>
+                <p data-i18n="ownAStoreLead">Join Chaw and help your shop reach more customers online.</p>
+                <a href="about.html" class="store-invite-button" data-i18n="joinAsStore">Join as a store</a>
+                <p class="field-hint" data-i18n="joinAsStoreNote">An administrator opens store accounts. New sign-ups stay customer accounts until approved.</p>
+            </aside>
         </div>
     </main>
 
@@ -134,6 +182,6 @@
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261010v"></script>
+    <script type="module" src="app.js?v=20261011a"></script>
 </body>
 </html>

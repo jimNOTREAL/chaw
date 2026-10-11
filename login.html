@@ -19,89 +19,159 @@
             }
             document.documentElement.lang = lang;
             document.documentElement.dir = (lang === "ar" || lang === "ckb") ? "rtl" : "ltr";
+            if (localStorage.getItem("chaw-account") === "1") {
+                document.documentElement.classList.add("known-account");
+            }
         })();
     </script>
     <title>Sign in — Chaw</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261010s">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Noto+Naskh+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=20261011a">
 </head>
-<body>
+<body class="account-landing market-home">
+    <nav class="market-nav">
+        <div class="nav-start">
+            <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
+                <img src="chaw-eye-white.png" alt="">
+                <div class="logo">Chaw</div>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html" data-i18n="home">Home</a></li>
+                <li><a href="discover.html" data-i18n="navProducts">Products</a></li>
+                <li><a href="discover.html#categories" data-i18n="navSections">Categories</a></li>
+                <li><a href="about.html" data-i18n="navAbout">About us</a></li>
+                <li><a href="index.html#contact" data-i18n="navContact">Contact</a></li>
+                <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
+            </ul>
+        </div>
 
-    <nav>
-        <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
-            <img src="chaw-eye-white.png" alt="Chaw eye logo">
-            <div class="logo">Chaw</div>
-        </a>
+        <form class="nav-search" action="discover.html" method="get">
+            <label class="search-icon" for="home-search" data-i18n-aria="searchWant" aria-label="Search for what you want...">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16l4 4"></path></svg>
+            </label>
+            <input id="home-search" name="q" type="search" data-i18n-placeholder="searchWant" placeholder="Search for what you want..." autocomplete="off">
+        </form>
 
-        <ul>
-            <li><a href="index.html" data-i18n="home">Home</a></li>
-            <li><a href="discover.html" data-i18n="discover">Discover</a></li>
-            <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
-        </ul>
-
-        <a href="login.html" class="nav-button" id="join-link" data-i18n="signIn">Sign in</a>
-        <button type="button" id="account-button" class="account-button" hidden data-i18n-aria="yourAccount" aria-label="Your account">
-            <img id="nav-avatar" alt="" hidden>
-            <span id="nav-initial"></span>
-        </button>
+        <div class="nav-tools">
+            <a href="login.html" class="nav-tool" id="join-link">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5 19c1.4-3 3.8-4.5 7-4.5S17.6 16 19 19"></path></svg>
+                <span data-i18n="myAccount">My account</span>
+            </a>
+            <button type="button" id="account-button" class="account-button nav-tool" hidden data-i18n-aria="yourAccount" aria-label="Your account">
+                <img id="nav-avatar" alt="" hidden>
+                <span id="nav-initial"></span>
+                <span class="nav-tool-label" data-i18n="myAccount">My account</span>
+            </button>
+            <a href="discover.html" class="nav-tool icon-only" data-i18n-aria="savedPieces" aria-label="Saved pieces">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z"></path></svg>
+                <span id="saved-count" class="nav-badge" hidden>0</span>
+            </a>
+            <a href="cart.html" class="nav-tool icon-only" id="cart-link" data-i18n-aria="cart" aria-label="Cart">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"></path><path d="M9 8V7a3 3 0 0 1 6 0v1"></path></svg>
+                <span id="nav-cart-count" class="nav-badge" hidden>0</span>
+            </a>
+        </div>
     </nav>
 
-    <main>
-        <section class="auth-section">
-            <div class="auth-box">
-                <h2 id="auth-heading" data-i18n="signInHeading">Sign in</h2>
-                <p id="auth-lead" data-i18n="signInLead">Type your email and password. You can also use Google or Facebook.</p>
+    <main class="account-auth-main">
+        <section class="account-split" aria-label="Chaw account">
+            <aside class="account-split-visual">
+                <img src="chaw-boutique-hero.jpg" alt="" class="account-split-photo">
+                <div class="account-split-veil"></div>
+                <div class="account-split-copy">
+                    <p class="account-brand-mark">Chaw</p>
+                    <h1 data-i18n="accountStyleStarts">Your style starts here</h1>
+                    <p data-i18n="accountStyleLead">Find your favorite pieces and enjoy a shopping experience made for you.</p>
+                </div>
+            </aside>
 
-                <div class="auth-modes" id="auth-modes">
-                    <button type="button" id="mode-signin" class="auth-mode is-active" data-i18n="signIn">Sign in</button>
-                    <button type="button" id="mode-signup" class="auth-mode" data-i18n="createAccount">Create account</button>
+            <div class="account-split-panel">
+                <div class="auth-box account-auth-box">
+                    <img src="chaw-eye-white.png" alt="" class="account-panel-mark">
+                    <h2 id="auth-heading" data-i18n="accountWelcome">Welcome to Chaw</h2>
+                    <p id="auth-lead" data-i18n="accountWelcomeLead">Sign in or create your account to begin.</p>
+
+                    <div class="auth-modes" id="auth-modes">
+                        <button type="button" id="mode-signin" class="auth-mode is-active" data-i18n="signIn" aria-pressed="true">Sign in</button>
+                        <button type="button" id="mode-signup" class="auth-mode" data-i18n="createAccount" aria-pressed="false">Create account</button>
+                    </div>
+
+                    <div id="email-login">
+                        <form id="email-login-form">
+                            <div id="signup-name-row" class="auth-field" hidden>
+                                <label for="signup-name" data-i18n="fullName">Full name</label>
+                                <input type="text" id="signup-name" maxlength="40" autocomplete="name" data-i18n-placeholder="fullName" placeholder="Full name">
+                            </div>
+
+                            <div class="auth-field">
+                                <label for="email" data-i18n="emailAddress">Email address</label>
+                                <input type="email" id="email" autocomplete="email">
+                            </div>
+
+                            <div class="auth-field">
+                                <label for="password" data-i18n="password">Password</label>
+                                <div class="password-wrap">
+                                    <input type="password" id="password" autocomplete="current-password">
+                                    <button type="button" class="password-toggle" data-password-target="password" data-i18n-aria="showPassword" aria-label="Show password">
+                                        <span data-i18n="showPassword">Show</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="confirm-password-row" class="auth-field" hidden>
+                                <label for="password-confirm" data-i18n="confirmPassword">Confirm password</label>
+                                <div class="password-wrap">
+                                    <input type="password" id="password-confirm" autocomplete="new-password">
+                                    <button type="button" class="password-toggle" data-password-target="password-confirm" data-i18n-aria="showPassword" aria-label="Show password">
+                                        <span data-i18n="showPassword">Show</span>
+                                    </button>
+                                </div>
+                                <p class="field-hint" data-i18n="passwordHint">Use at least 6 characters.</p>
+                            </div>
+
+                            <label id="remember-row" class="check-label auth-check">
+                                <input type="checkbox" id="remember-me" checked>
+                                <span data-i18n="rememberMe">Remember me</span>
+                            </label>
+
+                            <button type="submit" id="login-button" data-i18n="signIn">Sign in</button>
+                            <button type="button" id="signup-button" hidden data-i18n="createAccount">Create account</button>
+                        </form>
+                        <button type="button" id="forgot-password" class="auth-link" data-i18n="forgotPassword">Forgot password</button>
+                        <button type="button" id="switch-auth-link" class="auth-link" hidden data-i18n="haveAccount">Already have an account? Sign in</button>
+                        <p id="auth-message" class="auth-message" role="status"></p>
+                    </div>
+
+                    <p id="auth-or" class="auth-or" data-i18n="or">or</p>
+
+                    <div id="provider-signin" class="provider-signin">
+                        <button type="button" id="google-signin" class="google-signin">
+                            <svg class="google-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+                                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                                <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                            </svg>
+                            <span data-i18n="continueGoogle">Sign in with Google</span>
+                        </button>
+                        <button type="button" id="facebook-signin" class="facebook-signin">
+                            <svg class="facebook-mark" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                <path fill="#fff" d="M24 12.073C24 5.406 18.627 0 12 0S0 5.406 0 12.073C0 18.099 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.025 1.792-4.697 4.533-4.697 1.313 0 2.686.235 2.686.235v2.97h-1.513c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.099 24 12.073z"/>
+                            </svg>
+                            <span data-i18n="continueFacebook">Sign in with Facebook</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div id="email-login">
-                    <form id="email-login-form">
-                        <label for="email" data-i18n="emailAddress">Email address</label>
-                        <input
-                            type="email"
-                            id="email"
-                            autocomplete="email"
-                        >
-
-                        <label for="password" data-i18n="password">Password</label>
-                        <input
-                            type="password"
-                            id="password"
-                            autocomplete="current-password"
-                        >
-
-                        <button type="submit" id="login-button" data-i18n="signIn">Sign in</button>
-                        <button type="button" id="signup-button" hidden data-i18n="createAccount">Create account</button>
-                    </form>
-                    <button type="button" id="forgot-password" class="auth-link" data-i18n="forgotPassword">Forgot password</button>
-                    <p id="auth-message"></p>
-                </div>
-
-                <p id="auth-or" class="auth-or" data-i18n="or">or</p>
-
-                <div id="provider-signin">
-                <button type="button" id="google-signin" class="google-signin">
-                    <svg class="google-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
-                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
-                        <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-                    </svg>
-                    <span data-i18n="continueGoogle">Sign in with Google</span>
-                </button>
-                <button type="button" id="facebook-signin" class="facebook-signin">
-                    <svg class="facebook-mark" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                        <path fill="#fff" d="M24 12.073C24 5.406 18.627 0 12 0S0 5.406 0 12.073C0 18.099 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.025 1.792-4.697 4.533-4.697 1.313 0 2.686.235 2.686.235v2.97h-1.513c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.099 24 12.073z"/>
-                    </svg>
-                    <span data-i18n="continueFacebook">Sign in with Facebook</span>
-                </button>
-                </div>
+                <aside class="store-invite">
+                    <h3 data-i18n="ownAStore">Do you own a store?</h3>
+                    <p data-i18n="ownAStoreLead">Join Chaw and help your shop reach more customers online.</p>
+                    <a href="about.html" class="store-invite-button" data-i18n="joinAsStore">Join as a store</a>
+                    <p class="field-hint" data-i18n="joinAsStoreNote">An administrator opens store accounts. New sign-ups stay customer accounts until approved.</p>
+                </aside>
             </div>
         </section>
     </main>
@@ -110,6 +180,6 @@
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261010v"></script>
+    <script type="module" src="app.js?v=20261011a"></script>
 </body>
 </html>
