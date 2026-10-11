@@ -29,7 +29,8 @@ service cloud.firestore {
         && request.resource.data.stock is number
         && resource.data.stock is number
         && request.resource.data.stock >= 0
-        && request.resource.data.stock < resource.data.stock;
+        && request.resource.data.stock < resource.data.stock
+        && resource.data.stock - request.resource.data.stock <= 30;
     }
 
     function stockOnlyRise() {
@@ -37,7 +38,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["stock"])
         && request.resource.data.stock is number
         && resource.data.stock is number
-        && request.resource.data.stock > resource.data.stock;
+        && request.resource.data.stock > resource.data.stock
+        && request.resource.data.stock - resource.data.stock <= 30;
     }
 
     function ownsProduct() {
@@ -161,7 +163,10 @@ service cloud.firestore {
         && request.resource.data.paymentMethod in ["card", "delivery"]
         && request.resource.data.items is list
         && request.resource.data.total is number
+        && request.resource.data.total > 0
         && request.resource.data.deliveryFee is number
+        && request.resource.data.deliveryFee >= 1000
+        && request.resource.data.deliveryFee <= 3000
         && request.resource.data.status == "new"
         && request.resource.data.seen == false
         && request.resource.data.createdAt is number

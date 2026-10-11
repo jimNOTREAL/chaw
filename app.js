@@ -740,13 +740,14 @@ function productPhotoList(product) {
     }
 
     if (Array.isArray(product.imageUrls)) {
-        const urls = product.imageUrls.filter((url) => typeof url === "string" && url);
+        const urls = product.imageUrls.map((url) => safeImageUrl(url)).filter(Boolean);
         if (urls.length) {
             return urls.slice(0, MAX_PIECE_PHOTOS);
         }
     }
 
-    return product.imageUrl ? [product.imageUrl] : [];
+    const single = safeImageUrl(product.imageUrl);
+    return single ? [single] : [];
 }
 
 function showWhenNear(image, src) {
@@ -893,6 +894,30 @@ function safeHttpUrl(value) {
     }
 
     return "";
+}
+
+function safeImageUrl(value) {
+    const url = String(value || "").trim();
+
+    if (/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(url)) {
+        return url;
+    }
+
+    if (/^https:\/\//i.test(url)) {
+        return url;
+    }
+
+    return "";
+}
+
+function orderQuantity(value) {
+    const quantity = Math.floor(Number(value));
+
+    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 20) {
+        return 0;
+    }
+
+    return quantity;
 }
 
 function storeDetailsFromForm() {
@@ -6563,72 +6588,119 @@ async function placeOrder() {
     const selectedPayment = document.querySelector("input[name='payment']:checked");
     const paymentMethod = selectedPayment && selectedPayment.value === "card" ? "card" : "delivery";
 
-    if (cart.some((item) => !item.ownerUid)) {
+    if (cart.some((item) => !item.id)) {
         message.textContent = t("pieceHasNoStore");
         return;
     }
 
-    const groups = new Map();
-
-    cart.forEach((item) => {
-        if (!groups.has(item.ownerUid)) {
-            groups.set(item.ownerUid, []);
-        }
-
-        groups.get(item.ownerUid).push(item);
-    });
+    let trustedPayLinks = [];
 
     try {
         await runTransaction(db, async (transaction) => {
+            trustedPayLinks = [];
             const needed = new Map();
 
             cart.forEach((item) => {
-                needed.set(item.id, (needed.get(item.id) || 0) + Number(item.quantity));
+                const quantity = orderQuantity(item.quantity);
+
+                if (!item.id || !quantity) {
+                    throw new Error(t("couldNotPlaceOrder"));
+                }
+
+                needed.set(item.id, (needed.get(item.id) || 0) + quantity);
             });
 
             const stockUpdates = [];
             const shopPins = new Map();
+            const linesByOwner = new Map();
 
             for (const [productId, quantity] of needed) {
+                if (quantity > 20) {
+                    throw new Error(t("couldNotPlaceOrder"));
+                }
+
                 const productRef = doc(db, "products", productId);
                 const productSnap = await transaction.get(productRef);
                 const productName = cart.find((item) => item.id === productId);
                 const name = productName ? (pieceText(productName, "name") || productName.name) : t("aPiece");
 
-                if (!productSnap.exists()) {
+                if (!productSnap.exists() || productSnap.data().hidden) {
                     throw new Error(t("noLongerAvailable", { name: name }));
                 }
 
                 const productData = productSnap.data();
                 const stock = Number(productData.stock || 0);
+                const price = Number(productData.price);
+                const owner = String(productData.ownerUid || "");
 
                 if (stock < quantity) {
                     throw new Error(t("onlyLeftOf", { stock: stock, name: name }));
                 }
 
-                const pin = shopPinFrom(productData);
-                const owner = productData.ownerUid || (productName && productName.ownerUid) || "";
-
-                if (pin && owner) {
-                    shopPins.set(owner, pin);
+                if (!Number.isFinite(price) || price <= 0 || !owner) {
+                    throw new Error(t("noLongerAvailable", { name: name }));
                 }
 
+                const pin = shopPinFrom(productData);
+
+                if (!pin) {
+                    throw new Error(t("shopDoorMissing", { store: productData.storeName || t("theStore") }));
+                }
+
+                const askedColor = productName && productName.color || "";
+                const askedSize = productName && productName.size || "";
+                const allowed = filtersOnProduct(productData);
+
+                if (askedColor && !allowed.some((tag) => sameFilterWord(tag, askedColor))) {
+                    throw new Error(t("couldNotPlaceOrder"));
+                }
+
+                if (askedSize && !allowed.some((tag) => sameFilterWord(tag, askedSize))) {
+                    throw new Error(t("couldNotPlaceOrder"));
+                }
+
+                shopPins.set(owner, pin);
                 stockUpdates.push({
                     ref: productRef,
                     stock: stock - quantity
+                });
+
+                if (paymentMethod === "card") {
+                    const payUrl = safeHttpUrl(productData.cardPaymentUrl || "");
+
+                    if (productData.acceptsCard && payUrl && !trustedPayLinks.some((link) => link.url === payUrl)) {
+                        trustedPayLinks.push({
+                            url: payUrl,
+                            storeName: productData.storeName || t("theStore")
+                        });
+                    }
+                }
+
+                if (!linesByOwner.has(owner)) {
+                    linesByOwner.set(owner, {
+                        storeName: productData.storeName || "",
+                        items: []
+                    });
+                }
+
+                linesByOwner.get(owner).items.push({
+                    productId: productId,
+                    name: productData.name || "",
+                    nameAr: productData.nameAr || "",
+                    nameCkb: productData.nameCkb || "",
+                    nameEn: productData.nameEn || "",
+                    color: askedColor,
+                    size: askedSize,
+                    price: price,
+                    quantity: quantity,
+                    imageUrl: safeImageUrl(productData.imageUrl || "")
                 });
             }
 
             const fees = new Map();
 
-            for (const [ownerUid, items] of groups) {
+            for (const [ownerUid, group] of linesByOwner) {
                 const pin = shopPins.get(ownerUid);
-                const storeName = items[0].storeName || t("theStore");
-
-                if (!pin) {
-                    throw new Error(t("shopDoorMissing", { store: storeName }));
-                }
-
                 const km = Math.round(distanceKm(pin, {
                     lat: deliveryLat,
                     lng: deliveryLng
@@ -6636,7 +6708,7 @@ async function placeOrder() {
                 const fee = deliveryFeeForKm(km);
 
                 if (fee == null) {
-                    throw new Error(t("shopDoorMissing", { store: storeName }));
+                    throw new Error(t("shopDoorMissing", { store: group.storeName || t("theStore") }));
                 }
 
                 fees.set(ownerUid, fee);
@@ -6646,9 +6718,9 @@ async function placeOrder() {
                 transaction.update(update.ref, { stock: update.stock });
             });
 
-            groups.forEach((items, ownerUid) => {
-                const total = items.reduce((sum, item) => {
-                    return sum + Number(item.price) * Number(item.quantity);
+            linesByOwner.forEach((group, ownerUid) => {
+                const total = group.items.reduce((sum, item) => {
+                    return sum + item.price * item.quantity;
                 }, 0);
                 const orderRef = doc(collection(db, "orders"));
 
@@ -6660,21 +6732,8 @@ async function placeOrder() {
                     customerPhone: customerPhone,
                     paymentMethod: paymentMethod,
                     ownerUid: ownerUid,
-                    storeName: items[0].storeName || "",
-                    items: items.map((item) => {
-                        return {
-                            productId: item.id,
-                            name: item.name,
-                            nameAr: item.nameAr || "",
-                            nameCkb: item.nameCkb || "",
-                            nameEn: item.nameEn || "",
-                            color: item.color || "",
-                            size: item.size || "",
-                            price: Number(item.price),
-                            quantity: Number(item.quantity),
-                            imageUrl: item.imageUrl || ""
-                        };
-                    }),
+                    storeName: group.storeName,
+                    items: group.items,
                     total: total,
                     deliveryFee: fees.get(ownerUid),
                     status: "new",
@@ -6691,20 +6750,7 @@ async function placeOrder() {
             });
         });
 
-        const payLinks = [];
-
-        if (paymentMethod === "card") {
-            cart.forEach((item) => {
-                const url = safeHttpUrl(item.cardPaymentUrl || "");
-
-                if (url && !payLinks.some((link) => link.url === url)) {
-                    payLinks.push({
-                        url: url,
-                        storeName: item.storeName || t("theStore")
-                    });
-                }
-            });
-        }
+        const payLinks = paymentMethod === "card" ? trustedPayLinks : [];
 
         writeCart([]);
         message.replaceChildren();
