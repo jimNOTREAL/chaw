@@ -2654,8 +2654,51 @@ body.market-home > main {
         max-width: none;
     }
 
+    .market-nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 12px;
+        padding: 12px 14px;
+    }
+
+    .market-nav .nav-start {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
     .market-nav .nav-links {
         display: none;
+    }
+
+    .market-nav .nav-tools {
+        display: contents;
+    }
+
+    .market-nav .nav-tool,
+    .market-nav .account-button {
+        order: 2;
+    }
+
+    .market-nav .lang-switch {
+        order: 3;
+        flex: 1 0 100%;
+        justify-content: center;
+        gap: 10px;
+        padding: 8px 0 2px;
+        border-top: 1px solid rgba(247, 243, 236, 0.12);
+    }
+
+    .market-nav .lang-switch button {
+        font-size: 13px;
+        padding: 6px 8px;
+    }
+
+    .market-nav .nav-search {
+        order: 4;
+        flex: 1 0 100%;
+        grid-column: auto;
+        grid-row: auto;
     }
 
     .service-bar {
