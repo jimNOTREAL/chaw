@@ -1,12 +1,13 @@
 ---
-description: Commit and push finished work to GitHub
+description: Commit finished work, and ask before pushing to GitHub
 alwaysApply: true
 ---
 
-# Push when finished
+# Ask before pushing
 
-After a requested code change is finished and checked, commit it and push to GitHub on the current branch. Do this without waiting for a separate push request.
+After a requested code change is finished and checked, commit it on the current branch. Do not push to GitHub until the user says yes.
 
+- Ask in one short sentence before any `git push`.
 - Skip the commit when the task was only a question, or when there is nothing to commit.
 - Follow the repository commit style: one or two sentences about why the change exists.
 - Do not force-push, skip hooks, or change git config.
