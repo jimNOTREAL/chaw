@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010u";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010w";
 
 
 const emailInput = document.getElementById("email");
@@ -149,6 +149,10 @@ function onLoginPage() {
     return window.location.pathname.endsWith("login.html");
 }
 
+function onAboutPage() {
+    return window.location.pathname.endsWith("about.html");
+}
+
 function onDashboardPage() {
     return window.location.pathname.endsWith("dashboard.html");
 }
@@ -222,7 +226,7 @@ function hideEntryGate() {
 }
 
 function showEntryGate() {
-    if (onLoginPage()) {
+    if (onLoginPage() || onAboutPage()) {
         hideEntryGate();
         return;
     }
@@ -322,7 +326,7 @@ function syncEntryGate(user) {
         return;
     }
 
-    if (onLoginPage() || (user && !user.isAnonymous) || (user && user.isAnonymous) || joinedAsGuest()) {
+    if (onLoginPage() || onAboutPage() || (user && !user.isAnonymous) || (user && user.isAnonymous) || joinedAsGuest()) {
         hideEntryGate();
 
         if (!user && joinedAsGuest() && !guestRenewing) {

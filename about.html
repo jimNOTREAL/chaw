@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-i18n-title="titleDiscover">
+<html lang="en" data-i18n-title="titleAbout">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,22 +19,19 @@
             }
             document.documentElement.lang = lang;
             document.documentElement.dir = (lang === "ar" || lang === "ckb") ? "rtl" : "ltr";
-            if (localStorage.getItem("chaw-guest") !== "1" && localStorage.getItem("chaw-account") !== "1") {
-                document.documentElement.classList.add("entry-pending");
-            }
             if (localStorage.getItem("chaw-account") === "1") {
                 document.documentElement.classList.add("known-account");
             }
         })();
     </script>
-    <title>Discover — Chaw</title>
+    <title>About us — Chaw</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Noto+Naskh+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261010u">
+    <link rel="stylesheet" href="styles.css?v=20261010w">
 </head>
-<body class="discover-page market-home">
+<body class="about-page market-home">
     <nav class="market-nav">
         <div class="nav-start">
             <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
@@ -44,7 +41,7 @@
             <ul class="nav-links">
                 <li><a href="index.html" data-i18n="home">Home</a></li>
                 <li><a href="discover.html" data-i18n="navProducts">Products</a></li>
-                <li><a href="#categories" data-i18n="navSections">Categories</a></li>
+                <li><a href="discover.html#categories" data-i18n="navSections">Categories</a></li>
                 <li><a href="about.html" data-i18n="navAbout">About us</a></li>
                 <li><a href="index.html#contact" data-i18n="navContact">Contact</a></li>
                 <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
@@ -80,42 +77,68 @@
     </nav>
 
     <main>
-        <section class="discover-head">
-            <h1 data-i18n="discoverHeadline">Discover what's around you.</h1>
-            <p data-i18n="discoverLead">Find the best local stores, new fashion, and pieces that fit your style.</p>
-            <div class="discover-tools">
-                <label class="discover-search-wrap">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16l4 4"></path></svg>
-                    <input id="discover-search" type="search" data-i18n-placeholder="discoverSearchPlaceholder" placeholder="Search for a store, product, or brand..." autocomplete="off">
-                </label>
-                <label class="place-select">
-                    <span data-i18n="yourPlace">Your place</span>
-                    <select id="discover-area"></select>
-                </label>
+        <section class="about-banner">
+            <img src="chaw-boutique-hero.jpg" alt="">
+            <div class="hero-shade"></div>
+            <div class="hero-copy">
+                <p class="about-kicker">Chaw</p>
+                <h1 data-i18n="aboutTitle">About us</h1>
             </div>
         </section>
 
-        <section class="discover-block" id="categories">
-            <h2 data-i18n="shopByCategory">Shop by category</h2>
-            <div id="category-row" class="category-row"></div>
-        </section>
+        <section class="about-wrap">
+            <p class="about-intro" data-i18n="aboutIntro"></p>
 
-        <section class="discover-block" id="store-section">
-            <h2 data-i18n="featuredStores">Featured stores</h2>
-            <div id="store-row" class="store-row"></div>
-        </section>
+            <div class="about-split">
+                <article>
+                    <h2 data-i18n="aboutMissionTitle">Our mission</h2>
+                    <p data-i18n="aboutMission"></p>
+                </article>
+                <article>
+                    <h2 data-i18n="aboutVisionTitle">Our vision</h2>
+                    <p data-i18n="aboutVision"></p>
+                </article>
+            </div>
 
-        <section class="discover-block" id="pieces">
-            <h2 data-i18n="shopPieces">Pieces</h2>
-            <div id="filter-bar" class="filter-bar"></div>
-            <div id="discover-list" class="discover-grid"></div>
+            <h2 class="about-center" data-i18n="aboutOfferTitle">What we offer</h2>
+            <div class="about-offers">
+                <article>
+                    <h3 data-i18n="aboutOffer1Title"></h3>
+                    <p data-i18n="aboutOffer1Text"></p>
+                </article>
+                <article>
+                    <h3 data-i18n="aboutOffer2Title"></h3>
+                    <p data-i18n="aboutOffer2Text"></p>
+                </article>
+                <article>
+                    <h3 data-i18n="aboutOffer3Title"></h3>
+                    <p data-i18n="aboutOffer3Text"></p>
+                </article>
+                <article>
+                    <h3 data-i18n="aboutOffer4Title"></h3>
+                    <p data-i18n="aboutOffer4Text"></p>
+                </article>
+            </div>
+
+            <div class="about-split">
+                <article class="about-call">
+                    <h2 data-i18n="aboutCustomersTitle">For shoppers</h2>
+                    <p data-i18n="aboutCustomers"></p>
+                    <a class="hero-button" href="discover.html" data-i18n="aboutDiscover">Discover the pieces</a>
+                </article>
+                <article class="about-call">
+                    <h2 data-i18n="aboutStoresTitle">For store owners</h2>
+                    <p data-i18n="aboutStores"></p>
+                    <a class="hero-button about-join" href="login.html" data-i18n="joinChaw">Join Chaw</a>
+                </article>
+            </div>
         </section>
     </main>
 
-    <footer id="contact">
+    <footer>
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261010v"></script>
+    <script type="module" src="app.js?v=20261010w"></script>
 </body>
 </html>
