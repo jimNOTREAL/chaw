@@ -1,0 +1,15 @@
+---
+description: Check the page, the code, and the database before calling a change done
+alwaysApply: true
+---
+
+# Check before done
+
+After a requested code change, do not say it is finished until the changed path has been checked for errors.
+
+- Run a syntax check on every JavaScript file you edit.
+- Open the changed pages in the browser and use the feature the way a customer or store would: click, type, and move between the pages that share that data. A screenshot alone is not enough.
+- When the change reads or writes Firestore, confirm the write matches `firestore.rules` (who can write, which fields, stock, order status, and delivery fee). Do not deploy. If the live rules still need a paste in the Firebase console, say so.
+- Do not place a real order, mark a real order delivered or cancelled, invent products, or set the shop door from this computer.
+- If a check fails, fix it and check again.
+- Tell the user what you checked. If something could not be checked, say that plainly. Do not claim every bug is gone.
