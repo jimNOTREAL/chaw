@@ -213,5 +213,64 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create, update, delete: if isAdmin();
     }
+
+    match /contactMessages/{messageId} {
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          "name", "contact", "category", "message", "kind", "createdAt", "lang"
+        ])
+        && request.resource.data.kind == "contact"
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.contact is string
+        && request.resource.data.contact.size() >= 5
+        && request.resource.data.contact.size() <= 80
+        && request.resource.data.category in [
+          "general", "account", "order", "stores", "tech", "other"
+        ]
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 5
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lang in ["en", "ar", "ckb"];
+
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /partnerApplications/{applicationId} {
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          "ownerName", "storeName", "phone", "city", "message",
+          "kind", "createdAt", "status", "lang"
+        ])
+        && request.resource.data.kind == "partner"
+        && request.resource.data.status == "new"
+        && request.resource.data.ownerName is string
+        && request.resource.data.ownerName.size() >= 2
+        && request.resource.data.ownerName.size() <= 80
+        && request.resource.data.storeName is string
+        && request.resource.data.storeName.size() >= 2
+        && request.resource.data.storeName.size() <= 80
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 7
+        && request.resource.data.phone.size() <= 30
+        && request.resource.data.city is string
+        && request.resource.data.city.size() >= 2
+        && request.resource.data.city.size() <= 60
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 5
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lang in ["en", "ar", "ckb"];
+
+      allow read: if isAdmin();
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        && request.resource.data.status in ["new", "reviewed", "approved", "declined"];
+
+      allow delete: if isAdmin();
+    }
   }
 }

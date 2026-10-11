@@ -34,10 +34,14 @@ import {
     query,
     where,
     runTransaction,
-    onSnapshot
+    onSnapshot,
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011a";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011c";
+
+// Digits only with country code, example: 9647XXXXXXXX. Leave empty until configured.
+const CHAW_PARTNER_WHATSAPP = "";
 
 
 const emailInput = document.getElementById("email");
@@ -224,6 +228,10 @@ function onAboutPage() {
     return window.location.pathname.endsWith("about.html");
 }
 
+function onContactPage() {
+    return window.location.pathname.endsWith("contact.html");
+}
+
 function onDashboardPage() {
     return window.location.pathname.endsWith("dashboard.html");
 }
@@ -297,7 +305,7 @@ function hideEntryGate() {
 }
 
 function showEntryGate() {
-    if (onLoginPage() || onAboutPage()) {
+    if (onLoginPage() || onAboutPage() || onContactPage()) {
         hideEntryGate();
         return;
     }
@@ -397,7 +405,7 @@ function syncEntryGate(user) {
         return;
     }
 
-    if (onLoginPage() || onAboutPage() || (user && !user.isAnonymous) || (user && user.isAnonymous) || joinedAsGuest()) {
+    if (onLoginPage() || onAboutPage() || onContactPage() || (user && !user.isAnonymous) || (user && user.isAnonymous) || joinedAsGuest()) {
         hideEntryGate();
 
         if (!user && joinedAsGuest() && !guestRenewing) {
@@ -2998,6 +3006,324 @@ async function loadAdminPanel() {
 
             row.append(label, hideButton);
             publicProductList.appendChild(row);
+        });
+    }
+
+    await loadPartnerRequestList();
+    await loadContactInboxList();
+}
+
+function currentLangCode() {
+    const lang = document.documentElement.lang;
+    return lang === "ar" || lang === "ckb" ? lang : "en";
+}
+
+function setFormStatus(node, text, kind) {
+    if (!node) {
+        return;
+    }
+
+    node.textContent = text || "";
+    node.classList.toggle("is-error", kind === "error");
+    node.classList.toggle("is-success", kind === "success");
+    node.classList.toggle("is-busy", kind === "busy");
+}
+
+function looksLikeContact(value) {
+    const text = cleanTyped(value);
+    if (text.length < 5) {
+        return false;
+    }
+
+    if (text.includes("@")) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+    }
+
+    return text.replace(/\D/g, "").length >= 7;
+}
+
+function paintPartnerWhatsApp() {
+    const link = document.getElementById("partner-whatsapp");
+    const note = document.getElementById("partner-whatsapp-note");
+    const digits = String(CHAW_PARTNER_WHATSAPP || "").replace(/\D/g, "");
+
+    if (!link) {
+        return;
+    }
+
+    if (digits.length >= 10) {
+        link.hidden = false;
+        link.href = "https://api.whatsapp.com/send?phone=" + encodeURIComponent(digits);
+        if (note) {
+            note.hidden = true;
+        }
+        return;
+    }
+
+    link.hidden = true;
+    link.removeAttribute("href");
+    if (note) {
+        note.hidden = false;
+        note.textContent = t("partnerWhatsappPending");
+    }
+}
+
+async function loadPartnerRequestList() {
+    const list = document.getElementById("partner-request-list");
+    if (!list) {
+        return;
+    }
+
+    list.replaceChildren();
+
+    try {
+        const snapshot = await getDocs(collection(db, "partnerApplications"));
+        const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        rows.sort((a, b) => {
+            const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+            const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+            return bTime - aTime;
+        });
+
+        if (!rows.length) {
+            const empty = document.createElement("p");
+            empty.textContent = t("partnerRequestsEmpty");
+            list.appendChild(empty);
+            return;
+        }
+
+        rows.forEach((row) => {
+            const card = document.createElement("article");
+            card.className = "admin-request-card";
+            const title = document.createElement("h4");
+            title.textContent = row.storeName || t("store");
+            const owner = document.createElement("p");
+            owner.textContent = t("partnerOwnerLine", { name: row.ownerName || "" });
+            const phone = document.createElement("p");
+            phone.textContent = t("phoneLine", { phone: row.phone || "" });
+            const city = document.createElement("p");
+            city.textContent = t("partnerCityLine", { city: row.city || "" });
+            const message = document.createElement("p");
+            message.textContent = row.message || "";
+            const status = document.createElement("p");
+            status.textContent = t("statusLine", { status: row.status || "new" });
+            const actions = document.createElement("div");
+            actions.className = "admin-request-actions";
+
+            ["reviewed", "approved", "declined"].forEach((nextStatus) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "row-button";
+                button.textContent = t("partnerMark_" + nextStatus);
+                button.disabled = row.status === nextStatus;
+                button.addEventListener("click", async () => {
+                    try {
+                        await updateDoc(doc(db, "partnerApplications", row.id), {
+                            status: nextStatus
+                        });
+                        await loadPartnerRequestList();
+                    } catch (error) {
+                        console.error(error);
+                        if (adminMessage) {
+                            adminMessage.textContent = error.message || t("checkConnection");
+                        }
+                    }
+                });
+                actions.appendChild(button);
+            });
+
+            card.append(title, owner, phone, city, message, status, actions);
+            list.appendChild(card);
+        });
+    } catch (error) {
+        list.textContent = t("partnerRequestsLoadFail");
+        console.error(error);
+    }
+}
+
+async function loadContactInboxList() {
+    const list = document.getElementById("contact-inbox-list");
+    if (!list) {
+        return;
+    }
+
+    list.replaceChildren();
+
+    try {
+        const snapshot = await getDocs(collection(db, "contactMessages"));
+        const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        rows.sort((a, b) => {
+            const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+            const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+            return bTime - aTime;
+        });
+
+        if (!rows.length) {
+            const empty = document.createElement("p");
+            empty.textContent = t("contactInboxEmpty");
+            list.appendChild(empty);
+            return;
+        }
+
+        const categoryKeys = {
+            general: "contactCatGeneral",
+            account: "contactCatAccount",
+            order: "contactCatOrder",
+            stores: "contactCatStores",
+            tech: "contactCatTech",
+            other: "contactCatOther"
+        };
+
+        rows.slice(0, 40).forEach((row) => {
+            const card = document.createElement("article");
+            card.className = "admin-request-card";
+            const title = document.createElement("h4");
+            title.textContent = row.name || t("fullName");
+            const reach = document.createElement("p");
+            reach.textContent = row.contact || "";
+            const category = document.createElement("p");
+            category.textContent = t(categoryKeys[row.category] || "contactCatOther");
+            const message = document.createElement("p");
+            message.textContent = row.message || "";
+            card.append(title, reach, category, message);
+            list.appendChild(card);
+        });
+    } catch (error) {
+        list.textContent = t("contactInboxLoadFail");
+        console.error(error);
+    }
+}
+
+function setupContactForms() {
+    paintPartnerWhatsApp();
+
+    const contactForm = document.getElementById("contact-form");
+    const partnerForm = document.getElementById("partner-form");
+
+    if (contactForm && !contactForm.dataset.bound) {
+        contactForm.dataset.bound = "1";
+        contactForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const submit = document.getElementById("contact-submit");
+            const status = document.getElementById("contact-form-message");
+            const name = cleanTyped(document.getElementById("contact-name") && document.getElementById("contact-name").value).slice(0, 80);
+            const contact = cleanTyped(document.getElementById("contact-reach") && document.getElementById("contact-reach").value).slice(0, 80);
+            const category = cleanTyped(document.getElementById("contact-category") && document.getElementById("contact-category").value);
+            const message = cleanTyped(document.getElementById("contact-body") && document.getElementById("contact-body").value).slice(0, 2000);
+            const allowed = ["general", "account", "order", "stores", "tech", "other"];
+
+            if (name.length < 2) {
+                setFormStatus(status, t("enterFullName"), "error");
+                return;
+            }
+
+            if (!looksLikeContact(contact)) {
+                setFormStatus(status, t("contactReachInvalid"), "error");
+                return;
+            }
+
+            if (!allowed.includes(category)) {
+                setFormStatus(status, t("contactCategoryNeeded"), "error");
+                return;
+            }
+
+            if (message.length < 5) {
+                setFormStatus(status, t("contactMessageShort"), "error");
+                return;
+            }
+
+            if (submit) {
+                submit.disabled = true;
+            }
+            setFormStatus(status, t("contactSending"), "busy");
+
+            try {
+                await addDoc(collection(db, "contactMessages"), {
+                    name,
+                    contact,
+                    category,
+                    message,
+                    kind: "contact",
+                    lang: currentLangCode(),
+                    createdAt: serverTimestamp()
+                });
+                contactForm.reset();
+                setFormStatus(status, t("contactSent"), "success");
+            } catch (error) {
+                console.error(error);
+                setFormStatus(status, t("contactSendFail"), "error");
+            } finally {
+                if (submit) {
+                    submit.disabled = false;
+                }
+            }
+        });
+    }
+
+    if (partnerForm && !partnerForm.dataset.bound) {
+        partnerForm.dataset.bound = "1";
+        partnerForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const submit = document.getElementById("partner-submit");
+            const status = document.getElementById("partner-form-message");
+            const ownerName = cleanTyped(document.getElementById("partner-owner") && document.getElementById("partner-owner").value).slice(0, 80);
+            const storeName = cleanTyped(document.getElementById("partner-store") && document.getElementById("partner-store").value).slice(0, 80);
+            const phone = cleanTyped(document.getElementById("partner-phone") && document.getElementById("partner-phone").value).slice(0, 30);
+            const city = cleanTyped(document.getElementById("partner-city") && document.getElementById("partner-city").value).slice(0, 60);
+            const message = cleanTyped(document.getElementById("partner-body") && document.getElementById("partner-body").value).slice(0, 2000);
+
+            if (ownerName.length < 2) {
+                setFormStatus(status, t("enterFullName"), "error");
+                return;
+            }
+
+            if (storeName.length < 2) {
+                setFormStatus(status, t("partnerStoreNeeded"), "error");
+                return;
+            }
+
+            if (phone.replace(/\D/g, "").length < 7) {
+                setFormStatus(status, t("partnerPhoneInvalid"), "error");
+                return;
+            }
+
+            if (city.length < 2) {
+                setFormStatus(status, t("partnerCityNeeded"), "error");
+                return;
+            }
+
+            if (message.length < 5) {
+                setFormStatus(status, t("contactMessageShort"), "error");
+                return;
+            }
+
+            if (submit) {
+                submit.disabled = true;
+            }
+            setFormStatus(status, t("partnerSending"), "busy");
+
+            try {
+                await addDoc(collection(db, "partnerApplications"), {
+                    ownerName,
+                    storeName,
+                    phone,
+                    city,
+                    message,
+                    kind: "partner",
+                    status: "new",
+                    lang: currentLangCode(),
+                    createdAt: serverTimestamp()
+                });
+                partnerForm.reset();
+                setFormStatus(status, t("partnerSent"), "success");
+            } catch (error) {
+                console.error(error);
+                setFormStatus(status, t("partnerSendFail"), "error");
+            } finally {
+                if (submit) {
+                    submit.disabled = false;
+                }
+            }
         });
     }
 }
@@ -7528,6 +7854,11 @@ if (!onLoginPage() && !hasSavedEntry()) {
 
 document.querySelectorAll("input[name='payment']").forEach((input) => {
     input.addEventListener("change", () => renderCheckoutDetails());
+});
+
+setupContactForms();
+onLanguageChange(() => {
+    paintPartnerWhatsApp();
 });
 
 renderCartPage();

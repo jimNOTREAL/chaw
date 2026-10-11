@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="titleContact">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script>
+        (function () {
+            var saved = localStorage.getItem("chaw-lang");
+            var lang = (saved === "en" || saved === "ar" || saved === "ckb") ? saved : "";
+            if (!lang) {
+                var list = navigator.languages || [navigator.language || "en"];
+                lang = "en";
+                for (var i = 0; i < list.length; i++) {
+                    var tag = String(list[i]).toLowerCase();
+                    if (tag === "ckb" || tag.indexOf("ku") === 0) { lang = "ckb"; break; }
+                    if (tag.indexOf("ar") === 0) { lang = "ar"; break; }
+                }
+            }
+            document.documentElement.lang = lang;
+            document.documentElement.dir = (lang === "ar" || lang === "ckb") ? "rtl" : "ltr";
+            if (localStorage.getItem("chaw-account") === "1") {
+                document.documentElement.classList.add("known-account");
+            }
+        })();
+    </script>
+    <title>Contact us — Chaw</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Noto+Naskh+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=20261011c">
+</head>
+<body class="contact-page market-home">
+    <nav class="market-nav">
+        <div class="nav-start">
+            <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
+                <img src="chaw-eye-white.png" alt="">
+                <div class="logo">Chaw</div>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html" data-i18n="home">Home</a></li>
+                <li><a href="discover.html" data-i18n="navProducts">Products</a></li>
+                <li><a href="discover.html#categories" data-i18n="navSections">Categories</a></li>
+                <li><a href="about.html" data-i18n="navAbout">About us</a></li>
+                <li><a href="contact.html" data-i18n="navContact">Contact</a></li>
+                <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
+            </ul>
+        </div>
+
+        <form class="nav-search" action="discover.html" method="get">
+            <label class="search-icon" for="home-search" data-i18n-aria="searchWant" aria-label="Search for what you want...">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16l4 4"></path></svg>
+            </label>
+            <input id="home-search" name="q" type="search" data-i18n-placeholder="searchWant" placeholder="Search for what you want..." autocomplete="off">
+        </form>
+
+        <div class="nav-tools">
+            <a href="login.html" class="nav-tool" id="join-link">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5 19c1.4-3 3.8-4.5 7-4.5S17.6 16 19 19"></path></svg>
+                <span data-i18n="myAccount">My account</span>
+            </a>
+            <button type="button" id="account-button" class="account-button nav-tool" hidden data-i18n-aria="yourAccount" aria-label="Your account">
+                <img id="nav-avatar" alt="" hidden>
+                <span id="nav-initial"></span>
+                <span class="nav-tool-label" data-i18n="myAccount">My account</span>
+            </button>
+            <a href="discover.html" class="nav-tool icon-only" data-i18n-aria="savedPieces" aria-label="Saved pieces">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z"></path></svg>
+                <span id="saved-count" class="nav-badge" hidden>0</span>
+            </a>
+            <a href="cart.html" class="nav-tool icon-only" id="cart-link" data-i18n-aria="cart" aria-label="Cart">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"></path><path d="M9 8V7a3 3 0 0 1 6 0v1"></path></svg>
+                <span id="nav-cart-count" class="nav-badge" hidden>0</span>
+            </a>
+        </div>
+    </nav>
+
+    <main>
+        <section class="about-banner contact-banner">
+            <img src="chaw-boutique-hero.jpg" alt="">
+            <div class="hero-shade"></div>
+            <div class="hero-copy">
+                <p class="about-kicker">Chaw</p>
+                <h1 data-i18n="contactTitle">Contact us</h1>
+            </div>
+        </section>
+
+        <section class="contact-wrap">
+            <p class="about-intro" data-i18n="contactIntro">We are glad to hear from you. Whether you need help using Chaw or want to work with us, you can reach our team through the options below.</p>
+
+            <div class="contact-cards">
+                <article class="contact-card">
+                    <h2 data-i18n="contactSupportTitle">Customer support</h2>
+                    <p data-i18n="contactSupportText">For product questions, order help, delivery issues, account problems, and technical support.</p>
+                    <a class="contact-card-link" href="#contact-message" data-i18n="contactSendMessage">Send us a message</a>
+                </article>
+                <article class="contact-card">
+                    <h2 data-i18n="contactStoresTitle">Store owners and partnerships</h2>
+                    <p data-i18n="contactStoresText">For clothing stores that want to join Chaw, publish products, explore advertising, or talk about delivery partnerships.</p>
+                    <a class="contact-card-link" href="#partner" data-i18n="contactPartnerCta">Partner with Chaw</a>
+                </article>
+            </div>
+
+            <section id="contact-message" class="contact-panel">
+                <h2 data-i18n="contactFormTitle">Send us a message</h2>
+                <form id="contact-form" class="contact-form" novalidate>
+                    <label for="contact-name" data-i18n="fullName">Full name</label>
+                    <input id="contact-name" name="name" type="text" maxlength="80" autocomplete="name" required>
+
+                    <label for="contact-reach" data-i18n="contactReach">Email or phone</label>
+                    <input id="contact-reach" name="contact" type="text" maxlength="80" autocomplete="email" required>
+
+                    <label for="contact-category" data-i18n="contactCategory">Inquiry type</label>
+                    <select id="contact-category" name="category" required>
+                        <option value="" data-i18n="contactCategoryChoose">Choose a type</option>
+                        <option value="general" data-i18n="contactCatGeneral">General inquiry</option>
+                        <option value="account" data-i18n="contactCatAccount">Account problem</option>
+                        <option value="order" data-i18n="contactCatOrder">Product or order question</option>
+                        <option value="stores" data-i18n="contactCatStores">Store owners and partnerships</option>
+                        <option value="tech" data-i18n="contactCatTech">Technical problem</option>
+                        <option value="other" data-i18n="contactCatOther">Other</option>
+                    </select>
+
+                    <label for="contact-body" data-i18n="contactMessage">Message</label>
+                    <textarea id="contact-body" name="message" maxlength="2000" rows="5" required></textarea>
+
+                    <button type="submit" id="contact-submit" data-i18n="contactSend">Send message</button>
+                    <p id="contact-form-message" class="contact-status" role="status"></p>
+                </form>
+            </section>
+
+            <section id="partner" class="contact-panel partner-panel">
+                <h2 data-i18n="partnerTitle">Do you own a store? Join Chaw</h2>
+                <p data-i18n="partnerLead">Local clothing stores can contact us to talk about listing their pieces on the Chaw marketplace. An administrator reviews each request and opens store accounts by hand.</p>
+
+                <div class="partner-actions">
+                    <a id="partner-whatsapp" class="store-invite-button" hidden href="#" target="_blank" rel="noopener" data-i18n="partnerWhatsapp">Contact me on WhatsApp</a>
+                    <a class="hero-button about-join" href="#partner-form" data-i18n="partnerApply">Submit a partnership request</a>
+                </div>
+                <p id="partner-whatsapp-note" class="field-hint" data-i18n="partnerWhatsappPending">WhatsApp contact will appear here after the number is configured in the site settings.</p>
+
+                <form id="partner-form" class="contact-form" novalidate>
+                    <h3 data-i18n="partnerFormTitle">Partnership request</h3>
+
+                    <label for="partner-owner" data-i18n="partnerOwnerName">Store owner name</label>
+                    <input id="partner-owner" name="ownerName" type="text" maxlength="80" autocomplete="name" required>
+
+                    <label for="partner-store" data-i18n="storeName">Store name</label>
+                    <input id="partner-store" name="storeName" type="text" maxlength="80" required>
+
+                    <label for="partner-phone" data-i18n="partnerPhone">Phone or WhatsApp</label>
+                    <input id="partner-phone" name="phone" type="tel" maxlength="30" autocomplete="tel" required>
+
+                    <label for="partner-city" data-i18n="partnerCity">City</label>
+                    <input id="partner-city" name="city" type="text" maxlength="60" required>
+
+                    <label for="partner-body" data-i18n="contactMessage">Message</label>
+                    <textarea id="partner-body" name="message" maxlength="2000" rows="4" required></textarea>
+
+                    <button type="submit" id="partner-submit" data-i18n="partnerSubmit">Send partnership request</button>
+                    <p id="partner-form-message" class="contact-status" role="status"></p>
+                </form>
+            </section>
+        </section>
+    </main>
+
+    <footer>
+        <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
+    </footer>
+
+    <script type="module" src="app.js?v=20261011c"></script>
+</body>
+</html>
