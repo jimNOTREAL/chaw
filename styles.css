@@ -2200,3 +2200,472 @@ footer {
         text-align: center;
     }
 }
+
+body.market-home {
+    background: #f7f3ec;
+    color: #1a1a1a;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+}
+
+.market-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 380px) auto;
+    align-items: center;
+    gap: 28px;
+    padding: 14px 36px;
+    background: #0e0e0e;
+    border-bottom: 1px solid rgba(198, 165, 106, 0.35);
+}
+
+.market-nav .nav-start,
+.market-nav .nav-tools,
+.market-nav .nav-links,
+.market-nav .nav-tool {
+    display: flex;
+    align-items: center;
+}
+
+.market-nav .nav-start {
+    gap: 28px;
+    min-width: 0;
+}
+
+.market-nav .logo {
+    font-family: "Playfair Display", serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 34px;
+    color: #f7f3ec;
+}
+
+.market-nav .nav-links {
+    gap: 18px;
+    min-width: 0;
+    overflow: auto;
+}
+
+.market-nav .nav-links a {
+    color: #f4efe8;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.market-nav .nav-links a:hover {
+    color: #c6a56a;
+}
+
+.nav-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 14px;
+    height: 42px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.nav-search .search-icon {
+    display: grid;
+    place-items: center;
+    color: rgba(247, 243, 236, 0.7);
+}
+
+.nav-search svg,
+.nav-tool svg,
+.service-bar svg,
+.hero-button svg,
+.save-piece svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.nav-search input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #f7f3ec;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 14px;
+}
+
+.nav-search input::placeholder {
+    color: rgba(247, 243, 236, 0.55);
+}
+
+.market-nav .nav-tools {
+    gap: 16px;
+}
+
+.market-nav .nav-tool {
+    gap: 8px;
+    color: #f7f3ec;
+    text-decoration: none;
+    background: transparent;
+    border: 0;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    position: relative;
+}
+
+.market-nav .account-button {
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    overflow: visible;
+}
+
+.market-nav .account-button img,
+.market-nav #nav-initial {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(247, 243, 236, 0.45);
+}
+
+.market-nav .account-button .nav-tool-label,
+.market-nav .account-button span {
+    width: auto;
+    height: auto;
+}
+
+.market-nav .lang-switch button {
+    font-size: 12px;
+    padding: 4px;
+}
+
+.nav-badge {
+    position: absolute;
+    top: -7px;
+    inset-inline-end: -8px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #c6a56a;
+    color: #1a140c;
+    font-size: 10px;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+}
+
+.hero-banner {
+    position: relative;
+    height: 350px;
+    overflow: hidden;
+    background: #141210;
+}
+
+.hero-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+body.market-home > main {
+    padding: 0;
+    gap: 0;
+    min-height: 0;
+}
+
+.hero-shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(8, 8, 8, 0.78), rgba(8, 8, 8, 0.12) 62%);
+}
+
+[dir="rtl"] .hero-shade {
+    background: linear-gradient(270deg, rgba(8, 8, 8, 0.78), rgba(8, 8, 8, 0.12) 62%);
+}
+
+.hero-copy {
+    position: absolute;
+    inset-inline-start: 7%;
+    top: 50%;
+    transform: translateY(-50%);
+    max-width: 460px;
+    z-index: 1;
+    text-align: start;
+}
+
+.hero-copy h1 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-weight: 600;
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1.25;
+    color: #fff;
+    margin-bottom: 12px;
+}
+
+.hero-copy p {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 16px;
+    line-height: 1.7;
+    margin-bottom: 22px;
+}
+
+.market-home .hero-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #c6a56a;
+    color: #1a140c;
+    border-radius: 6px;
+    padding: 12px 20px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.market-home .hero-button:hover {
+    background: #d4b67e;
+    transform: none;
+}
+
+[dir="rtl"] .forward-arrow {
+    transform: scaleX(-1);
+}
+
+.hero-dots {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 1;
+}
+
+.hero-dots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.hero-dots span.on {
+    background: #c6a56a;
+    width: 18px;
+    border-radius: 999px;
+}
+
+.market-home .home-shop {
+    width: min(1240px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 36px 0 42px;
+}
+
+.market-home .home-shop h2 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-weight: 600;
+    font-size: 32px;
+    text-align: center;
+    margin-bottom: 22px;
+}
+
+.market-home .home-shop .discover-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.market-home .product-card,
+.market-home .home-shop .product-card:nth-child(5n + 1) {
+    position: relative;
+    background: #fff;
+    border: 1px solid rgba(22, 19, 17, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(22, 19, 17, 0.06);
+    padding: 0 0 14px;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    grid-column: auto;
+}
+
+.market-home .home-shop .product-card img,
+.market-home .home-shop .product-card:nth-child(5n + 1) img {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    height: auto;
+    object-fit: cover;
+    border-radius: 16px 16px 0 0;
+}
+
+.market-home .product-card h2 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 12px 14px 4px;
+    line-height: 1.4;
+}
+
+.market-home .piece-price {
+    margin: 0 14px 8px;
+    color: #3a342c;
+    font-variant-numeric: lining-nums;
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: right;
+}
+
+[dir="ltr"] .market-home .piece-price {
+    text-align: left;
+}
+
+.market-nav [hidden] {
+    display: none !important;
+}
+
+.market-home .store-name,
+.market-home .product-card > a p:not(.piece-price),
+.market-home .qty-choice {
+    display: none;
+}
+
+.market-home .save-piece {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #1a1a1a;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.market-home .save-piece[aria-pressed="true"] svg {
+    fill: #1a1a1a;
+}
+
+.market-home .home-shop .cart-button,
+.market-home .home-shop .product-card:nth-child(5n + 1) .cart-button {
+    position: static;
+    width: calc(100% - 28px);
+    margin: 8px 14px 0;
+    background: #111;
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 8px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.service-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    background: #0e0e0e;
+    color: #f7f3ec;
+    padding: 22px 28px;
+}
+
+.service-bar article {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-inline: 18px;
+    border-inline-start: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.service-bar article:first-child {
+    border-inline-start: 0;
+}
+
+.service-bar h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.service-bar p {
+    color: rgba(247, 243, 236, 0.72);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.market-home footer {
+    background: #f7f3ec;
+    color: #6f655c;
+    text-align: center;
+    padding: 18px;
+}
+
+@media (max-width: 1100px) {
+    .market-nav {
+        grid-template-columns: 1fr auto;
+        gap: 12px 16px;
+        padding: 12px 16px;
+    }
+
+    .nav-search {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .market-home .home-shop .discover-grid {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding-bottom: 8px;
+    }
+
+    .market-home .home-shop .product-card {
+        flex: 0 0 210px;
+        scroll-snap-align: start;
+    }
+}
+
+@media (max-width: 720px) {
+    .hero-banner {
+        height: auto;
+        min-height: 350px;
+    }
+
+    .hero-copy {
+        inset-inline: 20px;
+        max-width: none;
+    }
+
+    .market-nav .nav-links {
+        display: none;
+    }
+
+    .service-bar {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px 0;
+    }
+
+    .service-bar article,
+    .service-bar article:first-child {
+        border: 0;
+        padding-inline: 8px;
+    }
+}

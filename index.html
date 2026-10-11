@@ -32,88 +32,114 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@300;400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261010c">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,500&family=Noto+Naskh+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=20261010t">
 </head>
-<body>
-    <nav>
-        <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
-            <img src="chaw-eye-white.png" alt="Chaw eye logo">
-            <div class="logo">Chaw</div>
-        </a>
+<body class="market-home">
+    <nav class="market-nav">
+        <div class="nav-start">
+            <a href="index.html" class="brand" data-i18n-aria="chawHome" aria-label="Chaw home">
+                <img src="chaw-eye-white.png" alt="">
+                <div class="logo">Chaw</div>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html" data-i18n="home">Home</a></li>
+                <li><a href="discover.html" data-i18n="navProducts">Products</a></li>
+                <li><a href="discover.html" data-i18n="navSections">Categories</a></li>
+                <li><a href="#about" data-i18n="navAbout">About us</a></li>
+                <li><a href="#contact" data-i18n="navContact">Contact</a></li>
+                <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
+            </ul>
+        </div>
 
-        <ul>
-            <li><a href="index.html" data-i18n="home">Home</a></li>
-            <li><a href="discover.html" data-i18n="discover">Discover</a></li>
-            <li id="dashboard-link" hidden><a href="dashboard.html" data-i18n="dashboard">Dashboard</a></li>
-        </ul>
+        <form class="nav-search" action="discover.html" method="get">
+            <label class="search-icon" for="home-search" data-i18n-aria="searchWant" aria-label="Search for what you want...">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16l4 4"></path></svg>
+            </label>
+            <input id="home-search" name="q" type="search" data-i18n-placeholder="searchWant" placeholder="Search for what you want..." autocomplete="off">
+        </form>
 
-        <a href="login.html" class="nav-button" id="join-link" data-i18n="signIn">Sign in</a>
-        <button type="button" id="account-button" class="account-button" hidden data-i18n-aria="yourAccount" aria-label="Your account">
-            <img id="nav-avatar" alt="" hidden>
-            <span id="nav-initial"></span>
-        </button>
+        <div class="nav-tools">
+            <a href="login.html" class="nav-tool" id="join-link">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5 19c1.4-3 3.8-4.5 7-4.5S17.6 16 19 19"></path></svg>
+                <span data-i18n="myAccount">My account</span>
+            </a>
+            <button type="button" id="account-button" class="account-button nav-tool" hidden data-i18n-aria="yourAccount" aria-label="Your account">
+                <img id="nav-avatar" alt="" hidden>
+                <span id="nav-initial"></span>
+                <span class="nav-tool-label" data-i18n="myAccount">My account</span>
+            </button>
+            <a href="discover.html" class="nav-tool icon-only" data-i18n-aria="savedPieces" aria-label="Saved pieces">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z"></path></svg>
+                <span id="saved-count" class="nav-badge" hidden>0</span>
+            </a>
+            <a href="cart.html" class="nav-tool icon-only" id="cart-link" data-i18n-aria="cart" aria-label="Cart">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"></path><path d="M9 8V7a3 3 0 0 1 6 0v1"></path></svg>
+                <span id="nav-cart-count" class="nav-badge" hidden>0</span>
+            </a>
+        </div>
     </nav>
 
     <main>
-        <section class="hero" id="home">
-            <div class="hero-content">
-                <h1 data-i18n-html="heroTitle">
-                    Discover what's <span>around you.</span>
-                </h1>
-
-                <p data-i18n="heroText">
-                    Chaw connects people with local businesses,
-                    products and places worth discovering.
-                    Everything you need, closer than you think.
-                </p>
-
-                <a href="#shop" class="hero-button" data-i18n="exploreChaw">
-                    Explore Chaw
+        <section class="hero-banner" id="home">
+            <img src="chaw-boutique-hero.jpg" alt="">
+            <div class="hero-shade"></div>
+            <div class="hero-copy">
+                <h1 data-i18n="heroTitle">Discover what's around you.</h1>
+                <p data-i18n="heroText">Shop the best local stores in Iraq. The clothes you need, in one place.</p>
+                <a href="discover.html" class="hero-button">
+                    <span data-i18n="shopNow">Shop now</span>
+                    <svg class="forward-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg>
                 </a>
             </div>
-
-            <section class="home-shop" id="shop">
-                <h2 data-i18n="theCollection">The collection</h2>
-                <div id="discover-list" class="discover-grid"></div>
-            </section>
+            <div class="hero-dots" aria-hidden="true">
+                <span class="on"></span>
+                <span></span>
+                <span></span>
+            </div>
         </section>
 
-        <section class="features" id="discover">
-            <h2 data-i18n="everythingLocal">Everything local.</h2>
+        <section class="home-shop" id="shop">
+            <h2 data-i18n="featuredProducts">Featured pieces</h2>
+            <div id="discover-list" class="discover-grid" data-home="1" data-limit="5"></div>
+        </section>
 
-            <div class="feature-container">
-                <div class="feature">
-                    <h3 data-i18n="featureDiscover">🛍 Discover</h3>
-                    <p data-i18n="featureDiscoverText">
-                        Find products, stores and services
-                        around you without wasting time searching.
-                    </p>
+        <section class="service-bar" id="about">
+            <article>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>
+                <div>
+                    <h3 data-i18n="benefitPay">Secure payment</h3>
+                    <p data-i18n="benefitPayText">Several safe ways to pay</p>
                 </div>
-
-                <div class="feature">
-                    <h3 data-i18n="featureBusinesses">🏪 Local Businesses</h3>
-                    <p data-i18n="featureBusinessesText">
-                        Businesses can showcase what they offer
-                        and reach more customers through Chaw.
-                    </p>
+            </article>
+            <article>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v8H3z"></path><path d="M14 10h4l3 3v2h-7"></path><circle cx="7" cy="17.5" r="1.5"></circle><circle cx="17" cy="17.5" r="1.5"></circle></svg>
+                <div>
+                    <h3 data-i18n="benefitFast">Fast delivery</h3>
+                    <p data-i18n="benefitFastText">Across Iraq</p>
                 </div>
-
-                <div class="feature">
-                    <h3 data-i18n="featureNear">📍 Near You</h3>
-                    <p data-i18n="featureNearText">
-                        Explore what's available in your city
-                        and discover businesses you didn't know existed.
-                    </p>
+            </article>
+            <article>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle><path d="M9 12l2 2 4-4"></path></svg>
+                <div>
+                    <h3 data-i18n="benefitQuality">Guaranteed quality</h3>
+                    <p data-i18n="benefitQualityText">Real, trusted pieces</p>
                 </div>
-            </div>
+            </article>
+            <article>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16v-4a7 7 0 0 1 14 0v4"></path><path d="M5 16h3v4H5zM16 16h3v4h-3z"></path></svg>
+                <div>
+                    <h3 data-i18n="benefitSupport">Always here</h3>
+                    <p data-i18n="benefitSupportText">We are here to help</p>
+                </div>
+            </article>
         </section>
     </main>
 
-    <footer>
+    <footer id="contact">
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261010r"></script>
+    <script type="module" src="app.js?v=20261010t"></script>
 </body>
 </html>

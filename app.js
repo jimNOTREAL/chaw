@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010q";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010t";
 
 
 const emailInput = document.getElementById("email");
@@ -4917,7 +4917,8 @@ function renderDiscover() {
         }
     }
 
-    const visibleProducts = pool;
+    const homeLimit = Number(discoverList.dataset.limit || 0);
+    const visibleProducts = homeLimit > 0 ? pool.slice(0, homeLimit) : pool;
 
     discoverList.innerHTML = "";
 
@@ -4963,6 +4964,7 @@ function renderDiscover() {
             : (product.storeName || t("store"));
 
         const price = document.createElement("p");
+        price.className = "piece-price";
         price.textContent = money(product.price);
 
         const description = document.createElement("p");
@@ -4979,6 +4981,7 @@ function renderDiscover() {
         qty.className = "qty-choice";
         qty.setAttribute("aria-label", t("chooseQty"));
 
+        const onHome = discoverList.dataset.home === "1";
         const addButton = document.createElement("button");
         addButton.type = "button";
         addButton.className = "cart-button";
@@ -4986,7 +4989,7 @@ function renderDiscover() {
             ? t("outOfStock")
             : (needsAChoice(product)
                 ? t("chooseOptions")
-                : (auth.currentUser ? t("putInCart") : t("signInToBuy")));
+                : (auth.currentUser ? (onHome ? t("addToCart") : t("putInCart")) : t("signInToBuy")));
         addButton.disabled = stockCount < 1;
         addButton.addEventListener("click", (event) => {
             event.preventDefault();
@@ -5005,6 +5008,23 @@ function renderDiscover() {
         });
 
         card.append(link);
+
+        if (onHome) {
+            const save = document.createElement("button");
+            save.type = "button";
+            save.className = "save-piece";
+            save.setAttribute("aria-label", t("savePiece"));
+            const saved = readSaved().includes(product.id);
+            save.setAttribute("aria-pressed", saved ? "true" : "false");
+            save.innerHTML = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z\"></path></svg>";
+            save.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const on = toggleSaved(product.id);
+                save.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+            card.appendChild(save);
+        }
 
         if (!needsAChoice(product) && stockCount > 0) {
             card.appendChild(qty);
@@ -5325,12 +5345,48 @@ function renderCartCount() {
     }
 
     const count = cartCount();
+    const badge = document.getElementById("nav-cart-count");
+    if (badge) {
+        badge.textContent = String(count);
+        badge.hidden = count < 1;
+        return;
+    }
+
     link.textContent = count ? t("cartCount", { count: count }) : t("cart");
+}
+
+function readSaved() {
+    try {
+        const items = JSON.parse(localStorage.getItem("chaw-saved") || "[]");
+        return Array.isArray(items) ? items : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function renderSavedCount() {
+    const badge = document.getElementById("saved-count");
+    if (!badge) {
+        return;
+    }
+
+    const count = readSaved().length;
+    badge.textContent = String(count);
+    badge.hidden = count < 1;
+}
+
+function toggleSaved(id) {
+    const ids = readSaved();
+    const next = ids.includes(id) ? ids.filter((item) => item !== id) : ids.concat(id);
+    localStorage.setItem("chaw-saved", JSON.stringify(next));
+    renderSavedCount();
+    return next.includes(id);
 }
 
 function setupCartLink() {
     if (document.getElementById("cart-link")) {
         renderCartCount();
+        renderSavedCount();
         return;
     }
 
@@ -6783,6 +6839,11 @@ async function placeOrder() {
 }
 
 if (discoverSearch) {
+    const requestedSearch = new URLSearchParams(window.location.search).get("q");
+    if (requestedSearch) {
+        discoverSearch.value = requestedSearch;
+    }
+
     discoverSearch.addEventListener("input", () => {
         renderDiscover();
     });
