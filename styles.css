@@ -2366,12 +2366,33 @@ body.market-home {
 
 .hero-banner {
     position: relative;
-    height: 350px;
+    height: clamp(320px, 42vw, 520px);
     overflow: hidden;
     background: #141210;
 }
 
-.hero-banner img {
+.hero-slides {
+    position: absolute;
+    inset: 0;
+}
+
+.hero-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.7s ease, visibility 0.7s ease;
+    z-index: 0;
+}
+
+.hero-slide.is-active {
+    opacity: 1;
+    visibility: visible;
+    z-index: 1;
+}
+
+.hero-banner img,
+.hero-slide img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -2389,6 +2410,7 @@ body.market-home > main {
     position: absolute;
     inset: 0;
     background: linear-gradient(90deg, rgba(8, 8, 8, 0.78), rgba(8, 8, 8, 0.12) 62%);
+    pointer-events: none;
 }
 
 [dir="rtl"] .hero-shade {
@@ -2401,7 +2423,7 @@ body.market-home > main {
     top: 50%;
     transform: translateY(-50%);
     max-width: 460px;
-    z-index: 1;
+    z-index: 2;
     text-align: start;
 }
 
@@ -2412,6 +2434,7 @@ body.market-home > main {
     line-height: 1.25;
     color: #fff;
     margin-bottom: 12px;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
 }
 
 .hero-copy p {
@@ -2445,6 +2468,50 @@ body.market-home > main {
     transform: scaleX(-1);
 }
 
+.hero-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(247, 243, 236, 0.28);
+    border-radius: 50%;
+    background: rgba(14, 14, 14, 0.45);
+    color: #f7f3ec;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.hero-arrow:hover {
+    background: rgba(14, 14, 14, 0.72);
+    border-color: rgba(198, 165, 106, 0.7);
+}
+
+.hero-prev {
+    inset-inline-start: 14px;
+}
+
+.hero-next {
+    inset-inline-end: 14px;
+}
+
+.hero-arrow svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+[dir="rtl"] .hero-arrow svg {
+    transform: scaleX(-1);
+}
+
 .hero-dots {
     position: absolute;
     left: 50%;
@@ -2452,20 +2519,42 @@ body.market-home > main {
     transform: translateX(-50%);
     display: flex;
     gap: 8px;
-    z-index: 1;
+    z-index: 3;
 }
 
-.hero-dots span {
+.hero-dots button {
     width: 7px;
     height: 7px;
+    padding: 0;
+    border: 0;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
 }
 
-.hero-dots span.on {
+.hero-dots button[aria-selected="true"],
+.hero-dots button.on {
     background: #c6a56a;
     width: 18px;
     border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-slide {
+        transition: none;
+    }
+}
+
+@media (max-width: 720px) {
+    .hero-arrow {
+        width: 36px;
+        height: 36px;
+    }
+
+    .hero-copy {
+        inset-inline: 20px;
+        max-width: none;
+    }
 }
 
 .market-home .home-shop {
@@ -2645,8 +2734,8 @@ body.market-home > main {
 
 @media (max-width: 720px) {
     .hero-banner {
-        height: auto;
-        min-height: 350px;
+        height: 380px;
+        min-height: 320px;
     }
 
     .hero-copy {

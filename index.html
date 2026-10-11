@@ -33,7 +33,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,500&family=Noto+Naskh+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261011c">
+    <link rel="stylesheet" href="styles.css?v=20261011d">
 </head>
 <body class="market-home">
     <nav class="market-nav">
@@ -81,22 +81,28 @@
     </nav>
 
     <main>
-        <section class="hero-banner" id="home">
-            <img src="chaw-boutique-hero.jpg" alt="">
-            <div class="hero-shade"></div>
-            <div class="hero-copy">
-                <h1 data-i18n="heroTitle">Discover what's around you.</h1>
-                <p data-i18n="heroText">Shop the best local stores in Iraq. The clothes you need, in one place.</p>
-                <a href="discover.html" class="hero-button">
-                    <span data-i18n="shopNow">Shop now</span>
-                    <svg class="forward-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg>
-                </a>
+        <section class="hero-banner" id="home" data-hero-slider aria-roledescription="carousel" data-i18n-aria="heroSliderLabel" aria-label="Promotional slides">
+            <div class="hero-slides" id="hero-slides">
+                <article class="hero-slide is-active" data-slide="0">
+                    <img src="slides/hero-1.jpg" alt="" width="1600" height="900" fetchpriority="high" decoding="async">
+                    <div class="hero-shade"></div>
+                    <div class="hero-copy">
+                        <h1 data-i18n="heroSlide1Title">Discover your new look</h1>
+                        <p data-i18n="heroSlide1Text">Discover the latest clothing styles from local stores.</p>
+                        <a href="discover.html" class="hero-button">
+                            <span data-i18n="heroSlide1Button">Shop now</span>
+                            <svg class="forward-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg>
+                        </a>
+                    </div>
+                </article>
             </div>
-            <div class="hero-dots" aria-hidden="true">
-                <span class="on"></span>
-                <span></span>
-                <span></span>
-            </div>
+            <button type="button" class="hero-arrow hero-prev" data-hero-prev data-i18n-aria="heroPrev" aria-label="Previous slide">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+            </button>
+            <button type="button" class="hero-arrow hero-next" data-hero-next data-i18n-aria="heroNext" aria-label="Next slide">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+            </button>
+            <div class="hero-dots" id="hero-dots" role="tablist" data-i18n-aria="heroDotsLabel" aria-label="Slide controls"></div>
         </section>
 
         <section class="home-shop" id="shop">
@@ -141,6 +147,6 @@
         <p class="footer-contact"><a href="contact.html" data-i18n="navContact">Contact</a></p>
     </footer>
 
-    <script type="module" src="app.js?v=20261011c"></script>
+    <script type="module" src="app.js?v=20261011d"></script>
 </body>
 </html>

@@ -38,10 +38,36 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011c";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011d";
 
 // Digits only with country code, example: 9647XXXXXXXX. Leave empty until configured.
 const CHAW_PARTNER_WHATSAPP = "";
+
+// Homepage hero slides. Replace image files under /slides without changing this logic.
+const HOME_HERO_SLIDES = [
+    {
+        image: "slides/hero-1.jpg",
+        titleKey: "heroSlide1Title",
+        textKey: "heroSlide1Text",
+        buttonKey: "heroSlide1Button",
+        href: "discover.html"
+    },
+    {
+        image: "slides/hero-2.jpg",
+        titleKey: "heroSlide2Title",
+        textKey: "heroSlide2Text",
+        buttonKey: "heroSlide2Button",
+        href: "discover.html"
+    },
+    {
+        image: "slides/hero-3.jpg",
+        titleKey: "heroSlide3Title",
+        textKey: "heroSlide3Text",
+        buttonKey: "heroSlide3Button",
+        href: "discover.html#store-section"
+    }
+];
+const HERO_SLIDE_MS = 5000;
 
 
 const emailInput = document.getElementById("email");
@@ -3192,6 +3218,192 @@ async function loadContactInboxList() {
         list.textContent = t("contactInboxLoadFail");
         console.error(error);
     }
+}
+
+function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function setupHeroSlider() {
+    const root = document.querySelector("[data-hero-slider]");
+    const slidesBox = document.getElementById("hero-slides");
+    const dotsBox = document.getElementById("hero-dots");
+
+    if (!root || !slidesBox || !dotsBox || !HOME_HERO_SLIDES.length) {
+        return;
+    }
+
+    const fallbackImage = HOME_HERO_SLIDES[0].image || "chaw-boutique-hero.jpg";
+    slidesBox.replaceChildren();
+    dotsBox.replaceChildren();
+
+    HOME_HERO_SLIDES.forEach((slide, index) => {
+        const article = document.createElement("article");
+        article.className = "hero-slide" + (index === 0 ? " is-active" : "");
+        article.dataset.slide = String(index);
+        article.setAttribute("aria-hidden", index === 0 ? "false" : "true");
+
+        const image = document.createElement("img");
+        image.src = slide.image || fallbackImage;
+        image.alt = "";
+        image.width = 1600;
+        image.height = 900;
+        image.decoding = "async";
+        if (index === 0) {
+            image.fetchPriority = "high";
+        } else {
+            image.loading = "lazy";
+        }
+        image.addEventListener("error", () => {
+            if (image.src.indexOf(fallbackImage) === -1) {
+                image.src = fallbackImage;
+            }
+        });
+
+        const shade = document.createElement("div");
+        shade.className = "hero-shade";
+
+        const copy = document.createElement("div");
+        copy.className = "hero-copy";
+
+        const title = document.createElement("h1");
+        title.dataset.i18n = slide.titleKey;
+        title.textContent = t(slide.titleKey);
+
+        const text = document.createElement("p");
+        text.dataset.i18n = slide.textKey;
+        text.textContent = t(slide.textKey);
+
+        const button = document.createElement("a");
+        button.className = "hero-button";
+        button.href = slide.href || "discover.html";
+
+        const buttonLabel = document.createElement("span");
+        buttonLabel.dataset.i18n = slide.buttonKey;
+        buttonLabel.textContent = t(slide.buttonKey);
+
+        const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        arrow.setAttribute("class", "forward-arrow");
+        arrow.setAttribute("viewBox", "0 0 24 24");
+        arrow.setAttribute("aria-hidden", "true");
+        arrow.innerHTML = '<path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path>';
+
+        button.append(buttonLabel, arrow);
+        copy.append(title, text, button);
+        article.append(image, shade, copy);
+        slidesBox.appendChild(article);
+
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.setAttribute("role", "tab");
+        dot.setAttribute("aria-selected", index === 0 ? "true" : "false");
+        if (index === 0) {
+            dot.classList.add("on");
+        }
+        dot.setAttribute("aria-label", t("heroSlideDot", { number: index + 1 }));
+        dot.addEventListener("click", () => goTo(index, true));
+        dotsBox.appendChild(dot);
+    });
+
+    let current = 0;
+    let timer = null;
+    let paused = false;
+    const slides = () => [...slidesBox.querySelectorAll(".hero-slide")];
+    const dots = () => [...dotsBox.querySelectorAll("button")];
+
+    function paint() {
+        slides().forEach((slide, index) => {
+            const active = index === current;
+            slide.classList.toggle("is-active", active);
+            slide.setAttribute("aria-hidden", active ? "false" : "true");
+        });
+        dots().forEach((dot, index) => {
+            const active = index === current;
+            dot.classList.toggle("on", active);
+            dot.setAttribute("aria-selected", active ? "true" : "false");
+            dot.setAttribute("aria-label", t("heroSlideDot", { number: index + 1 }));
+        });
+    }
+
+    function goTo(index, userAction) {
+        const total = HOME_HERO_SLIDES.length;
+        current = ((index % total) + total) % total;
+        paint();
+        if (userAction) {
+            restart();
+        }
+    }
+
+    function next(userAction) {
+        goTo(current + 1, userAction);
+    }
+
+    function prev(userAction) {
+        goTo(current - 1, userAction);
+    }
+
+    function stop() {
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
+
+    function start() {
+        stop();
+        if (paused || prefersReducedMotion() || HOME_HERO_SLIDES.length < 2) {
+            return;
+        }
+        timer = setInterval(() => next(false), HERO_SLIDE_MS);
+    }
+
+    function restart() {
+        stop();
+        start();
+    }
+
+    const prevButton = root.querySelector("[data-hero-prev]");
+    const nextButton = root.querySelector("[data-hero-next]");
+    if (prevButton) {
+        prevButton.addEventListener("click", () => prev(true));
+    }
+    if (nextButton) {
+        nextButton.addEventListener("click", () => next(true));
+    }
+
+    root.addEventListener("mouseenter", () => {
+        paused = true;
+        stop();
+    });
+    root.addEventListener("mouseleave", () => {
+        paused = false;
+        start();
+    });
+    root.addEventListener("focusin", () => {
+        paused = true;
+        stop();
+    });
+    root.addEventListener("focusout", (event) => {
+        if (!root.contains(event.relatedTarget)) {
+            paused = false;
+            start();
+        }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+            stop();
+        } else if (!paused) {
+            start();
+        }
+    });
+
+    onLanguageChange(() => {
+        paint();
+    });
+
+    paint();
+    start();
 }
 
 function setupContactForms() {
@@ -7857,6 +8069,7 @@ document.querySelectorAll("input[name='payment']").forEach((input) => {
 });
 
 setupContactForms();
+setupHeroSlider();
 onLanguageChange(() => {
     paintPartnerWhatsApp();
 });
