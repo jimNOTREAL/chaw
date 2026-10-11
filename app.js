@@ -36,7 +36,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010t";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261010u";
 
 
 const emailInput = document.getElementById("email");
@@ -108,6 +108,7 @@ let currentBusiness = null;
 let availableFilters = [];
 let discoverProducts = [];
 let activeFilter = "All";
+let shopCategory = "";
 let focusCategoryId = "";
 
 const firebaseConfig = {
@@ -4800,12 +4801,191 @@ function searchHit(product, query) {
     };
 }
 
+const shopCategorySpecs = [
+    { id: "men", label: "catMen", words: ["Men"] },
+    { id: "women", label: "catWomen", words: ["Women"] },
+    { id: "shoes", label: "catShoes", words: ["Shoes"] },
+    { id: "bags", label: "catBags", words: ["Bag", "Bags", "Handbag"] },
+    { id: "accessories", label: "catAccessories", words: ["Accessory", "Accessories"] },
+    { id: "sport", label: "catSport", words: ["Sweatpants", "Sweatshirt", "Hoodie"] },
+    { id: "children", label: "catChildren", words: ["Children"] },
+    { id: "offers", label: "catOffers", words: ["Sale", "Offer", "Discount"] }
+];
+
+function productHasWord(product, word) {
+    return filtersOnProduct(product).some((name) => {
+        if (sameFilterWord(name, word)) {
+            return true;
+        }
+
+        const hit = glossaryHit(name);
+        return Boolean(hit && sameFilterWord(hit.en, word));
+    });
+}
+
+function productInShopCategory(product, categoryId) {
+    const spec = shopCategorySpecs.find((item) => item.id === categoryId);
+    return Boolean(spec && spec.words.some((word) => productHasWord(product, word)));
+}
+
+function categoryCover(products, spec) {
+    const match = products.find((product) => spec.words.some((word) => productHasWord(product, word)));
+    if (!match) {
+        return "";
+    }
+
+    const photos = productPhotoList(match);
+    return photos.length ? photos[0] : "";
+}
+
+function paintDiscoverAreas(products) {
+    const select = document.getElementById("discover-area");
+    if (!select) {
+        return;
+    }
+
+    const current = select.value;
+    const areas = [];
+    products.forEach((product) => {
+        const area = String(product.area || "").trim();
+        if (area && !areas.some((item) => item.toLowerCase() === area.toLowerCase())) {
+            areas.push(area);
+        }
+    });
+
+    select.innerHTML = "";
+    const all = document.createElement("option");
+    all.value = "";
+    all.textContent = t("allPlaces");
+    select.appendChild(all);
+
+    areas.sort((left, right) => left.localeCompare(right)).forEach((area) => {
+        const option = document.createElement("option");
+        option.value = area;
+        option.textContent = area;
+        select.appendChild(option);
+    });
+
+    if ([...select.options].some((option) => option.value === current)) {
+        select.value = current;
+    }
+}
+
+function paintShopCategories(products) {
+    const row = document.getElementById("category-row");
+    if (!row) {
+        return;
+    }
+
+    row.innerHTML = "";
+    shopCategorySpecs.forEach((spec) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "category-card" + (shopCategory === spec.id ? " active" : "");
+
+        const cover = categoryCover(products, spec);
+        if (cover) {
+            const image = document.createElement("img");
+            image.alt = "";
+            image.src = cover;
+            button.appendChild(image);
+        } else {
+            const blank = document.createElement("span");
+            blank.className = "category-blank";
+            button.appendChild(blank);
+        }
+
+        const label = document.createElement("span");
+        label.textContent = t(spec.label);
+        button.appendChild(label);
+        button.addEventListener("click", () => {
+            shopCategory = shopCategory === spec.id ? "" : spec.id;
+            activeFilter = "All";
+            renderDiscover();
+            const pieces = document.getElementById("pieces");
+            if (pieces && shopCategory) {
+                pieces.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        });
+        row.appendChild(button);
+    });
+}
+
+function paintFeaturedStores(products) {
+    const section = document.getElementById("store-section");
+    const row = document.getElementById("store-row");
+    if (!section || !row) {
+        return;
+    }
+
+    const groups = new Map();
+    products.forEach((product) => {
+        const name = String(product.storeName || "").trim();
+        if (!name) {
+            return;
+        }
+
+        if (!groups.has(name)) {
+            groups.set(name, []);
+        }
+
+        groups.get(name).push(product);
+    });
+
+    row.innerHTML = "";
+    section.hidden = groups.size === 0;
+
+    groups.forEach((items, name) => {
+        const card = document.createElement("article");
+        card.className = "store-card";
+
+        const cover = productPhotoList(items[0])[0];
+        if (cover) {
+            const image = document.createElement("img");
+            image.alt = "";
+            image.src = cover;
+            card.appendChild(image);
+        }
+
+        const body = document.createElement("div");
+        const title = document.createElement("h3");
+        title.textContent = name;
+        const area = items.map((item) => String(item.area || "").trim()).find(Boolean) || "";
+        const count = document.createElement("p");
+        count.textContent = t("storePieceCount", { count: items.length });
+        const visit = document.createElement("button");
+        visit.type = "button";
+        visit.textContent = t("visitStore");
+        visit.addEventListener("click", () => {
+            shopCategory = "";
+            activeFilter = name;
+            renderDiscover();
+            const pieces = document.getElementById("pieces");
+            if (pieces) {
+                pieces.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        });
+        body.append(title);
+        if (area) {
+            const place = document.createElement("p");
+            place.textContent = area;
+            body.appendChild(place);
+        }
+        body.append(count, visit);
+        card.appendChild(body);
+        row.appendChild(card);
+    });
+}
+
 function renderDiscover() {
     if (!discoverList) {
         return;
     }
 
     const publicProducts = discoverProducts.filter((product) => !product.hidden);
+    paintDiscoverAreas(publicProducts);
+    paintShopCategories(publicProducts);
+    paintFeaturedStores(publicProducts);
     const names = [];
 
     publicProducts
@@ -4844,6 +5024,7 @@ function renderDiscover() {
     allButton.className = activeFilter === "All" ? "active" : "";
     allButton.addEventListener("click", () => {
         activeFilter = "All";
+        shopCategory = "";
         renderDiscover();
     });
     filterBar.appendChild(allButton);
@@ -4876,6 +5057,7 @@ function renderDiscover() {
             button.className = category.name === activeFilter ? "active" : "";
             button.addEventListener("click", () => {
                 activeFilter = category.name;
+                shopCategory = "";
                 renderDiscover();
             });
             block.appendChild(button);
@@ -4894,7 +5076,16 @@ function renderDiscover() {
 
     let pool = activeFilter === "All"
         ? publicProducts
-        : publicProducts.filter((product) => filtersOnProduct(product).includes(activeFilter));
+        : publicProducts.filter((product) => filtersOnProduct(product).some((name) => sameFilterWord(name, activeFilter)));
+
+    if (shopCategory) {
+        pool = pool.filter((product) => productInShopCategory(product, shopCategory));
+    }
+
+    const chosenArea = discoverAreaSelect ? discoverAreaSelect.value.trim() : "";
+    if (chosenArea) {
+        pool = pool.filter((product) => String(product.area || "").trim() === chosenArea);
+    }
 
     let closest = false;
 
@@ -6845,6 +7036,13 @@ if (discoverSearch) {
     }
 
     discoverSearch.addEventListener("input", () => {
+        renderDiscover();
+    });
+}
+
+const discoverAreaSelect = document.getElementById("discover-area");
+if (discoverAreaSelect) {
+    discoverAreaSelect.addEventListener("change", () => {
         renderDiscover();
     });
 }

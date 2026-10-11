@@ -2669,3 +2669,246 @@ body.market-home > main {
         padding-inline: 8px;
     }
 }
+
+.discover-page {
+    background: #f7f3ec;
+}
+
+.discover-head,
+.discover-block {
+    width: min(1180px, calc(100% - 48px));
+    margin: 0 auto;
+}
+
+.discover-head {
+    padding: 42px 0 8px;
+}
+
+.discover-head h1,
+.discover-block h2 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-weight: 600;
+    text-align: center;
+}
+
+.discover-head h1 {
+    font-size: clamp(34px, 4vw, 52px);
+    margin-bottom: 10px;
+}
+
+.discover-head p {
+    max-width: 640px;
+    margin: 0 auto 22px;
+    text-align: center;
+    color: #5c564e;
+    line-height: 1.7;
+}
+
+.discover-tools {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+}
+
+.discover-search-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid rgba(22, 19, 17, 0.12);
+}
+
+.discover-search-wrap svg,
+.category-card svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+}
+
+.discover-search-wrap input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 15px;
+}
+
+.place-select {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+    font-size: 13px;
+    color: #5c564e;
+}
+
+.place-select select {
+    height: 52px;
+    border-radius: 14px;
+    border: 1px solid rgba(22, 19, 17, 0.12);
+    background: #fff;
+    padding: 0 12px;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    font-size: 15px;
+}
+
+.discover-block {
+    padding: 28px 0 8px;
+}
+
+.discover-block h2 {
+    font-size: 30px;
+    margin-bottom: 16px;
+}
+
+.category-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.category-card {
+    position: relative;
+    height: 168px;
+    border: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    padding: 0;
+    cursor: pointer;
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.category-card img,
+.category-blank {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.category-blank {
+    background:
+        linear-gradient(160deg, rgba(198, 165, 106, 0.35), transparent 55%),
+        #1c1c1c;
+}
+
+.category-card span:last-child {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    padding: 28px 12px 12px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+    font-family: "Noto Naskh Arabic", "DM Sans", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.category-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px rgba(22, 19, 17, 0.16);
+}
+
+.category-card.active {
+    outline: 2px solid #c6a56a;
+    outline-offset: 2px;
+}
+
+.store-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 280px));
+    gap: 16px;
+}
+
+.store-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(22, 19, 17, 0.08);
+    box-shadow: 0 12px 30px rgba(22, 19, 17, 0.06);
+}
+
+.store-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+}
+
+.store-card div {
+    padding: 14px;
+}
+
+.store-card h3 {
+    font-family: "Noto Naskh Arabic", "Playfair Display", serif;
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+
+.store-card p {
+    color: #5c564e;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.store-card button {
+    margin-top: 10px;
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: #111;
+    color: #fff;
+    padding: 10px;
+    font-family: "Noto Sans Arabic", "DM Sans", sans-serif;
+    cursor: pointer;
+}
+
+.store-card button:hover,
+.discover-page .cart-button:hover {
+    background: #2a241c;
+}
+
+.discover-page .discover-grid {
+    width: 100%;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.discover-page .filter-bar {
+    margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+    .category-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .discover-tools {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 560px) {
+    .discover-head,
+    .discover-block {
+        width: min(100% - 28px, 1180px);
+    }
+
+    .category-row {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+    }
+
+    .category-card {
+        flex: 0 0 180px;
+        scroll-snap-align: start;
+    }
+}
