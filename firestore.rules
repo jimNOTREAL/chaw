@@ -50,6 +50,32 @@ service cloud.firestore {
       return request.resource.data.get("role", "") == resource.data.get("role", "");
     }
 
+    function socialProviderCreateOk() {
+      return !request.resource.data.keys().hasAny(["signInProvider", "providerUid"])
+        || (
+          request.resource.data.keys().hasAll(["signInProvider", "providerUid"])
+          && request.resource.data.signInProvider in ["google.com", "facebook.com"]
+          && request.resource.data.signInProvider == request.auth.token.firebase.sign_in_provider
+          && request.resource.data.providerUid is string
+          && request.resource.data.providerUid.size() > 0
+          && request.resource.data.providerUid.size() < 128
+          && request.auth.token.firebase.identities[request.resource.data.signInProvider][0] == request.resource.data.providerUid
+        );
+    }
+
+    function socialProviderUpdateOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(["signInProvider", "providerUid"])
+        || (
+          request.resource.data.keys().hasAll(["signInProvider", "providerUid"])
+          && request.resource.data.signInProvider in ["google.com", "facebook.com"]
+          && request.resource.data.signInProvider == request.auth.token.firebase.sign_in_provider
+          && request.resource.data.providerUid is string
+          && request.resource.data.providerUid.size() > 0
+          && request.resource.data.providerUid.size() < 128
+          && request.auth.token.firebase.identities[request.resource.data.signInProvider][0] == request.resource.data.providerUid
+        );
+    }
+
     match /users/{uid} {
       allow read: if isSelf(uid) || isAdmin();
 
@@ -59,8 +85,10 @@ service cloud.firestore {
           && request.resource.data.keys().hasAll(["email", "role"])
           && request.resource.data.keys().hasOnly([
             "email", "role", "displayName", "photoUrl", "phone",
-            "deliveryLocation", "deliveryLat", "deliveryLng"
+            "deliveryLocation", "deliveryLat", "deliveryLng",
+            "signInProvider", "providerUid"
           ])
+          && socialProviderCreateOk()
           && request.resource.data.email is string
           && (
             request.resource.data.email == ""
@@ -76,6 +104,7 @@ service cloud.firestore {
         || (
           isSelf(uid)
           && roleUnchanged()
+          && socialProviderUpdateOk()
           && (
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(["email"])
             || request.resource.data.email == request.auth.token.email
@@ -94,7 +123,9 @@ service cloud.firestore {
             "deliveryLat",
             "deliveryLng",
             "email",
-            "category"
+            "category",
+            "signInProvider",
+            "providerUid"
           ])
         );
 

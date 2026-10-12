@@ -38,7 +38,7 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011d";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011e";
 
 // Digits only with country code, example: 9647XXXXXXXX. Leave empty until configured.
 const CHAW_PARTNER_WHATSAPP = "";
@@ -692,17 +692,68 @@ function buttonLabel(button, text) {
     }
 }
 
+function socialIdentity(user) {
+    const entries = Array.isArray(user && user.providerData) ? user.providerData : [];
+    const match = entries.find((entry) => {
+        return entry && (entry.providerId === "google.com" || entry.providerId === "facebook.com") && entry.uid;
+    });
+
+    if (!match) {
+        return null;
+    }
+
+    return {
+        signInProvider: match.providerId,
+        providerUid: String(match.uid)
+    };
+}
+
+async function writeUserProfile(ref, data, exists) {
+    const save = exists
+        ? (fields) => updateDoc(ref, fields)
+        : (fields) => setDoc(ref, fields);
+
+    try {
+        await save(data);
+    } catch (error) {
+        const blocked = error && error.code === "permission-denied";
+        const hasProvider = Object.prototype.hasOwnProperty.call(data, "signInProvider");
+
+        if (!blocked || !hasProvider) {
+            throw error;
+        }
+
+        const plain = { ...data };
+        delete plain.signInProvider;
+        delete plain.providerUid;
+
+        if (!Object.keys(plain).length) {
+            return;
+        }
+
+        await save(plain);
+    }
+}
+
 async function saveGoogleProfile(user) {
     const profileRef = doc(db, "users", user.uid);
     const profileSnap = await getDoc(profileRef);
+    const identity = socialIdentity(user);
 
     if (!profileSnap.exists()) {
-        await setDoc(profileRef, {
+        const profile = {
             email: user.email || "",
             displayName: user.displayName || "",
             photoUrl: user.photoURL || "",
             role: "customer"
-        });
+        };
+
+        if (identity) {
+            profile.signInProvider = identity.signInProvider;
+            profile.providerUid = identity.providerUid;
+        }
+
+        await writeUserProfile(profileRef, profile, false);
         return;
     }
 
@@ -721,8 +772,13 @@ async function saveGoogleProfile(user) {
         updates.photoUrl = user.photoURL;
     }
 
+    if (identity && !data.signInProvider) {
+        updates.signInProvider = identity.signInProvider;
+        updates.providerUid = identity.providerUid;
+    }
+
     if (Object.keys(updates).length) {
-        await updateDoc(profileRef, updates);
+        await writeUserProfile(profileRef, updates, true);
     }
 }
 
@@ -7911,12 +7967,38 @@ onLanguageChange(() => {
     }
 });
 
+async function finishProviderRedirect() {
+    if (sessionStorage.getItem("chaw-redirect") !== "1") {
+        return null;
+    }
+
+    sessionStorage.removeItem("chaw-redirect");
+    const redirectResult = await getRedirectResult(auth);
+
+    if (!redirectResult || !redirectResult.user) {
+        return null;
+    }
+
+    isSigningUp = true;
+    await saveGoogleProfile(redirectResult.user);
+    return redirectResult.user;
+}
+
 async function startAuth() {
+    let redirectedUser = null;
+
     try {
         await setPersistence(auth, browserLocalPersistence);
+        redirectedUser = await finishProviderRedirect();
         await auth.authStateReady();
     } catch (error) {
+        isSigningUp = false;
+        redirectedUser = null;
         console.error(error);
+        if (authMessage) {
+            authMessage.textContent = authErrorText(error);
+            authMessage.classList.add("is-error");
+        }
     }
 
     authSettled = true;
@@ -7960,24 +8042,12 @@ async function startAuth() {
         }
     });
 
-    try {
-        if (sessionStorage.getItem("chaw-redirect") === "1") {
-            sessionStorage.removeItem("chaw-redirect");
-            const redirectResult = await getRedirectResult(auth);
-
-            if (redirectResult && redirectResult.user) {
-                isSigningUp = true;
-                await saveGoogleProfile(redirectResult.user);
-                isSigningUp = false;
-            }
-        }
-    } catch (error) {
-        isSigningUp = false;
-        console.error(error);
-        if (authMessage) {
-            authMessage.textContent = authErrorText(error);
-        }
+    if (redirectedUser && onLoginPage()) {
+        window.location.href = nextPage() === "index.html" ? "account.html" : nextPage();
+        return;
     }
+
+    isSigningUp = false;
 }
 
 const checkoutButton = document.getElementById("checkout-button");
