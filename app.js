@@ -38,7 +38,7 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011e";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011f";
 
 // Digits only with country code, example: 9647XXXXXXXX. Leave empty until configured.
 const CHAW_PARTNER_WHATSAPP = "";
@@ -5886,6 +5886,17 @@ function renderDiscover() {
         pool = pool.filter((product) => String(product.area || "").trim() === chosenArea);
     }
 
+    const savedOnly = !discoverList.dataset.home && new URLSearchParams(window.location.search).get("saved") === "1";
+    if (savedOnly) {
+        const savedIds = readSaved();
+        pool = pool.filter((product) => savedIds.includes(product.id));
+    }
+
+    const piecesTitle = document.querySelector("#pieces > h2");
+    if (piecesTitle && !discoverList.dataset.home) {
+        piecesTitle.textContent = savedOnly ? t("savedPieces") : t("shopPieces");
+    }
+
     let closest = false;
 
     if (searchText) {
@@ -5914,9 +5925,11 @@ function renderDiscover() {
 
     if (visibleProducts.length === 0) {
         const empty = document.createElement("p");
-        empty.textContent = searchText
-            ? t("nothingMatches")
-            : t("nothingInCategory");
+        empty.textContent = savedOnly
+            ? t("nothingSaved")
+            : searchText
+                ? t("nothingMatches")
+                : t("nothingInCategory");
         discoverList.appendChild(empty);
         return;
     }
@@ -6088,10 +6101,6 @@ function productActions(product, productId, groups) {
             pay.rel = "noopener";
             pay.textContent = t("payByCard");
             actions.appendChild(pay);
-        } else {
-            const note = document.createElement("p");
-            note.textContent = t("cardContact");
-            actions.appendChild(note);
         }
     }
 
@@ -6554,6 +6563,7 @@ function renderCheckoutDetails() {
 
     const cart = readCart();
     box.hidden = cart.length === 0;
+    syncCardPayment(cart);
     refreshCartFees(cart);
 
     if (!address) {
@@ -6592,6 +6602,28 @@ function renderCheckoutDetails() {
         : !String(accountProfile.phone || "").trim()
             ? t("deliverTo", { location: accountProfile.deliveryLocation }) + " " + t("addPhoneBefore") + pinNote
             : t("deliverTo", { location: accountProfile.deliveryLocation }) + pinNote;
+}
+
+function syncCardPayment(cart) {
+    const cardInput = document.querySelector("input[name='payment'][value='card']");
+    const cardLabel = cardInput ? cardInput.closest("label") : null;
+    const note = document.getElementById("card-pay-note");
+    const allowed = cart.some((item) => safeHttpUrl(item.cardPaymentUrl || ""));
+
+    if (cardLabel) {
+        cardLabel.hidden = !allowed;
+    }
+
+    if (note) {
+        note.hidden = !allowed;
+    }
+
+    if (!allowed && cardInput && cardInput.checked) {
+        const delivery = document.querySelector("input[name='payment'][value='delivery']");
+        if (delivery) {
+            delivery.checked = true;
+        }
+    }
 }
 
 let cartFeeRequest = 0;
