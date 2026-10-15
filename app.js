@@ -38,10 +38,10 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261015a";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261015b";
 
 // Digits only with country code, example: 9647XXXXXXXX. Leave empty until configured.
-const CHAW_PARTNER_WHATSAPP = "";
+const CHAW_PARTNER_WHATSAPP = "9647777124378";
 
 // Homepage hero slides. Replace image files under /slides without changing this logic.
 const HOME_HERO_SLIDES = [
