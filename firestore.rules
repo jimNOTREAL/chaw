@@ -258,7 +258,7 @@ service cloud.firestore {
         && request.resource.data.contact.size() >= 5
         && request.resource.data.contact.size() <= 80
         && request.resource.data.category in [
-          "general", "account", "order", "stores", "tech", "other"
+          "general", "account", "order", "stores", "delivery", "tech", "other"
         ]
         && request.resource.data.message is string
         && request.resource.data.message.size() >= 5
@@ -289,6 +289,41 @@ service cloud.firestore {
         && request.resource.data.city is string
         && request.resource.data.city.size() >= 2
         && request.resource.data.city.size() <= 60
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 5
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lang in ["en", "ar", "ckb"];
+
+      allow read: if isAdmin();
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        && request.resource.data.status in ["new", "reviewed", "approved", "declined"];
+
+      allow delete: if isAdmin();
+    }
+
+    match /deliveryApplications/{applicationId} {
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          "fullName", "phone", "city", "vehicle", "message",
+          "kind", "createdAt", "status", "lang"
+        ])
+        && request.resource.data.kind == "delivery"
+        && request.resource.data.status == "new"
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 2
+        && request.resource.data.fullName.size() <= 80
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 7
+        && request.resource.data.phone.size() <= 30
+        && request.resource.data.city is string
+        && request.resource.data.city.size() >= 2
+        && request.resource.data.city.size() <= 60
+        && request.resource.data.vehicle in [
+          "motorcycle", "car", "bicycle", "other"
+        ]
         && request.resource.data.message is string
         && request.resource.data.message.size() >= 5
         && request.resource.data.message.size() <= 2000

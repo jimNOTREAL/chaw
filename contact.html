@@ -29,7 +29,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Noto+Naskh+Arabic:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20261011c">
+    <link rel="stylesheet" href="styles.css?v=20261015a">
 </head>
 <body class="contact-page market-home">
     <nav class="market-nav">
@@ -100,6 +100,11 @@
                     <p data-i18n="contactStoresText">For clothing stores that want to join Chaw, publish products, explore advertising, or talk about delivery partnerships.</p>
                     <a class="contact-card-link" href="#partner" data-i18n="contactPartnerCta">Partner with Chaw</a>
                 </article>
+                <article class="contact-card">
+                    <h2 data-i18n="contactDeliveryTitle">Become a delivery driver</h2>
+                    <p data-i18n="contactDeliveryText">For people who want to deliver orders for Chaw in their city. An administrator reviews each request by hand.</p>
+                    <a class="contact-card-link" href="#delivery" data-i18n="contactDeliveryCta">Apply to deliver</a>
+                </article>
             </div>
 
             <section id="contact-message" class="contact-panel">
@@ -118,6 +123,7 @@
                         <option value="account" data-i18n="contactCatAccount">Account problem</option>
                         <option value="order" data-i18n="contactCatOrder">Product or order question</option>
                         <option value="stores" data-i18n="contactCatStores">Store owners and partnerships</option>
+                        <option value="delivery" data-i18n="contactCatDelivery">Delivery driver</option>
                         <option value="tech" data-i18n="contactCatTech">Technical problem</option>
                         <option value="other" data-i18n="contactCatOther">Other</option>
                     </select>
@@ -162,6 +168,43 @@
                     <p id="partner-form-message" class="contact-status" role="status"></p>
                 </form>
             </section>
+
+            <section id="delivery" class="contact-panel partner-panel">
+                <h2 data-i18n="deliveryTitle">Want to deliver for Chaw?</h2>
+                <p data-i18n="deliveryLead">If you can deliver clothing orders in your city, send a short request. An administrator reviews every application. This does not create a driver account by itself.</p>
+
+                <div class="partner-actions">
+                    <a class="hero-button about-join" href="#delivery-form" data-i18n="deliveryApply">Submit a delivery request</a>
+                </div>
+
+                <form id="delivery-form" class="contact-form" novalidate>
+                    <h3 data-i18n="deliveryFormTitle">Delivery request</h3>
+
+                    <label for="delivery-name" data-i18n="fullName">Full name</label>
+                    <input id="delivery-name" name="fullName" type="text" maxlength="80" autocomplete="name" required>
+
+                    <label for="delivery-phone" data-i18n="partnerPhone">Phone or WhatsApp</label>
+                    <input id="delivery-phone" name="phone" type="tel" maxlength="30" autocomplete="tel" required>
+
+                    <label for="delivery-city" data-i18n="partnerCity">City</label>
+                    <input id="delivery-city" name="city" type="text" maxlength="60" required>
+
+                    <label for="delivery-vehicle" data-i18n="deliveryVehicle">Vehicle</label>
+                    <select id="delivery-vehicle" name="vehicle" required>
+                        <option value="" data-i18n="deliveryVehicleChoose">Choose a vehicle</option>
+                        <option value="motorcycle" data-i18n="deliveryVehicleMotorcycle">Motorcycle</option>
+                        <option value="car" data-i18n="deliveryVehicleCar">Car</option>
+                        <option value="bicycle" data-i18n="deliveryVehicleBicycle">Bicycle</option>
+                        <option value="other" data-i18n="deliveryVehicleOther">Other</option>
+                    </select>
+
+                    <label for="delivery-body" data-i18n="contactMessage">Message</label>
+                    <textarea id="delivery-body" name="message" maxlength="2000" rows="4" required></textarea>
+
+                    <button type="submit" id="delivery-submit" data-i18n="deliverySubmit">Send delivery request</button>
+                    <p id="delivery-form-message" class="contact-status" role="status"></p>
+                </form>
+            </section>
         </section>
     </main>
 
@@ -169,6 +212,6 @@
         <p data-i18n="footer">© 2026 Chaw. All rights reserved.</p>
     </footer>
 
-    <script type="module" src="app.js?v=20261011f"></script>
+    <script type="module" src="app.js?v=20261015a"></script>
 </body>
 </html>

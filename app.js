@@ -38,7 +38,7 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261011f";
+import { t, onLanguageChange, setLanguage, applyLanguage } from "./lang.js?v=20261015a";
 
 // Digits only with country code, example: 9647XXXXXXXX. Leave empty until configured.
 const CHAW_PARTNER_WHATSAPP = "";
@@ -3092,6 +3092,7 @@ async function loadAdminPanel() {
     }
 
     await loadPartnerRequestList();
+    await loadDeliveryRequestList();
     await loadContactInboxList();
 }
 
@@ -3219,6 +3220,87 @@ async function loadPartnerRequestList() {
         });
     } catch (error) {
         list.textContent = t("partnerRequestsLoadFail");
+        console.error(error);
+    }
+}
+
+async function loadDeliveryRequestList() {
+    const list = document.getElementById("delivery-request-list");
+    if (!list) {
+        return;
+    }
+
+    list.replaceChildren();
+
+    try {
+        const snapshot = await getDocs(collection(db, "deliveryApplications"));
+        const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        rows.sort((a, b) => {
+            const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+            const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+            return bTime - aTime;
+        });
+
+        if (!rows.length) {
+            const empty = document.createElement("p");
+            empty.textContent = t("deliveryRequestsEmpty");
+            list.appendChild(empty);
+            return;
+        }
+
+        const vehicleKey = {
+            motorcycle: "deliveryVehicleMotorcycle",
+            car: "deliveryVehicleCar",
+            bicycle: "deliveryVehicleBicycle",
+            other: "deliveryVehicleOther"
+        };
+
+        rows.forEach((row) => {
+            const card = document.createElement("article");
+            card.className = "admin-request-card";
+            const title = document.createElement("h4");
+            title.textContent = row.fullName || t("fullName");
+            const phone = document.createElement("p");
+            phone.textContent = t("phoneLine", { phone: row.phone || "" });
+            const city = document.createElement("p");
+            city.textContent = t("partnerCityLine", { city: row.city || "" });
+            const vehicle = document.createElement("p");
+            const vehicleLabel = vehicleKey[row.vehicle] ? t(vehicleKey[row.vehicle]) : (row.vehicle || "");
+            vehicle.textContent = t("deliveryVehicleLine", { vehicle: vehicleLabel });
+            const message = document.createElement("p");
+            message.textContent = row.message || "";
+            const status = document.createElement("p");
+            status.textContent = t("statusLine", { status: row.status || "new" });
+            const actions = document.createElement("div");
+            actions.className = "admin-request-actions";
+
+            ["reviewed", "approved", "declined"].forEach((nextStatus) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "row-button";
+                button.textContent = t("partnerMark_" + nextStatus);
+                button.disabled = row.status === nextStatus;
+                button.addEventListener("click", async () => {
+                    try {
+                        await updateDoc(doc(db, "deliveryApplications", row.id), {
+                            status: nextStatus
+                        });
+                        await loadDeliveryRequestList();
+                    } catch (error) {
+                        console.error(error);
+                        if (adminMessage) {
+                            adminMessage.textContent = error.message || t("checkConnection");
+                        }
+                    }
+                });
+                actions.appendChild(button);
+            });
+
+            card.append(title, phone, city, vehicle, message, status, actions);
+            list.appendChild(card);
+        });
+    } catch (error) {
+        list.textContent = t("deliveryRequestsLoadFail");
         console.error(error);
     }
 }
@@ -3467,6 +3549,7 @@ function setupContactForms() {
 
     const contactForm = document.getElementById("contact-form");
     const partnerForm = document.getElementById("partner-form");
+    const deliveryForm = document.getElementById("delivery-form");
 
     if (contactForm && !contactForm.dataset.bound) {
         contactForm.dataset.bound = "1";
@@ -3478,7 +3561,7 @@ function setupContactForms() {
             const contact = cleanTyped(document.getElementById("contact-reach") && document.getElementById("contact-reach").value).slice(0, 80);
             const category = cleanTyped(document.getElementById("contact-category") && document.getElementById("contact-category").value);
             const message = cleanTyped(document.getElementById("contact-body") && document.getElementById("contact-body").value).slice(0, 2000);
-            const allowed = ["general", "account", "order", "stores", "tech", "other"];
+            const allowed = ["general", "account", "order", "stores", "delivery", "tech", "other"];
 
             if (name.length < 2) {
                 setFormStatus(status, t("enterFullName"), "error");
@@ -3587,6 +3670,74 @@ function setupContactForms() {
             } catch (error) {
                 console.error(error);
                 setFormStatus(status, t("partnerSendFail"), "error");
+            } finally {
+                if (submit) {
+                    submit.disabled = false;
+                }
+            }
+        });
+    }
+
+    if (deliveryForm && !deliveryForm.dataset.bound) {
+        deliveryForm.dataset.bound = "1";
+        deliveryForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const submit = document.getElementById("delivery-submit");
+            const status = document.getElementById("delivery-form-message");
+            const fullName = cleanTyped(document.getElementById("delivery-name") && document.getElementById("delivery-name").value).slice(0, 80);
+            const phone = cleanTyped(document.getElementById("delivery-phone") && document.getElementById("delivery-phone").value).slice(0, 30);
+            const city = cleanTyped(document.getElementById("delivery-city") && document.getElementById("delivery-city").value).slice(0, 60);
+            const vehicle = cleanTyped(document.getElementById("delivery-vehicle") && document.getElementById("delivery-vehicle").value);
+            const message = cleanTyped(document.getElementById("delivery-body") && document.getElementById("delivery-body").value).slice(0, 2000);
+            const allowedVehicles = ["motorcycle", "car", "bicycle", "other"];
+
+            if (fullName.length < 2) {
+                setFormStatus(status, t("enterFullName"), "error");
+                return;
+            }
+
+            if (phone.replace(/\D/g, "").length < 7) {
+                setFormStatus(status, t("partnerPhoneInvalid"), "error");
+                return;
+            }
+
+            if (city.length < 2) {
+                setFormStatus(status, t("partnerCityNeeded"), "error");
+                return;
+            }
+
+            if (!allowedVehicles.includes(vehicle)) {
+                setFormStatus(status, t("deliveryVehicleNeeded"), "error");
+                return;
+            }
+
+            if (message.length < 5) {
+                setFormStatus(status, t("contactMessageShort"), "error");
+                return;
+            }
+
+            if (submit) {
+                submit.disabled = true;
+            }
+            setFormStatus(status, t("deliverySending"), "busy");
+
+            try {
+                await addDoc(collection(db, "deliveryApplications"), {
+                    fullName,
+                    phone,
+                    city,
+                    vehicle,
+                    message,
+                    kind: "delivery",
+                    status: "new",
+                    lang: currentLangCode(),
+                    createdAt: serverTimestamp()
+                });
+                deliveryForm.reset();
+                setFormStatus(status, t("deliverySent"), "success");
+            } catch (error) {
+                console.error(error);
+                setFormStatus(status, t("deliverySendFail"), "error");
             } finally {
                 if (submit) {
                     submit.disabled = false;
